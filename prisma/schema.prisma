@@ -1,0 +1,825 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  name          String?
+  password      String?
+  role          Role            @default(KASIR)
+  phone         String?
+  image         String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  transactions  Transaction[]
+  stockMovements StockMovement[]
+  preOrders     PreOrder[]
+
+  @@index([email])
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  KASIR
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+
+  @@index([name])
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  sku           String    @unique
+  name          String
+  description   String?
+  categoryId    String
+  price         Decimal   @db.Decimal(10, 2)
+  cost          Decimal?  @db.Decimal(10, 2)
+  stock         Int       @default(0)
+  minStock      Int       @default(10)
+  unit          String    @default("pcs")
+  images        String[]
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  category      Category  @relation(fields: [categoryId], references: [id])
+  transactionItems TransactionItem[]
+  stockMovements   StockMovement[]
+  recipe           Recipe?
+  productionOrderItems ProductionOrderItem[]
+  batches          ProductBatch[]
+
+  @@index([sku])
+  @@index([categoryId])
+  @@index([name])
+}
+
+model Customer {
+  id            String        @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  birthDate     DateTime?
+  notes         String?
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transactions  Transaction[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  transactionNo   String            @unique
+  customerId      String?
+  userId          String
+  shiftId         String?
+  subtotal        Decimal           @db.Decimal(10, 2)
+  tax             Decimal           @db.Decimal(10, 2)
+  discount        Decimal           @db.Decimal(10, 2) @default(0)
+  total           Decimal           @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  paymentAmount   Decimal           @db.Decimal(10, 2)
+  changeAmount    Decimal           @db.Decimal(10, 2) @default(0)
+  notes           String?
+  status          TransactionStatus @default(COMPLETED)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  customer        Customer?         @relation(fields: [customerId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
+  shift           Shift?            @relation(fields: [shiftId], references: [id])
+  items           TransactionItem[]
+
+  @@index([transactionNo])
+  @@index([customerId])
+  @@index([userId])
+  @@index([shiftId])
+  @@index([createdAt])
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  DEBIT_CARD
+  CREDIT_CARD
+  EWALLET
+}
+
+enum TransactionStatus {
+  COMPLETED
+  VOID
+  REFUNDED
+}
+
+model TransactionItem {
+  id            String      @id @default(cuid())
+  transactionId String
+  productId     String
+  productName   String
+  quantity      Int
+  price         Decimal     @db.Decimal(10, 2)
+  discount      Decimal     @db.Decimal(10, 2) @default(0)
+  subtotal      Decimal     @db.Decimal(10, 2)
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id])
+
+  @@index([transactionId])
+  @@index([productId])
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  productId   String
+  type        StockMovementType
+  quantity    Int
+  reference   String?
+  reason      String?
+  notes       String?
+  userId      String
+  createdAt   DateTime          @default(now())
+
+  product     Product           @relation(fields: [productId], references: [id])
+  user        User              @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+model Settings {
+  id                String   @id @default(cuid())
+  businessName      String
+  businessAddress   String?
+  businessPhone     String?
+  businessEmail     String?
+  logo              String?
+  taxRate           Decimal  @db.Decimal(5, 2) @default(11)
+  taxIncluded       Boolean  @default(false)
+  currency          String   @default("IDR")
+  receiptHeader     String?
+  receiptFooter     String?
+  lowStockThreshold Int      @default(10)
+  
+  // WhatsApp Integration
+  whatsappEnabled       Boolean  @default(false)
+  whatsappTenantId      String?  @unique
+  whatsappConnected     Boolean  @default(false)
+  whatsappLastConnected DateTime?
+  
+  // Notification Preferences
+  notifyOnTransaction   Boolean  @default(false)
+  notifyOnLowStock      Boolean  @default(true)
+  notifyOnBackup        Boolean  @default(true)
+  notifyDailyReport     Boolean  @default(false)
+  ownerPhone            String?
+  
+  updatedAt         DateTime @updatedAt
+}
+
+model Discount {
+  id          String       @id @default(cuid())
+  name        String
+  code        String?      @unique
+  type        DiscountType
+  value       Decimal      @db.Decimal(10, 2)
+  minPurchase Decimal?     @db.Decimal(10, 2)
+  maxDiscount Decimal?     @db.Decimal(10, 2)
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean      @default(true)
+  usageLimit  Int?
+  usageCount  Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model LoyaltyPoint {
+  id          String   @id @default(cuid())
+  customerId  String   @unique
+  points      Int      @default(0)
+  totalEarned Int      @default(0)
+  totalSpent  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@index([customerId])
+}
+
+model PointHistory {
+  id          String          @id @default(cuid())
+  customerId  String
+  points      Int
+  type        PointActionType
+  reference   String?
+  description String?
+  createdAt   DateTime        @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+enum PointActionType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUSTMENT
+}
+
+model Supplier {
+  id          String     @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  contactName String?
+  notes       String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  purchases   Purchase[]
+
+  @@index([name])
+}
+
+model Purchase {
+  id            String         @id @default(cuid())
+  purchaseNo    String         @unique
+  supplierId    String
+  userId        String
+  subtotal      Decimal        @db.Decimal(10, 2)
+  tax           Decimal        @db.Decimal(10, 2) @default(0)
+  discount      Decimal        @db.Decimal(10, 2) @default(0)
+  total         Decimal        @db.Decimal(10, 2)
+  paymentStatus PaymentStatus  @default(UNPAID)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  items         PurchaseItem[]
+
+  @@index([purchaseNo])
+  @@index([supplierId])
+  @@index([createdAt])
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  productId   String
+  productName String
+  quantity    Int
+  price       Decimal  @db.Decimal(10, 2)
+  subtotal    Decimal  @db.Decimal(10, 2)
+
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+enum PaymentStatus {
+  PAID
+  UNPAID
+  PARTIAL
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  data      String?
+  isRead    Boolean          @default(false)
+  userId    String?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  LOW_STOCK
+  OUT_OF_STOCK
+  NEW_ORDER
+  SYSTEM
+}
+
+model Expense {
+  id            String        @id @default(cuid())
+  category      ExpenseCategory
+  amount        Decimal       @db.Decimal(10, 2)
+  date          DateTime      @default(now())
+  description   String
+  paymentMethod PaymentMethod
+  reference     String?
+  notes         String?
+  attachments   String[]
+  userId        String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([category])
+  @@index([date])
+  @@index([userId])
+}
+
+enum ExpenseCategory {
+  SALARY          // Gaji
+  UTILITIES       // Utilitas (listrik, air, internet)
+  RAW_MATERIALS   // Bahan Baku
+  SUPPLIES        // Perlengkapan
+  RENT            // Sewa
+  MAINTENANCE     // Perawatan & Perbaikan
+  MARKETING       // Marketing & Promosi
+  TRANSPORTATION  // Transportasi
+  TAX_FEE         // Pajak & Administrasi
+  OTHER           // Lain-lain
+}
+
+model RawMaterial {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String?  @unique
+  unit        String   @default("kg")
+  stock       Decimal  @db.Decimal(10, 3) @default(0)
+  minStock    Decimal  @db.Decimal(10, 3) @default(1)
+  cost        Decimal  @db.Decimal(10, 2) @default(0)
+  supplier    String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  
+  // Expiry Tracking
+  expiryDate      DateTime?
+  manufactureDate DateTime?
+  batchNumber     String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  recipes     RecipeIngredient[]
+  productionMaterials ProductionMaterial[]
+
+  @@index([name])
+  @@index([sku])
+  @@index([expiryDate])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  productId   String   @unique
+  notes       String?
+  yield       Decimal  @db.Decimal(10, 3) @default(1)
+  yieldUnit   String   @default("pcs")
+  prepTime    Int?
+  cookTime    Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+
+  @@index([productId])
+}
+
+model RecipeIngredient {
+  id            String      @id @default(cuid())
+  recipeId      String
+  materialId    String
+  quantity      Decimal     @db.Decimal(10, 3)
+  unit          String
+  notes         String?
+  createdAt     DateTime    @default(now())
+
+  recipe        Recipe      @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  material      RawMaterial @relation(fields: [materialId], references: [id])
+
+  @@index([recipeId])
+  @@index([materialId])
+}
+
+model ProductionOrder {
+  id              String              @id @default(cuid())
+  orderNo         String              @unique
+  status          ProductionStatus    @default(PLANNED)
+  scheduledDate   DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  totalCost       Decimal             @db.Decimal(10, 2) @default(0)
+  notes           String?
+  userId          String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  items           ProductionOrderItem[]
+  materials       ProductionMaterial[]
+
+  @@index([orderNo])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([userId])
+}
+
+enum ProductionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ProductionOrderItem {
+  id              String         @id @default(cuid())
+  productionId    String
+  productId       String
+  productName     String
+  targetQuantity  Int
+  producedQuantity Int           @default(0)
+  wasteQuantity   Int            @default(0)
+  notes           String?
+
+  production      ProductionOrder @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+
+  @@index([productionId])
+  @@index([productId])
+}
+
+model ProductionMaterial {
+  id              String         @id @default(cuid())
+  productionId    String
+  materialId      String
+  materialName    String
+  quantity        Decimal        @db.Decimal(10, 3)
+  unit            String
+  cost            Decimal        @db.Decimal(10, 2)
+
+  production      ProductionOrder @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  material        RawMaterial     @relation(fields: [materialId], references: [id])
+
+  @@index([productionId])
+  @@index([materialId])
+}
+
+// ===== Phase 5A: Expiry Date Tracking =====
+model ProductBatch {
+  id              String    @id @default(cuid())
+  productId       String
+  batchNo         String    @unique
+  quantity        Int
+  remainingQty    Int
+  manufactureDate DateTime
+  expiryDate      DateTime
+  cost            Decimal   @db.Decimal(10, 2)
+  supplier        String?
+  notes           String?
+  discountRate    Decimal   @db.Decimal(5, 2) @default(0)  // Auto-discount percentage
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([expiryDate])
+  @@index([batchNo])
+}
+
+// ===== Phase 5B: Shift Management =====
+model Shift {
+  id              String        @id @default(cuid())
+  shiftNo         String        @unique
+  userId          String
+  storeId         String?
+  openedAt        DateTime      @default(now())
+  closedAt        DateTime?
+  status          ShiftStatus   @default(OPEN)
+  openingBalance  Decimal       @db.Decimal(10, 2)
+  closingBalance  Decimal?      @db.Decimal(10, 2)
+  actualCash      Decimal?      @db.Decimal(10, 2)
+  variance        Decimal?      @db.Decimal(10, 2)
+  totalSales      Decimal       @db.Decimal(10, 2) @default(0)
+  totalCash       Decimal       @db.Decimal(10, 2) @default(0)
+  totalTransfer   Decimal       @db.Decimal(10, 2) @default(0)
+  totalQris       Decimal       @db.Decimal(10, 2) @default(0)
+  totalCard       Decimal       @db.Decimal(10, 2) @default(0)
+  transactionCount Int          @default(0)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  transactions    Transaction[]
+  store           Store?        @relation(fields: [storeId], references: [id])
+
+  @@index([shiftNo])
+  @@index([userId])
+  @@index([storeId])
+  @@index([status])
+  @@index([openedAt])
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+// ===== Phase 5C: Return/Refund Management =====
+model Return {
+  id              String        @id @default(cuid())
+  returnNo        String        @unique
+  transactionId   String
+  transactionNo   String
+  customerId      String?
+  userId          String
+  reason          String
+  status          ReturnStatus  @default(PENDING)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  refundAmount    Decimal       @db.Decimal(10, 2)
+  refundMethod    PaymentMethod
+  approvedBy      String?
+  approvedAt      DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items           ReturnItem[]
+
+  @@index([returnNo])
+  @@index([transactionId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+model ReturnItem {
+  id              String    @id @default(cuid())
+  returnId        String
+  productId       String
+  productName     String
+  quantity        Int
+  price           Decimal   @db.Decimal(10, 2)
+  subtotal        Decimal   @db.Decimal(10, 2)
+  returnToStock   Boolean   @default(true)
+  condition       String?   // GOOD, DAMAGED, EXPIRED
+
+  return          Return    @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([productId])
+}
+
+// ===== Phase 5D: Detailed Stock Opname =====
+model StockOpname {
+  id              String            @id @default(cuid())
+  opnameNo        String            @unique
+  scheduledDate   DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  status          OpnameStatus      @default(SCHEDULED)
+  storeId         String?
+  countedBy       String?
+  verifiedBy      String?
+  totalItems      Int               @default(0)
+  totalVariance   Int               @default(0)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  items           StockOpnameItem[]
+  store           Store?            @relation(fields: [storeId], references: [id])
+
+  @@index([opnameNo])
+  @@index([status])
+  @@index([storeId])
+  @@index([scheduledDate])
+}
+
+enum OpnameStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model StockOpnameItem {
+  id              String        @id @default(cuid())
+  opnameId        String
+  productId       String
+  productName     String
+  systemStock     Int
+  countedStock    Int           @default(0)
+  variance        Int           @default(0)
+  reason          String?
+  condition       String?       // GOOD, DAMAGED, EXPIRED
+  adjusted        Boolean       @default(false)
+  notes           String?
+
+  opname          StockOpname   @relation(fields: [opnameId], references: [id], onDelete: Cascade)
+
+  @@index([opnameId])
+  @@index([productId])
+}
+
+// ===== Phase 5E: Multi-Store Support =====
+model Store {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  address         String?
+  phone           String?
+  email           String?
+  manager         String?
+  isActive        Boolean   @default(true)
+  isMainStore     Boolean   @default(false)
+  settings        String?   // JSON for store-specific settings
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  shifts          Shift[]
+  stockOpnames    StockOpname[]
+  storeInventory  StoreInventory[]
+  transfersFrom   StoreTransfer[] @relation("TransferFrom")
+  transfersTo     StoreTransfer[] @relation("TransferTo")
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model StoreInventory {
+  id              String    @id @default(cuid())
+  storeId         String
+  productId       String
+  stock           Int       @default(0)
+  minStock        Int       @default(10)
+  maxStock        Int?
+  updatedAt       DateTime  @updatedAt
+
+  store           Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, productId])
+  @@index([storeId])
+  @@index([productId])
+}
+
+model StoreTransfer {
+  id              String            @id @default(cuid())
+  transferNo      String            @unique
+  fromStoreId     String
+  toStoreId       String
+  status          TransferStatus    @default(PENDING)
+  requestedBy     String
+  approvedBy      String?
+  receivedBy      String?
+  requestedAt     DateTime          @default(now())
+  approvedAt      DateTime?
+  receivedAt      DateTime?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  items           StoreTransferItem[]
+  fromStore       Store             @relation("TransferFrom", fields: [fromStoreId], references: [id])
+  toStore         Store             @relation("TransferTo", fields: [toStoreId], references: [id])
+
+  @@index([transferNo])
+  @@index([fromStoreId])
+  @@index([toStoreId])
+  @@index([status])
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+}
+
+model StoreTransferItem {
+  id              String        @id @default(cuid())
+  transferId      String
+  productId       String
+  productName     String
+  quantity        Int
+  receivedQty     Int           @default(0)
+  notes           String?
+
+  transfer        StoreTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([productId])
+}
+
+// ============================================
+// PRE-ORDER SYSTEM
+// ============================================
+
+model PreOrder {
+  id              String          @id @default(cuid())
+  orderNo         String          @unique
+  customerName    String
+  customerPhone   String
+  customerAddress String?
+
+  // Produk custom
+  productName     String
+  description     String?
+  quantity        Int             @default(1)
+  unitPrice       Decimal         @db.Decimal(10, 2)
+  totalPrice      Decimal         @db.Decimal(10, 2)
+  notes           String?
+  referenceImages String[]
+
+  // Pembayaran DP
+  dpAmount        Decimal         @db.Decimal(10, 2) @default(0)
+  dpMethod        PaymentMethod?
+  dpPaidAt        DateTime?
+
+  // Pelunasan
+  remainingAmount Decimal         @db.Decimal(10, 2) @default(0)
+  finalPayMethod  PaymentMethod?
+  finalPaidAt     DateTime?
+
+  // Jadwal ambil/delivery
+  pickupDate      DateTime
+  deliveryType    DeliveryType    @default(PICKUP)
+
+  // Status
+  status          PreOrderStatus  @default(PENDING)
+  cancelReason    String?
+
+  // Relasi
+  createdBy       String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  createdByUser   User            @relation(fields: [createdBy], references: [id])
+
+  @@index([orderNo])
+  @@index([customerPhone])
+  @@index([status])
+  @@index([pickupDate])
+  @@index([createdAt])
+}
+
+enum PreOrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PRODUCTION
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryType {
+  PICKUP
+  DELIVERY
+}

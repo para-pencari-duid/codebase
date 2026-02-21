@@ -1,0 +1,39 @@
+import { format } from "date-fns";
+import db from "@/lib/db";
+import { ProductClient } from "./components/client";
+import { ProductColumn } from "./components/columns";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export default async function ProductsPage() {
+    const session = await auth();
+    if (!session) redirect("/login");
+
+    const products = await db.product.findMany({
+        include: {
+            category: true
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    });
+
+    const formattedProducts: ProductColumn[] = products.map((item) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        category: item.category.name,
+        price: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(item.price.toNumber()),
+        stock: item.stock,
+        isActive: item.isActive,
+        createdAt: format(item.createdAt, "MMMM do, yyyy"),
+    }));
+
+    return (
+        <div className="flex-col">
+            <div className="flex-1 space-y-4 p-8 pt-6">
+                <ProductClient data={formattedProducts} />
+            </div>
+        </div>
+    );
+}

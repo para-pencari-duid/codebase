@@ -1,0 +1,110 @@
+import { auth } from "@/lib/auth";
+import db from "@/lib/db";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const settingsSchema = z.object({
+    businessName: z.string().min(1),
+    businessAddress: z.string().optional().nullable(),
+    businessPhone: z.string().optional().nullable(),
+    businessEmail: z.string().optional().nullable(),
+    logo: z.string().optional().nullable(),
+    taxRate: z.coerce.number().min(0).max(100),
+    taxIncluded: z.boolean().default(false),
+    currency: z.string().default("IDR"),
+    receiptHeader: z.string().optional().nullable(),
+    receiptFooter: z.string().optional().nullable(),
+});
+
+const whatsappSettingsSchema = z.object({
+    ownerPhone: z.string().optional().nullable(),
+    notifyOnTransaction: z.boolean().optional(),
+    notifyOnLowStock: z.boolean().optional(),
+    notifyOnBackup: z.boolean().optional(),
+    notifyDailyReport: z.boolean().optional(),
+});
+
+export const runtime = "nodejs";
+
+export async function GET() {
+    try {
+        const session = await auth();
+        if (!session) return new NextResponse("Unauthorized", { status: 401 });
+
+        let settings = await db.settings.findFirst();
+
+        if (!settings) {
+            settings = await db.settings.create({
+                data: {
+                    businessName: "Toko Roti Bahagia",
+                    taxRate: 11,
+                },
+            });
+        }
+
+        return NextResponse.json(settings);
+    } catch (error) {
+        console.log("[SETTINGS_GET]", error);
+        return new NextResponse("Internal Error", { status: 500 });
+    }
+}
+
+export async function PUT(req: Request) {
+    try {
+        const session = await auth();
+        if (!session) return new NextResponse("Unauthorized", { status: 401 });
+
+        const body = await req.json();
+        const validatedData = settingsSchema.parse(body);
+
+        let settings = await db.settings.findFirst();
+
+        if (settings) {
+            settings = await db.settings.update({
+                where: { id: settings.id },
+                data: validatedData,
+            });
+        } else {
+            settings = await db.settings.create({
+                data: validatedData,
+            });
+        }
+
+        return NextResponse.json(settings);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return new NextResponse("Invalid request data", { status: 422 });
+        }
+        console.log("[SETTINGS_PUT]", error);
+        return new NextResponse("Internal Error", { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        const session = await auth();
+        if (!session) return new NextResponse("Unauthorized", { status: 401 });
+
+        const body = await req.json();
+        const validatedData = whatsappSettingsSchema.parse(body);
+
+        let settings = await db.settings.findFirst();
+
+        if (!settings) {
+            return new NextResponse("Settings not found", { status: 404 });
+        }
+
+        settings = await db.settings.update({
+            where: { id: settings.id },
+            data: validatedData,
+        });
+
+        return NextResponse.json(settings);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return new NextResponse("Invalid request data", { status: 422 });
+        }
+        console.log("[SETTINGS_PATCH]", error);
+        return new NextResponse("Internal Error", { status: 500 });
+    }
+}
