@@ -110,7 +110,7 @@ export default function SupplierForm({ initialData, onSuccess }: SupplierFormPro
             <FormItem>
               <FormLabel>Nama Supplier *</FormLabel>
               <FormControl>
-                <Input placeholder="PT. Supplier Roti" {...field} />
+                <Input placeholder="PT. Supplier Utama" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

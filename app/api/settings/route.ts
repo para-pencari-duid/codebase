@@ -14,6 +14,23 @@ const settingsSchema = z.object({
     currency: z.string().default("IDR"),
     receiptHeader: z.string().optional().nullable(),
     receiptFooter: z.string().optional().nullable(),
+    // QRIS
+    qrisString: z.string().optional().nullable(),
+    // Loyalty
+    loyaltyEnabled: z.boolean().optional(),
+    loyaltyPointsPerRupiah: z.coerce.number().int().min(1).optional(),
+    loyaltyPointValue: z.coerce.number().int().min(1).optional(),
+    // Tier 3-6 feature flags
+    tierPricingEnabled: z.boolean().optional(),
+    consignmentEnabled: z.boolean().optional(),
+    serialTrackEnabled: z.boolean().optional(),
+    accountingEnabled: z.boolean().optional(),
+    bankReconEnabled: z.boolean().optional(),
+    payrollEnabled: z.boolean().optional(),
+    marketingEnabled: z.boolean().optional(),
+    feedbackEnabled: z.boolean().optional(),
+    onlineOrderEnabled: z.boolean().optional(),
+    webhooksEnabled: z.boolean().optional(),
 });
 
 const whatsappSettingsSchema = z.object({
@@ -31,12 +48,15 @@ export async function GET() {
         const session = await auth();
         if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
-        let settings = await db.settings.findFirst();
+        const tenantId = session.user.tenantId!;
+
+        let settings = await db.settings.findFirst({ where: { tenantId } });
 
         if (!settings) {
             settings = await db.settings.create({
                 data: {
-                    businessName: "Toko Roti Bahagia",
+                    tenantId,
+                    businessName: "Usaha Saya",
                     taxRate: 11,
                 },
             });
@@ -57,16 +77,18 @@ export async function PUT(req: Request) {
         const body = await req.json();
         const validatedData = settingsSchema.parse(body);
 
-        let settings = await db.settings.findFirst();
+        const tenantId = session.user.tenantId!;
+
+        let settings = await db.settings.findFirst({ where: { tenantId } });
 
         if (settings) {
             settings = await db.settings.update({
-                where: { id: settings.id },
+                where: { tenantId },
                 data: validatedData,
             });
         } else {
             settings = await db.settings.create({
-                data: validatedData,
+                data: { ...validatedData, tenantId },
             });
         }
 
@@ -88,14 +110,16 @@ export async function PATCH(req: Request) {
         const body = await req.json();
         const validatedData = whatsappSettingsSchema.parse(body);
 
-        let settings = await db.settings.findFirst();
+        const tenantId = session.user.tenantId!;
+
+        let settings = await db.settings.findFirst({ where: { tenantId } });
 
         if (!settings) {
             return new NextResponse("Settings not found", { status: 404 });
         }
 
         settings = await db.settings.update({
-            where: { id: settings.id },
+            where: { tenantId },
             data: validatedData,
         });
 

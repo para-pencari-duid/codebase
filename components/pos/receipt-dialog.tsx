@@ -13,6 +13,7 @@ interface ReceiptItem {
     price: number;
     discount: number;
     subtotal: number;
+    modifiers?: Array<{ groupName: string; optionName: string; price: number }>;
 }
 
 interface ReceiptData {
@@ -23,11 +24,22 @@ interface ReceiptData {
     items: ReceiptItem[];
     subtotal: number;
     tax: number;
+    taxRate: number;
+    taxIncluded: boolean;
     discount: number;
     total: number;
     paymentMethod: string;
     paymentAmount: number;
     changeAmount: number;
+    pointsEarned?: number;
+    pointsRedeemed?: number;
+    pointsRedemptionAmount?: number;
+    // Business info — from tenant settings (real data)
+    businessName: string;
+    businessAddress?: string | null;
+    businessPhone?: string | null;
+    receiptHeader?: string | null;
+    receiptFooter?: string | null;
 }
 
 interface ReceiptDialogProps {
@@ -87,9 +99,10 @@ export function ReceiptDialog({ open, onOpenChange, data }: ReceiptDialogProps) 
 
                 <div ref={receiptRef} className="font-mono text-xs space-y-2 bg-white p-4 rounded border">
                     <div className="text-center space-y-1">
-                        <p className="font-bold text-sm">TOKO ROTI BAHAGIA</p>
-                        <p>Jl. Mawar No. 123, Jakarta</p>
-                        <p>Telp: 021-12345678</p>
+                        {data.receiptHeader && <p className="text-xs text-muted-foreground">{data.receiptHeader}</p>}
+                        <p className="font-bold text-sm">{data.businessName.toUpperCase()}</p>
+                        {data.businessAddress && <p>{data.businessAddress}</p>}
+                        {data.businessPhone && <p>Telp: {data.businessPhone}</p>}
                     </div>
 
                     <div className="border-t border-dashed border-gray-400 my-2" />
@@ -110,6 +123,16 @@ export function ReceiptDialog({ open, onOpenChange, data }: ReceiptDialogProps) 
                                     <span>{item.quantity}x {item.productName}</span>
                                     <span>{formatCurrency(item.subtotal)}</span>
                                 </div>
+                                {item.modifiers && item.modifiers.length > 0 && (
+                                    <div className="pl-4 text-gray-500">
+                                        {item.modifiers.map((mod, j) => (
+                                            <div key={j} className="flex justify-between">
+                                                <span>+ {mod.optionName}</span>
+                                                {mod.price > 0 && <span>+{formatCurrency(mod.price)}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 {item.discount > 0 && (
                                     <div className="flex justify-between text-gray-500 pl-4">
                                         <span>Diskon</span>
@@ -127,16 +150,24 @@ export function ReceiptDialog({ open, onOpenChange, data }: ReceiptDialogProps) 
                             <span>Subtotal</span>
                             <span>{formatCurrency(data.subtotal)}</span>
                         </div>
-                        <div className="flex justify-between">
-                            <span>Pajak (11%)</span>
-                            <span>{formatCurrency(data.tax)}</span>
-                        </div>
+                        {data.taxIncluded && data.tax > 0 && (
+                            <div className="flex justify-between">
+                                <span>Pajak ({data.taxRate}%)</span>
+                                <span>{formatCurrency(data.tax)}</span>
+                            </div>
+                        )}
                         {data.discount > 0 && (
                             <div className="flex justify-between">
                                 <span>Diskon</span>
                                 <span>-{formatCurrency(data.discount)}</span>
                             </div>
                         )}
+                        {data.pointsRedemptionAmount && data.pointsRedemptionAmount > 0 ? (
+                            <div className="flex justify-between">
+                                <span>Poin ({data.pointsRedeemed} poin)</span>
+                                <span>-{formatCurrency(data.pointsRedemptionAmount)}</span>
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="border-t border-dashed border-gray-400 my-2" />
@@ -159,11 +190,21 @@ export function ReceiptDialog({ open, onOpenChange, data }: ReceiptDialogProps) 
                         )}
                     </div>
 
+                    {data.pointsEarned && data.pointsEarned > 0 ? (
+                        <>
+                            <div className="border-t border-dashed border-gray-400 my-2" />
+                            <div className="text-center text-xs space-y-0.5">
+                                <p className="font-semibold">🎁 Poin Loyalty</p>
+                                <p>+{data.pointsEarned} poin dari transaksi ini</p>
+                            </div>
+                        </>
+                    ) : null}
+
                     <div className="border-t border-dashed border-gray-400 my-2" />
 
                     <div className="text-center space-y-1">
                         <p>Terima kasih atas kunjungan Anda!</p>
-                        <p>Follow IG: @tokoroti</p>
+                        {data.receiptFooter && <p>{data.receiptFooter}</p>}
                     </div>
                 </div>
 

@@ -24,10 +24,8 @@ export async function PUT(
         const body = await req.json();
         const validatedData = categorySchema.parse(body);
 
-        const category = await db.category.update({
-            where: {
-                id,
-            },
+        const category = await db.itemCategory.update({
+            where: { id },
             data: validatedData,
         });
 
@@ -52,19 +50,17 @@ export async function DELETE(
 
         const { id } = await params;
 
-        // Check if category has products
-        const productCount = await db.product.count({
+        // Check if category has items
+        const itemCount = await db.item.count({
             where: { categoryId: id },
         });
 
-        if (productCount > 0) {
+        if (itemCount > 0) {
             return new NextResponse("Kategori tidak bisa dihapus karena masih digunakan produk", { status: 400 });
         }
 
-        await db.category.delete({
-            where: {
-                id,
-            },
+        await db.itemCategory.delete({
+            where: { id },
         });
 
         return NextResponse.json("Category deleted");

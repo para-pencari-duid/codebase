@@ -6,7 +6,7 @@ import { z } from "zod";
 export const runtime = "nodejs";
 
 const adjustmentSchema = z.object({
-    productId: z.string().min(1),
+    variantId: z.string().min(1),
     type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
     quantity: z.number().int(),
     reason: z.string().min(1, "Alasan wajib diisi"),
@@ -19,20 +19,20 @@ export async function GET(req: Request) {
         if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
         const { searchParams } = new URL(req.url);
-        const productId = searchParams.get("productId");
+        const variantId = searchParams.get("variantId");
         const type = searchParams.get("type");
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "50");
 
         const where: any = {};
-        if (productId) where.productId = productId;
+        if (variantId) where.variantId = variantId;
         if (type) where.type = type;
 
         const [movements, total] = await Promise.all([
             db.stockMovement.findMany({
                 where,
                 include: {
-                    product: { select: { id: true, name: true, sku: true } },
+                    variant: { include: { item: { select: { id: true, name: true, sku: true } } } },
                     user: { select: { id: true, name: true } },
                 },
                 orderBy: { createdAt: "desc" },
@@ -57,11 +57,13 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = adjustmentSchema.parse(body);
 
-        const product = await db.product.findUnique({
-            where: { id: validatedData.productId },
+        const tenantId = session.user.tenantId!;
+
+        const variant = await db.itemVariant.findUnique({
+            where: { id: validatedData.variantId },
         });
 
-        if (!product) {
+        if (!variant) {
             return new NextResponse("Produk tidak ditemukan", { status: 404 });
         }
 
@@ -70,17 +72,18 @@ export async function POST(req: Request) {
             stockChange = -Math.abs(validatedData.quantity);
         } else if (validatedData.type === "ADJUSTMENT") {
             // For adjustment, quantity is the new stock value
-            stockChange = validatedData.quantity - product.stock;
+            stockChange = validatedData.quantity - variant.stock;
         }
 
-        if (product.stock + stockChange < 0) {
+        if (variant.stock + stockChange < 0) {
             return new NextResponse("Stok tidak mencukupi", { status: 400 });
         }
 
         const result = await db.$transaction(async (prisma) => {
             const movement = await prisma.stockMovement.create({
                 data: {
-                    productId: validatedData.productId,
+                    tenantId,
+                    variantId: validatedData.variantId,
                     type: validatedData.type,
                     quantity: Math.abs(stockChange),
                     reason: validatedData.reason,
@@ -89,8 +92,8 @@ export async function POST(req: Request) {
                 },
             });
 
-            await prisma.product.update({
-                where: { id: validatedData.productId },
+            await prisma.itemVariant.update({
+                where: { id: validatedData.variantId },
                 data: { stock: { increment: stockChange } },
             });
 

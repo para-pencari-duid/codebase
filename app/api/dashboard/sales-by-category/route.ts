@@ -17,15 +17,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const tenantId = session.user.tenantId!;
+
     const { searchParams } = new URL(req.url);
     const range = (searchParams.get("range") as DateRangeOption) || "month";
 
     const dateRange = getDateRange(range);
 
-    // Get all transaction items in range with category info
+    // Get all transaction items in range with category info via variant → item → category
     const items = await prisma.transactionItem.findMany({
       where: {
         transaction: {
+          tenantId,
           createdAt: {
             gte: dateRange.from,
             lte: dateRange.to,
@@ -34,9 +37,13 @@ export async function GET(req: Request) {
         },
       },
       include: {
-        product: {
+        variant: {
           include: {
-            category: true,
+            item: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
         transaction: true,
@@ -55,8 +62,8 @@ export async function GET(req: Request) {
     >();
 
     items.forEach((item) => {
-      const categoryName = item.product?.category?.name || "Uncategorized";
-      const categoryId = item.product?.category?.id || "uncategorized";
+      const categoryName = item.variant?.item?.category?.name || "Uncategorized";
+      const categoryId = item.variant?.item?.category?.id || "uncategorized";
       const revenue = Number(item.subtotal);
       const transactionId = item.transactionId;
 
@@ -70,7 +77,7 @@ export async function GET(req: Request) {
           category: categoryName,
           revenue,
           transactions: new Set([transactionId]),
-          color: item.product?.category?.color || undefined,
+          color: item.variant?.item?.category?.color || undefined,
         });
       }
     });

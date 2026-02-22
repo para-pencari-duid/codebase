@@ -10,12 +10,13 @@ export default async function CustomerPage({
 }) {
     const session = await auth();
     if (!session?.user) redirect("/login");
+    const tenantId = session.user.tenantId;
 
     const { customerId } = await params;
     const customer = customerId === "new"
         ? null
-        : await db.customer.findUnique({
-            where: { id: customerId },
+        : await db.customer.findFirst({
+            where: { id: customerId, tenantId },
         });
 
     return (

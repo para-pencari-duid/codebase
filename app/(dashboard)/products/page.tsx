@@ -8,10 +8,13 @@ import { redirect } from "next/navigation";
 export default async function ProductsPage() {
     const session = await auth();
     if (!session) redirect("/login");
+    const tenantId = session.user.tenantId;
 
-    const products = await db.product.findMany({
+    const products = await db.item.findMany({
+        where: { type: "GOODS", tenantId },
         include: {
-            category: true
+            category: true,
+            variants: true,
         },
         orderBy: {
             createdAt: 'desc'
@@ -22,9 +25,9 @@ export default async function ProductsPage() {
         id: item.id,
         name: item.name,
         sku: item.sku,
-        category: item.category.name,
-        price: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(item.price.toNumber()),
-        stock: item.stock,
+        category: item.category?.name ?? "-",
+        price: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(Number(item.variants[0]?.price ?? item.basePrice ?? 0)),
+        stock: Number(item.variants[0]?.stock ?? 0),
         isActive: item.isActive,
         createdAt: format(item.createdAt, "MMMM do, yyyy"),
     }));

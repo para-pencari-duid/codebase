@@ -104,9 +104,12 @@ export async function POST(req: Request) {
       returnNo = `RET-${dateStr}-${nextNum}`;
     }
 
+    const tenantId = session.user.tenantId!;
+
     // Create return
     const returnRecord = await prisma.return.create({
       data: {
+        tenantId,
         returnNo,
         transactionId,
         transactionNo: transaction.transactionNo,
@@ -119,8 +122,9 @@ export async function POST(req: Request) {
         refundMethod: refundMethod || transaction.paymentMethod,
         items: {
           create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.productName,
+            variantId: item.variantId || item.productId,
+            itemName: item.itemName || item.productName || "",
+            variantName: item.variantName || "Default",
             quantity: item.quantity,
             price: item.price,
             subtotal: item.price * item.quantity,

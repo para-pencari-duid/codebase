@@ -70,10 +70,12 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = discountSchema.parse(body);
 
+        const tenantId = session.user.tenantId!;
+
         // Check if code already exists
         if (validatedData.code) {
-            const existing = await db.discount.findUnique({
-                where: { code: validatedData.code },
+            const existing = await db.discount.findFirst({
+                where: { tenantId, code: validatedData.code },
             });
             if (existing) {
                 return new NextResponse("Kode diskon sudah digunakan", { status: 400 });
@@ -82,6 +84,7 @@ export async function POST(req: Request) {
 
         const discount = await db.discount.create({
             data: {
+                tenantId,
                 name: validatedData.name,
                 code: validatedData.code || null,
                 type: validatedData.type,

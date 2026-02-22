@@ -59,7 +59,8 @@ export async function GET(req: Request) {
                     paymentBreakdown: Object.entries(
                         transactions.reduce(
                             (acc, t) => {
-                                acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + Number(t.total);
+                                const method = t.paymentMethod || "CASH";
+                                acc[method] = (acc[method] || 0) + Number(t.total);
                                 return acc;
                             },
                             {} as Record<string, number>
@@ -91,8 +92,12 @@ export async function GET(req: Request) {
                         transaction: where,
                     },
                     include: {
-                        product: {
-                            select: { id: true, name: true, sku: true, category: { select: { name: true } } },
+                        variant: {
+                            include: {
+                                item: {
+                                    select: { id: true, name: true, sku: true, category: { select: { name: true } } },
+                                },
+                            },
                         },
                     },
                 });
@@ -110,19 +115,19 @@ export async function GET(req: Request) {
                 > = {};
 
                 for (const item of items) {
-                    const pid = item.productId;
-                    if (!productMap[pid]) {
-                        productMap[pid] = {
-                            id: pid,
-                            name: item.product.name,
-                            sku: item.product.sku,
-                            category: item.product.category.name,
+                    const vid = item.variantId;
+                    if (!productMap[vid]) {
+                        productMap[vid] = {
+                            id: vid,
+                            name: item.variant?.item?.name || item.itemName,
+                            sku: item.variant?.item?.sku || "",
+                            category: item.variant?.item?.category?.name || "Uncategorized",
                             quantitySold: 0,
                             revenue: 0,
                         };
                     }
-                    productMap[pid].quantitySold += item.quantity;
-                    productMap[pid].revenue += Number(item.subtotal);
+                    productMap[vid].quantitySold += item.quantity;
+                    productMap[vid].revenue += Number(item.subtotal);
                 }
 
                 const products = Object.values(productMap).sort(
@@ -184,29 +189,29 @@ export async function GET(req: Request) {
             }
 
             case "stock": {
-                const products = await db.product.findMany({
-                    where: { isActive: true },
+                const variants = await db.itemVariant.findMany({
+                    where: { item: { type: "GOODS", isActive: true } },
                     include: {
-                        category: { select: { name: true } },
+                        item: { include: { category: true } },
                     },
                     orderBy: { stock: "asc" },
                 });
 
-                const stockData = products.map((p) => ({
-                    id: p.id,
-                    name: p.name,
-                    sku: p.sku,
-                    category: p.category.name,
-                    stock: p.stock,
-                    minStock: p.minStock,
-                    unit: p.unit,
-                    cost: Number(p.cost || 0),
-                    price: Number(p.price),
-                    stockValue: p.stock * Number(p.cost || 0),
+                const stockData = variants.map((v) => ({
+                    id: v.id,
+                    name: v.item.name,
+                    sku: v.sku,
+                    category: v.item.category?.name || "Uncategorized",
+                    stock: v.stock,
+                    minStock: v.minStock,
+                    unit: v.item.unit,
+                    cost: Number(v.cost || 0),
+                    price: Number(v.price),
+                    stockValue: v.stock * Number(v.cost || 0),
                     status:
-                        p.stock === 0
+                        v.stock === 0
                             ? "OUT_OF_STOCK"
-                            : p.stock <= p.minStock
+                            : v.stock <= v.minStock
                               ? "LOW_STOCK"
                               : "OK",
                 }));

@@ -5,13 +5,13 @@ import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { sendWhatsAppNotification } from "@/lib/whatsapp";
 
-function generateOrderNo(): string {
+function generateTicketNo(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   const random = Math.floor(Math.random() * 9000) + 1000;
-  return `PRE-${year}${month}${day}-${random}`;
+  return `TKT-${year}${month}${day}-${random}`;
 }
 
 // GET /api/pre-orders
@@ -32,15 +32,18 @@ export async function GET(req: NextRequest) {
     if (status && status !== "ALL") where.status = status;
     if (search) {
       where.OR = [
-        { orderNo: { contains: search, mode: "insensitive" } },
+        { ticketNo: { contains: search, mode: "insensitive" } },
         { customerName: { contains: search, mode: "insensitive" } },
         { customerPhone: { contains: search, mode: "insensitive" } },
-        { productName: { contains: search, mode: "insensitive" } },
+        { title: { contains: search, mode: "insensitive" } },
       ];
     }
 
+    const tenantId = session.user.tenantId!;
+    where.tenantId = tenantId;
+
     const [orders, total] = await Promise.all([
-      prisma.preOrder.findMany({
+      prisma.jobTicket.findMany({
         where,
         include: {
           createdByUser: {
@@ -51,7 +54,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.preOrder.count({ where }),
+      prisma.jobTicket.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -61,7 +64,7 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
-    console.error("Error fetching pre-orders:", error);
+    console.error("Error fetching job tickets:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -99,27 +102,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const tenantId = session.user.tenantId!;
+
     const qty = parseInt(quantity) || 1;
     const price = parseFloat(unitPrice);
     const total = price * qty;
     const dp = parseFloat(dpAmount) || 0;
     const remaining = total - dp;
 
-    // Generate nomor order
-    let orderNo = generateOrderNo();
-    // Pastikan unik
-    const existing = await prisma.preOrder.findUnique({ where: { orderNo } });
+    // Generate nomor tiket
+    let ticketNo = generateTicketNo();
+    const existing = await prisma.jobTicket.findFirst({ where: { ticketNo, tenantId } });
     if (existing) {
-      orderNo = generateOrderNo(); // retry sekali
+      ticketNo = generateTicketNo();
     }
 
-    const preOrder = await prisma.preOrder.create({
+    const jobTicket = await prisma.jobTicket.create({
       data: {
-        orderNo,
+        tenantId,
+        ticketNo,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerAddress: customerAddress?.trim() || null,
-        productName: productName.trim(),
+        title: productName.trim(),
         description: description?.trim() || null,
         quantity: qty,
         unitPrice: price,
@@ -130,7 +135,7 @@ export async function POST(req: NextRequest) {
         dpMethod: dp > 0 ? dpMethod : null,
         dpPaidAt: dp > 0 ? new Date() : null,
         remainingAmount: remaining,
-        pickupDate: new Date(pickupDate),
+        dueDate: new Date(pickupDate),
         deliveryType: deliveryType || "PICKUP",
         status: "CONFIRMED",
         createdBy: session.user.id,
@@ -144,34 +149,35 @@ export async function POST(req: NextRequest) {
 
     // Kirim WhatsApp konfirmasi ke customer
     try {
-      const settings = await prisma.settings.findFirst();
+      const settings = await prisma.settings.findFirst({ where: { tenantId } });
       if (settings?.whatsappEnabled && customerPhone) {
         await sendWhatsAppNotification(
           customerPhone,
           "preorder_confirm",
           createPreOrderConfirmMessage({
-            orderNo: preOrder.orderNo,
-            customerName: preOrder.customerName,
-            productName: preOrder.productName,
-            description: preOrder.description || "",
-            quantity: preOrder.quantity,
-            totalPrice: Number(preOrder.totalPrice),
-            dpAmount: Number(preOrder.dpAmount),
-            remainingAmount: Number(preOrder.remainingAmount),
-            pickupDate: preOrder.pickupDate,
-            deliveryType: preOrder.deliveryType,
-            businessName: settings.businessName || "Toko Roti",
-            businessPhone: settings.phone || "",
-          })
+            orderNo: jobTicket.ticketNo,
+            customerName: jobTicket.customerName,
+            productName: jobTicket.title,
+            description: jobTicket.description || "",
+            quantity: jobTicket.quantity,
+            totalPrice: Number(jobTicket.totalPrice),
+            dpAmount: Number(jobTicket.dpAmount),
+            remainingAmount: Number(jobTicket.remainingAmount),
+            pickupDate: jobTicket.dueDate,
+            deliveryType: jobTicket.deliveryType,
+            businessName: settings.businessName || "Toko",
+            businessPhone: settings.businessPhone || "",
+          }),
+          tenantId
         );
       }
     } catch (waError) {
-      console.error("[PreOrder] WA notification failed (non-blocking):", waError);
+      console.error("[JobTicket] WA notification failed (non-blocking):", waError);
     }
 
-    return NextResponse.json(preOrder, { status: 201 });
+    return NextResponse.json(jobTicket, { status: 201 });
   } catch (error) {
-    console.error("Error creating pre-order:", error);
+    console.error("Error creating job ticket:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

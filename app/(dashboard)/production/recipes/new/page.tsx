@@ -3,13 +3,13 @@ import prisma from "@/lib/db";
 import { RecipeForm } from "@/components/production/recipe-form";
 
 export default async function NewRecipePage() {
-    const products = await prisma.product.findMany({
-        where: { isActive: true },
+    const products = await prisma.item.findMany({
+        where: { type: "GOODS", isActive: true },
         orderBy: { name: "asc" },
     });
 
-    const materials = await prisma.rawMaterial.findMany({
-        where: { isActive: true },
+    const materials = await prisma.item.findMany({
+        where: { type: "RAW_MATERIAL", isActive: true },
         orderBy: { name: "asc" },
     });
 

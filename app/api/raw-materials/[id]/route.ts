@@ -18,22 +18,12 @@ export async function GET(
     }
 
     const { id } = await params;
-    const material = await prisma.rawMaterial.findUnique({
+    const material = await prisma.item.findUnique({
       where: { id },
-      include: {
-        recipes: {
-          include: {
-            recipe: {
-              include: {
-                product: true,
-              },
-            },
-          },
-        },
-      },
+      include: { variants: true },
     });
 
-    if (!material) {
+    if (!material || material.type !== "RAW_MATERIAL") {
       return NextResponse.json(
         { error: "Raw material not found" },
         { status: 404 }
@@ -65,14 +55,14 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, sku, unit, stock, minStock, cost, supplier, notes, isActive } = body;
+    const { name, sku, unit, stock, minStock, cost, isActive } = body;
 
     // Check if material exists
-    const existing = await prisma.rawMaterial.findUnique({
+    const existing = await prisma.item.findUnique({
       where: { id },
     });
 
-    if (!existing) {
+    if (!existing || existing.type !== "RAW_MATERIAL") {
       return NextResponse.json(
         { error: "Raw material not found" },
         { status: 404 }
@@ -81,8 +71,8 @@ export async function PUT(
 
     // Check if SKU is being changed and if it already exists
     if (sku && sku !== existing.sku) {
-      const skuExists = await prisma.rawMaterial.findUnique({
-        where: { sku },
+      const skuExists = await prisma.item.findFirst({
+        where: { sku, tenantId: existing.tenantId },
       });
       if (skuExists) {
         return NextResponse.json(
@@ -92,22 +82,37 @@ export async function PUT(
       }
     }
 
-    const material = await prisma.rawMaterial.update({
+    // Update item
+    const material = await prisma.item.update({
       where: { id },
       data: {
         ...(name && { name }),
-        ...(sku !== undefined && { sku: sku || null }),
+        ...(sku !== undefined && { sku: sku || existing.sku }),
         ...(unit && { unit }),
-        ...(stock !== undefined && { stock: parseFloat(stock) }),
-        ...(minStock !== undefined && { minStock: parseFloat(minStock) }),
-        ...(cost !== undefined && { cost: parseFloat(cost) }),
-        ...(supplier !== undefined && { supplier: supplier || null }),
-        ...(notes !== undefined && { notes: notes || null }),
+        ...(cost !== undefined && { baseCost: parseFloat(cost) }),
         ...(isActive !== undefined && { isActive }),
       },
     });
 
-    return NextResponse.json(material);
+    // Update default variant stock/minStock/cost
+    const variant = await prisma.itemVariant.findFirst({ where: { itemId: id } });
+    if (variant) {
+      await prisma.itemVariant.update({
+        where: { id: variant.id },
+        data: {
+          ...(stock !== undefined && { stock: parseFloat(stock) }),
+          ...(minStock !== undefined && { minStock: parseFloat(minStock) }),
+          ...(cost !== undefined && { cost: parseFloat(cost) }),
+        },
+      });
+    }
+
+    const result = await prisma.item.findUnique({
+      where: { id },
+      include: { variants: true },
+    });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Failed to update raw material:", error);
     return NextResponse.json(
@@ -133,29 +138,30 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if material exists
-    const material = await prisma.rawMaterial.findUnique({
+    const material = await prisma.item.findUnique({
       where: { id },
-      include: {
-        recipes: true,
-      },
     });
 
-    if (!material) {
+    if (!material || material.type !== "RAW_MATERIAL") {
       return NextResponse.json(
         { error: "Raw material not found" },
         { status: 404 }
       );
     }
 
-    // Check if material is used in recipes
-    if (material.recipes.length > 0) {
+    // Check if material is used in any BOM
+    const usageCount = await prisma.bomItem.count({
+      where: { componentItemId: id },
+    });
+
+    if (usageCount > 0) {
       return NextResponse.json(
         { error: "Cannot delete material that is used in recipes" },
         { status: 400 }
       );
     }
 
-    await prisma.rawMaterial.delete({
+    await prisma.item.delete({
       where: { id },
     });
 

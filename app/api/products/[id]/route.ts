@@ -6,7 +6,7 @@ import * as z from "zod";
 const productSchema = z.object({
     name: z.string().min(1),
     sku: z.string().min(1),
-    categoryId: z.string().min(1),
+    categoryId: z.string().optional().nullable(),
     price: z.coerce.number().min(0),
     cost: z.coerce.number().min(0).optional(),
     stock: z.coerce.number().min(0),
@@ -29,16 +29,15 @@ export async function GET(
             return new NextResponse("Product ID is required", { status: 400 });
         }
 
-        const product = await db.product.findUnique({
-            where: {
-                id,
-            },
+        const item = await db.item.findUnique({
+            where: { id },
             include: {
                 category: true,
+                variants: true,
             },
         });
 
-        return NextResponse.json(product);
+        return NextResponse.json(item);
     } catch (error) {
         console.log("[PRODUCT_GET]", error);
         return new NextResponse("Internal error", { status: 500 });
@@ -51,7 +50,6 @@ export async function PUT(
 ) {
     try {
         const session = await auth();
-
         if (!session) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
@@ -64,18 +62,15 @@ export async function PUT(
             return new NextResponse("Product ID is required", { status: 400 });
         }
 
-        const product = await db.product.update({
-            where: {
-                id,
-            },
+        // Update the Item
+        await db.item.update({
+            where: { id },
             data: {
                 name,
                 sku,
-                categoryId,
-                price,
-                cost: cost || 0,
-                stock,
-                minStock: minStock || 0,
+                categoryId: categoryId || null,
+                basePrice: price,
+                baseCost: cost || 0,
                 unit,
                 description,
                 images: images || [],
@@ -83,7 +78,29 @@ export async function PUT(
             },
         });
 
-        return NextResponse.json(product);
+        // Update the default variant
+        const defaultVariant = await db.itemVariant.findFirst({
+            where: { itemId: id },
+        });
+        if (defaultVariant) {
+            await db.itemVariant.update({
+                where: { id: defaultVariant.id },
+                data: {
+                    price,
+                    cost: cost || 0,
+                    stock: stock || 0,
+                    minStock: minStock || 0,
+                    isActive,
+                },
+            });
+        }
+
+        const updatedItem = await db.item.findUnique({
+            where: { id },
+            include: { variants: true, category: true },
+        });
+
+        return NextResponse.json(updatedItem);
     } catch (error) {
         console.log("[PRODUCT_PUT]", error);
         return new NextResponse("Internal error", { status: 500 });
@@ -96,7 +113,6 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-
         if (!session) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
@@ -106,16 +122,12 @@ export async function DELETE(
             return new NextResponse("Product ID is required", { status: 400 });
         }
 
-        const product = await db.product.delete({
-            where: {
-                id,
-            },
+        const item = await db.item.delete({
+            where: { id },
         });
 
-        return NextResponse.json(product);
+        return NextResponse.json(item);
     } catch (error) {
-        // If delete fails (e.g. foreign key constraint), try setting active to false?
-        // But for now, standard delete.
         console.log("[PRODUCT_DELETE]", error);
         return new NextResponse("Internal error", { status: 500 });
     }

@@ -20,7 +20,9 @@ export async function GET(req: Request) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    const where: any = {};
+    const tenantId = session.user.tenantId!;
+
+    const where: any = { tenantId };
 
     if (status) {
       where.status = status;
@@ -39,29 +41,8 @@ export async function GET(req: Request) {
     const productions = await prisma.productionOrder.findMany({
       where,
       include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-                unit: true,
-              },
-            },
-          },
-        },
-        materials: {
-          include: {
-            material: {
-              select: {
-                id: true,
-                name: true,
-                unit: true,
-              },
-            },
-          },
-        },
+        items: true,
+        materials: true,
       },
       orderBy: { scheduledDate: "desc" },
     });
@@ -97,61 +78,100 @@ export async function POST(req: Request) {
       );
     }
 
+    const tenantId = session.user.tenantId!;
+
     // Generate order number
-    const count = await prisma.productionOrder.count();
+    const count = await prisma.productionOrder.count({ where: { tenantId } });
     const orderNo = `PROD-${String(count + 1).padStart(6, "0")}`;
 
-    // Calculate required materials from recipes
-    const materials: { materialId: string; materialName: string; quantity: number; unit: string; cost: number }[] = [];
-    
+    // Calculate required materials from BOM
+    const materialsMap = new Map<string, {
+      variantId: string;
+      materialName: string;
+      quantity: number;
+      unit: string;
+      cost: number;
+    }>();
+
     for (const item of items) {
-      const recipe = await prisma.recipe.findUnique({
-        where: { productId: item.productId },
+      // Look up Item from variant
+      const variant = await prisma.itemVariant.findUnique({
+        where: { id: item.variantId },
+        select: { itemId: true },
+      });
+
+      if (!variant) {
+        return NextResponse.json(
+          { error: `Variant ${item.variantId} not found` },
+          { status: 400 }
+        );
+      }
+
+      const bom = await prisma.billOfMaterial.findUnique({
+        where: { itemId: variant.itemId },
         include: {
-          ingredients: {
+          components: {
             include: {
-              material: true,
+              componentItem: { select: { id: true, name: true, unit: true } },
+              variant: { select: { id: true, cost: true } },
             },
           },
         },
       });
 
-      if (!recipe) {
+      if (!bom) {
         return NextResponse.json(
-          { error: `Recipe not found for product ${item.productId}` },
+          { error: `Bill of Materials not found for item variant ${item.variantId}` },
           { status: 400 }
         );
       }
 
-      // Calculate material quantities based on target quantity and recipe yield
-      const batches = Math.ceil(item.targetQuantity / Number(recipe.yield));
-      
-      for (const ingredient of recipe.ingredients) {
-        const existingMaterial = materials.find(m => m.materialId === ingredient.materialId);
-        const quantity = Number(ingredient.quantity) * batches;
-        const cost = Number(ingredient.material.cost) * quantity;
+      const batches = Math.ceil(item.targetQuantity / Number(bom.yield || 1));
 
-        if (existingMaterial) {
-          existingMaterial.quantity += quantity;
-          existingMaterial.cost += cost;
+      for (const component of bom.components) {
+        // Resolve variant ID for the component
+        let resolvedVariantId: string;
+        let variantCost = 0;
+
+        if (component.variantId && component.variant) {
+          resolvedVariantId = component.variantId;
+          variantCost = Number(component.variant.cost ?? 0);
         } else {
-          materials.push({
-            materialId: ingredient.materialId,
-            materialName: ingredient.material.name,
+          const defaultVariant = await prisma.itemVariant.findFirst({
+            where: { itemId: component.componentItemId, isActive: true },
+            select: { id: true, cost: true },
+          });
+          if (!defaultVariant) continue;
+          resolvedVariantId = defaultVariant.id;
+          variantCost = Number(defaultVariant.cost ?? 0);
+        }
+
+        const quantity = Number(component.quantity) * batches;
+        const cost = variantCost * quantity;
+
+        const existing = materialsMap.get(resolvedVariantId);
+        if (existing) {
+          existing.quantity += quantity;
+          existing.cost += cost;
+        } else {
+          materialsMap.set(resolvedVariantId, {
+            variantId: resolvedVariantId,
+            materialName: component.componentItem.name,
             quantity,
-            unit: ingredient.unit,
+            unit: component.unit,
             cost,
           });
         }
       }
     }
 
-    // Calculate total cost
+    const materials = Array.from(materialsMap.values());
     const totalCost = materials.reduce((sum, m) => sum + m.cost, 0);
 
     // Create production order
     const production = await prisma.productionOrder.create({
       data: {
+        tenantId,
         orderNo,
         scheduledDate: new Date(scheduledDate),
         status: "PLANNED",
@@ -159,18 +179,16 @@ export async function POST(req: Request) {
         totalCost,
         userId: session.user.id,
         items: {
-          create: items.map((item: any) => {
-            // Get product name synchronously since we need it
-            return {
-              productId: item.productId,
-              productName: item.productName || "",
-              targetQuantity: parseInt(item.targetQuantity),
-            };
-          }),
+          create: items.map((item: any) => ({
+            variantId: item.variantId,
+            itemName: item.itemName || "",
+            variantName: item.variantName || "Default",
+            targetQuantity: parseInt(item.targetQuantity),
+          })),
         },
         materials: {
-          create: materials.map(m => ({
-            materialId: m.materialId,
+          create: materials.map((m) => ({
+            variantId: m.variantId,
             materialName: m.materialName,
             quantity: m.quantity,
             unit: m.unit,
@@ -179,16 +197,8 @@ export async function POST(req: Request) {
         },
       },
       include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-        materials: {
-          include: {
-            material: true,
-          },
-        },
+        items: true,
+        materials: true,
       },
     });
 

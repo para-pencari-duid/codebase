@@ -1,17 +1,23 @@
 import db from "@/lib/db";
 import { CategoryForm } from "@/components/products/category-form";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function CategoryPage({
     params
 }: {
     params: Promise<{ categoryId: string }>
 }) {
+    const session = await auth();
+    if (!session) redirect("/login");
+    const tenantId = session.user.tenantId;
+
     const { categoryId } = await params;
-    const category = await db.category.findUnique({
-        where: {
-            id: categoryId
-        }
-    });
+    const category = categoryId === "new"
+        ? null
+        : await db.itemCategory.findFirst({
+            where: { id: categoryId, tenantId }
+        });
 
     return (
         <div className="flex-col">

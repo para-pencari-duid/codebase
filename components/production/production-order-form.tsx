@@ -5,7 +5,9 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Product, Recipe } from "@prisma/client";
+// Local types replacing removed Prisma model exports
+type Recipe = { id: string };
+type Product = { id: string; name: string; sku?: string; recipe?: Recipe | null; };
 import { toast } from "sonner";
 import { Trash, Plus, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";

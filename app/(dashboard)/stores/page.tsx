@@ -290,7 +290,7 @@ export default function StoresPage() {
                 <Label htmlFor="name">Nama Toko *</Label>
                 <Input
                   id="name"
-                  placeholder="Toko Roti Cabang Sudirman"
+                  placeholder="Cabang Sudirman"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })

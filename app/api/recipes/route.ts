@@ -6,7 +6,7 @@ import prisma from "@/lib/db";
 
 /**
  * GET /api/recipes
- * List all recipes with product info
+ * List all bills of material with item info
  */
 export async function GET(req: Request) {
   try {
@@ -16,34 +16,36 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const productId = searchParams.get("productId");
+    const itemId = searchParams.get("productId") || searchParams.get("itemId");
 
-    const where: any = {};
-    if (productId) {
-      where.productId = productId;
+    const tenantId = session.user.tenantId!;
+
+    const where: any = { tenantId };
+    if (itemId) {
+      where.itemId = itemId;
     }
 
-    const recipes = await prisma.recipe.findMany({
+    const recipes = await prisma.billOfMaterial.findMany({
       where,
       include: {
-        product: {
+        item: {
           include: {
             category: true,
           },
         },
-        ingredients: {
+        components: {
           include: {
-            material: true,
+            componentItem: true,
           },
           orderBy: {
-            material: {
+            componentItem: {
               name: "asc",
             },
           },
         },
       },
       orderBy: {
-        product: {
+        item: {
           name: "asc",
         },
       },
@@ -61,7 +63,7 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/recipes
- * Create a new recipe with ingredients
+ * Create a new bill of material with components
  */
 export async function POST(req: Request) {
   try {
@@ -71,39 +73,44 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { productId, notes, yield: recipeYield, yieldUnit, prepTime, cookTime, ingredients } = body;
+    const { itemId, productId, notes, yield: recipeYield, yieldUnit, prepTime, cookTime, ingredients } = body;
 
-    if (!productId || !ingredients || ingredients.length === 0) {
+    const resolvedItemId = itemId || productId;
+
+    if (!resolvedItemId || !ingredients || ingredients.length === 0) {
       return NextResponse.json(
-        { error: "Product ID and at least one ingredient are required" },
+        { error: "Item ID and at least one ingredient are required" },
         { status: 400 }
       );
     }
 
-    // Check if recipe already exists for this product
-    const existing = await prisma.recipe.findUnique({
-      where: { productId },
+    const tenantId = session.user.tenantId!;
+
+    // Check if BOM already exists for this item
+    const existing = await prisma.billOfMaterial.findUnique({
+      where: { itemId: resolvedItemId },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: "Recipe already exists for this product" },
+        { error: "Recipe already exists for this item" },
         { status: 400 }
       );
     }
 
-    // Create recipe with ingredients
-    const recipe = await prisma.recipe.create({
+    // Create BOM with components
+    const recipe = await prisma.billOfMaterial.create({
       data: {
-        productId,
+        tenantId,
+        itemId: resolvedItemId,
         notes: notes || null,
         yield: recipeYield ? parseFloat(recipeYield) : 1,
         yieldUnit: yieldUnit || "pcs",
         prepTime: prepTime ? parseInt(prepTime) : null,
         cookTime: cookTime ? parseInt(cookTime) : null,
-        ingredients: {
+        components: {
           create: ingredients.map((ing: any) => ({
-            materialId: ing.materialId,
+            componentItemId: ing.materialId || ing.componentItemId,
             quantity: parseFloat(ing.quantity),
             unit: ing.unit,
             notes: ing.notes || null,
@@ -111,10 +118,10 @@ export async function POST(req: Request) {
         },
       },
       include: {
-        product: true,
-        ingredients: {
+        item: true,
+        components: {
           include: {
-            material: true,
+            componentItem: true,
           },
         },
       },

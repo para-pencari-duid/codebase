@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Toko Roti Bahagia - POS & Inventory",
-  description: "Sistem POS dan Inventory Management",
+  title: "Lokkah POS — Sistem Manajemen Usaha",
+  description: "Sistem POS, Inventory & ERP untuk semua jenis usaha",
 };
 
 export default function RootLayout({

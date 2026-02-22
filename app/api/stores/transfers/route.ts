@@ -78,9 +78,12 @@ export async function POST(req: Request) {
       transferNo = `TRF-${dateStr}-${nextNum}`;
     }
 
+    const tenantId = session.user.tenantId!;
+
     // Create transfer
     const transfer = await prisma.storeTransfer.create({
       data: {
+        tenantId,
         transferNo,
         fromStoreId,
         toStoreId,
@@ -89,8 +92,9 @@ export async function POST(req: Request) {
         notes,
         items: {
           create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.productName,
+            variantId: item.variantId,
+            itemName: item.itemName,
+            variantName: item.variantName || "",
             quantity: item.quantity,
           })),
         },

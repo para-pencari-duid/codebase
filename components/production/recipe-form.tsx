@@ -5,7 +5,9 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Product, RawMaterial } from "@prisma/client";
+// Local types replacing removed Prisma model exports
+type Product = { id: string; name: string; sku: string; };
+type RawMaterial = { id: string; name: string; unit: string; stock?: number; };
 import { toast } from "sonner";
 import { Trash, Plus } from "lucide-react";
 

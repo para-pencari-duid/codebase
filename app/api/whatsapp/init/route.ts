@@ -16,15 +16,17 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get or create tenant ID
-    const tenantId = await getOrCreateTenantId();
+    const erpTenantId = session.user.tenantId!;
+
+    // Get or create tenant ID scoped to this tenant
+    const tenantId = await getOrCreateTenantId(erpTenantId);
 
     // Initialize session with WA service
     const result = await initWhatsAppSession(tenantId);
 
     if (result.status === "qr_ready" && result.qr_code) {
       // Update settings - mark as connecting
-      const settings = await prisma.settings.findFirst();
+      const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
       if (settings) {
         await prisma.settings.update({
           where: { id: settings.id },
@@ -45,7 +47,7 @@ export async function POST() {
 
     if (result.status === "connected") {
       // Already connected
-      const settings = await prisma.settings.findFirst();
+      const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
       if (settings) {
         await prisma.settings.update({
           where: { id: settings.id },

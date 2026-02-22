@@ -1,9 +1,16 @@
 import { CategoryClient } from "@/components/products/category-client";
 import db from "@/lib/db";
 import { format } from "date-fns";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function CategoriesPage() {
-    const categories = await db.category.findMany({
+    const session = await auth();
+    if (!session) redirect("/login");
+    const tenantId = session.user.tenantId;
+
+    const categories = await db.itemCategory.findMany({
+        where: { tenantId },
         orderBy: {
             createdAt: "desc",
         },

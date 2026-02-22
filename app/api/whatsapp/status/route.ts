@@ -21,7 +21,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const queryTenantId = searchParams.get("tenantId");
 
-    const settings = await prisma.settings.findFirst();
+    const erpTenantId = session.user.tenantId!;
+    const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
 
     // Use query tenant ID if provided, otherwise use DB tenant ID
     const tenantId = queryTenantId || settings?.whatsappTenantId;
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
     if (settings && settings.whatsappConnected !== isConnected) {
       console.log(`[WA API] Updating database connection status to: ${isConnected}`);
       await prisma.settings.update({
-        where: { id: settings.id },
+        where: { id: settings.id },  
         data: {
           whatsappConnected: isConnected,
           // Don't update tenantId - it's set during init only

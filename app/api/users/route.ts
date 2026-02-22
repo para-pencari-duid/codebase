@@ -73,7 +73,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         const data = userCreateSchema.parse(body);
 
-        const existing = await db.user.findUnique({
+        const existing = await db.user.findFirst({
             where: { email: data.email },
         });
 
@@ -82,9 +82,11 @@ export async function POST(req: Request) {
         }
 
         const hashedPassword = await bcrypt.hash(data.password, 12);
+        const tenantId = session.user.tenantId!;
 
         const user = await db.user.create({
             data: {
+                tenantId,
                 name: data.name,
                 email: data.email,
                 password: hashedPassword,

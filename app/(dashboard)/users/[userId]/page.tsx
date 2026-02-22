@@ -11,14 +11,15 @@ export default async function UserPage({
     const session = await auth();
     if (!session) redirect("/login");
     if (session.user.role !== "OWNER") redirect("/dashboard");
+    const tenantId = session.user.tenantId;
 
     const { userId } = await params;
 
     let user = null;
 
     if (userId !== "new") {
-        const found = await db.user.findUnique({
-            where: { id: userId },
+        const found = await db.user.findFirst({
+            where: { id: userId, tenantId },
             select: {
                 id: true,
                 name: true,

@@ -17,20 +17,20 @@ export async function GET(
     }
 
     const { id } = await params;
-    const preOrder = await prisma.preOrder.findUnique({
+    const jobTicket = await prisma.jobTicket.findUnique({
       where: { id },
       include: {
         createdByUser: { select: { id: true, name: true } },
       },
     });
 
-    if (!preOrder) {
+    if (!jobTicket) {
       return NextResponse.json({ error: "Pre-order tidak ditemukan" }, { status: 404 });
     }
 
-    return NextResponse.json(preOrder);
+    return NextResponse.json(jobTicket);
   } catch (error) {
-    console.error("Error fetching pre-order:", error);
+    console.error("Error fetching job ticket:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -51,28 +51,29 @@ export async function PUT(
     const data = await req.json();
     const { action } = data;
 
-    const preOrder = await prisma.preOrder.findUnique({ where: { id } });
-    if (!preOrder) {
+    const jobTicket = await prisma.jobTicket.findUnique({ where: { id } });
+    if (!jobTicket) {
       return NextResponse.json({ error: "Pre-order tidak ditemukan" }, { status: 404 });
     }
 
-    const settings = await prisma.settings.findFirst();
+    const tenantId = session.user.tenantId!;
+    const settings = await prisma.settings.findFirst({ where: { tenantId } });
 
     // ── ACTION: update_status ─────────────────────────────
     if (action === "update_status") {
       const { status } = data;
-      const validStatuses = ["PENDING", "CONFIRMED", "IN_PRODUCTION", "READY", "COMPLETED", "CANCELLED"];
+      const validStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "READY", "COMPLETED", "CANCELLED"];
       if (!validStatuses.includes(status)) {
         return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
       }
 
-      const updated = await prisma.preOrder.update({
+      const updated = await prisma.jobTicket.update({
         where: { id },
         data: { status },
       });
 
       // Kirim WA kalau status jadi READY
-      if (status === "READY" && preOrder.customerPhone) {
+      if (status === "READY" && jobTicket.customerPhone) {
         try {
           if (settings?.whatsappEnabled) {
             const fmt = (n: number) =>
@@ -82,37 +83,37 @@ export async function PUT(
 
             const message = `
 ╔═══════════════════════════════════╗
-  ${settings.businessName?.toUpperCase() || "TOKO ROTI"}
+  ${settings.businessName?.toUpperCase() || "TOKO"}
 ╚═══════════════════════════════════╝
 
 🎉 PESANAN ANDA SUDAH SIAP!
 
-Halo ${preOrder.customerName}! 👋
+Halo ${jobTicket.customerName}! 👋
 
 Pre-order Anda sudah selesai dibuat
 dan siap untuk diambil/dikirim.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-No. Order  : ${preOrder.orderNo}
-Produk     : ${preOrder.productName}
-Jumlah     : ${preOrder.quantity} pcs
+No. Order  : ${jobTicket.ticketNo}
+Produk     : ${jobTicket.title}
+Jumlah     : ${jobTicket.quantity} pcs
 
-Jadwal     : ${fmtDate(preOrder.pickupDate)}
-Tipe       : ${preOrder.deliveryType === "PICKUP" ? "Ambil di toko" : "Delivery"}
-${Number(preOrder.remainingAmount) > 0 ? `\nSisa Bayar : ${fmt(Number(preOrder.remainingAmount))}\n(Mohon siapkan pembayaran)` : "\nStatus    : LUNAS ✅"}
+Jadwal     : ${fmtDate(jobTicket.dueDate)}
+Tipe       : ${jobTicket.deliveryType === "PICKUP" ? "Ambil di toko" : "Delivery"}
+${Number(jobTicket.remainingAmount) > 0 ? `\nSisa Bayar : ${fmt(Number(jobTicket.remainingAmount))}\n(Mohon siapkan pembayaran)` : "\nStatus    : LUNAS ✅"}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Terima kasih sudah memesan! 🎂
 Sampai jumpa di toko ya!
 
-~ ${settings.businessName || "Toko Roti"} ~
+~ ${settings.businessName || "Toko"} ~
 `.trim();
 
-            await sendWhatsAppNotification(preOrder.customerPhone, "preorder_ready", message);
+            await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_ready", message, tenantId);
           }
         } catch (waError) {
-          console.error("[PreOrder] WA ready notification failed:", waError);
+          console.error("[JobTicket] WA ready notification failed:", waError);
         }
       }
 
@@ -121,22 +122,22 @@ Sampai jumpa di toko ya!
 
     // ── ACTION: pay_remaining ─────────────────────────────
     if (action === "pay_remaining") {
-      const { payMethod, payAmount } = data;
+      const { payMethod } = data;
 
       if (!payMethod) {
         return NextResponse.json({ error: "Metode bayar wajib diisi" }, { status: 400 });
       }
-      if (Number(preOrder.remainingAmount) <= 0) {
+      if (Number(jobTicket.remainingAmount) <= 0) {
         return NextResponse.json({ error: "Pesanan sudah lunas" }, { status: 400 });
       }
 
-      const updated = await prisma.preOrder.update({
+      const updated = await prisma.jobTicket.update({
         where: { id },
         data: {
           finalPayMethod: payMethod,
           finalPaidAt: new Date(),
           remainingAmount: 0,
-          status: preOrder.status === "READY" ? "COMPLETED" : preOrder.status,
+          status: jobTicket.status === "READY" ? "COMPLETED" : jobTicket.status,
         },
       });
 
@@ -147,11 +148,11 @@ Sampai jumpa di toko ya!
     if (action === "cancel") {
       const { cancelReason } = data;
 
-      if (["COMPLETED"].includes(preOrder.status)) {
+      if (["COMPLETED"].includes(jobTicket.status)) {
         return NextResponse.json({ error: "Pesanan yang sudah selesai tidak bisa dibatalkan" }, { status: 400 });
       }
 
-      const updated = await prisma.preOrder.update({
+      const updated = await prisma.jobTicket.update({
         where: { id },
         data: {
           status: "CANCELLED",
@@ -161,12 +162,12 @@ Sampai jumpa di toko ya!
 
       // Kirim WA notif cancel
       try {
-        if (settings?.whatsappEnabled && preOrder.customerPhone) {
+        if (settings?.whatsappEnabled && jobTicket.customerPhone) {
           const message = `
-Halo ${preOrder.customerName},
+Halo ${jobTicket.customerName},
 
 Mohon maaf, pre-order Anda dengan
-No. Order ${preOrder.orderNo} telah
+No. Order ${jobTicket.ticketNo} telah
 dibatalkan.
 
 ${cancelReason ? "Alasan: " + cancelReason : ""}
@@ -174,9 +175,9 @@ ${cancelReason ? "Alasan: " + cancelReason : ""}
 Silakan hubungi kami untuk informasi
 lebih lanjut.
 
-~ ${settings.businessName || "Toko Roti"} ~
+~ ${settings.businessName || "Toko"} ~
 `.trim();
-          await sendWhatsAppNotification(preOrder.customerPhone, "preorder_cancel", message);
+          await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_cancel", message, tenantId);
         }
       } catch {
         // non-blocking
@@ -193,30 +194,30 @@ lebih lanjut.
         notes, pickupDate, deliveryType,
       } = data;
 
-      if (["COMPLETED", "CANCELLED"].includes(preOrder.status)) {
+      if (["COMPLETED", "CANCELLED"].includes(jobTicket.status)) {
         return NextResponse.json({ error: "Pesanan selesai/batal tidak bisa diedit" }, { status: 400 });
       }
 
-      const qty = parseInt(quantity) || Number(preOrder.quantity);
-      const price = parseFloat(unitPrice) || Number(preOrder.unitPrice);
+      const qty = parseInt(quantity) || Number(jobTicket.quantity);
+      const price = parseFloat(unitPrice) || Number(jobTicket.unitPrice);
       const total = price * qty;
-      const dp = Number(preOrder.dpAmount);
+      const dp = Number(jobTicket.dpAmount);
       const remaining = Math.max(0, total - dp);
 
-      const updated = await prisma.preOrder.update({
+      const updated = await prisma.jobTicket.update({
         where: { id },
         data: {
-          customerName: customerName?.trim() || preOrder.customerName,
-          customerPhone: customerPhone?.trim() || preOrder.customerPhone,
-          customerAddress: customerAddress?.trim() || preOrder.customerAddress,
-          productName: productName?.trim() || preOrder.productName,
-          description: description?.trim() || preOrder.description,
+          customerName: customerName?.trim() || jobTicket.customerName,
+          customerPhone: customerPhone?.trim() || jobTicket.customerPhone,
+          customerAddress: customerAddress?.trim() || jobTicket.customerAddress,
+          title: productName?.trim() || jobTicket.title,
+          description: description?.trim() || jobTicket.description,
           quantity: qty,
           unitPrice: price,
           totalPrice: total,
-          notes: notes?.trim() || preOrder.notes,
-          pickupDate: pickupDate ? new Date(pickupDate) : preOrder.pickupDate,
-          deliveryType: deliveryType || preOrder.deliveryType,
+          notes: notes?.trim() || jobTicket.notes,
+          dueDate: pickupDate ? new Date(pickupDate) : jobTicket.dueDate,
+          deliveryType: deliveryType || jobTicket.deliveryType,
           remainingAmount: remaining,
         },
       });
@@ -226,12 +227,12 @@ lebih lanjut.
 
     return NextResponse.json({ error: "Action tidak valid" }, { status: 400 });
   } catch (error) {
-    console.error("Error updating pre-order:", error);
+    console.error("Error updating job ticket:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// DELETE /api/pre-orders/[id] - hard delete (hanya PENDING atau CANCELLED)
+// DELETE /api/pre-orders/[id]
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -243,15 +244,15 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const preOrder = await prisma.preOrder.findUnique({ where: { id } });
-    if (!preOrder) {
+    const jobTicket = await prisma.jobTicket.findUnique({ where: { id } });
+    if (!jobTicket) {
       return NextResponse.json({ error: "Pre-order tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.preOrder.delete({ where: { id } });
+    await prisma.jobTicket.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting pre-order:", error);
+    console.error("Error deleting job ticket:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

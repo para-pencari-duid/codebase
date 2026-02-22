@@ -16,7 +16,8 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const settings = await prisma.settings.findFirst();
+    const erpTenantId = session.user.tenantId!;
+    const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
 
     if (!settings?.whatsappTenantId) {
       return NextResponse.json(

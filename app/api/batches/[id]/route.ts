@@ -15,10 +15,12 @@ export async function GET(
 
     const { id } = await params;
 
-    const batch = await prisma.productBatch.findUnique({
+    const batch = await prisma.itemBatch.findUnique({
       where: { id },
       include: {
-        product: true,
+        variant: {
+          include: { item: true },
+        },
       },
     });
 
@@ -52,7 +54,7 @@ export async function PUT(
     const data = await req.json();
     const { discountRate, notes, isActive } = data;
 
-    const batch = await prisma.productBatch.update({
+    const batch = await prisma.itemBatch.update({
       where: { id },
       data: {
         discountRate: discountRate !== undefined ? parseFloat(discountRate) : undefined,
@@ -60,7 +62,9 @@ export async function PUT(
         isActive,
       },
       include: {
-        product: true,
+        variant: {
+          include: { item: true },
+        },
       },
     });
 
@@ -87,8 +91,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Check if batch exists and has no remaining quantity
-    const batch = await prisma.productBatch.findUnique({
+    const batch = await prisma.itemBatch.findUnique({
       where: { id },
     });
 
@@ -103,7 +106,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.productBatch.delete({
+    await prisma.itemBatch.delete({
       where: { id },
     });
 

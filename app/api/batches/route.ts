@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { Prisma } from "@prisma/client";
 
-// GET /api/batches - List product batches
+// GET /api/batches - List item batches
 export async function GET(req: Request) {
   try {
     const session = await auth();
@@ -12,17 +12,20 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const productId = searchParams.get("productId");
+    const variantId = searchParams.get("variantId") || searchParams.get("productId");
     const status = searchParams.get("status"); // active, expired, near-expiry
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
 
-    const where: Prisma.ProductBatchWhereInput = {
+    const tenantId = session.user.tenantId!;
+
+    const where: Prisma.ItemBatchWhereInput = {
+      tenantId,
       isActive: true,
     };
 
-    if (productId) {
-      where.productId = productId;
+    if (variantId) {
+      where.variantId = variantId;
     }
 
     // Filter by status
@@ -41,16 +44,20 @@ export async function GET(req: Request) {
     }
 
     const [batches, total] = await Promise.all([
-      prisma.productBatch.findMany({
+      prisma.itemBatch.findMany({
         where,
         include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              sku: true,
-              price: true,
-              unit: true,
+          variant: {
+            include: {
+              item: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                  basePrice: true,
+                  unit: true,
+                },
+              },
             },
           },
         },
@@ -58,7 +65,7 @@ export async function GET(req: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.productBatch.count({ where }),
+      prisma.itemBatch.count({ where }),
     ]);
 
     // Calculate days until expiry and auto-discount for each batch
@@ -69,13 +76,13 @@ export async function GET(req: Request) {
       
       let autoDiscount = 0;
       if (daysUntilExpiry <= 0) {
-        autoDiscount = 50; // 50% discount for expired
+        autoDiscount = 50;
       } else if (daysUntilExpiry <= 2) {
-        autoDiscount = 30; // 30% discount for 2 days or less
+        autoDiscount = 30;
       } else if (daysUntilExpiry <= 5) {
-        autoDiscount = 20; // 20% discount for 5 days or less
+        autoDiscount = 20;
       } else if (daysUntilExpiry <= 7) {
-        autoDiscount = 10; // 10% discount for 7 days or less
+        autoDiscount = 10;
       }
 
       return {
@@ -103,7 +110,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST /api/batches - Create new product batch
+// POST /api/batches - Create new item batch
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -113,7 +120,7 @@ export async function POST(req: Request) {
 
     const data = await req.json();
     const {
-      productId,
+      variantId,
       batchNo,
       quantity,
       manufactureDate,
@@ -123,17 +130,18 @@ export async function POST(req: Request) {
       notes,
     } = data;
 
-    // Validate required fields
-    if (!productId || !batchNo || !quantity || !expiryDate) {
+    if (!variantId || !batchNo || !quantity || !expiryDate) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Check if batch number already exists
-    const existingBatch = await prisma.productBatch.findUnique({
-      where: { batchNo },
+    const tenantId = session.user.tenantId!;
+
+    // Check if batch number already exists for this tenant
+    const existingBatch = await prisma.itemBatch.findFirst({
+      where: { batchNo, tenantId },
     });
 
     if (existingBatch) {
@@ -143,13 +151,16 @@ export async function POST(req: Request) {
       );
     }
 
+    const qty = parseInt(quantity);
+
     // Create batch
-    const batch = await prisma.productBatch.create({
+    const batch = await prisma.itemBatch.create({
       data: {
-        productId,
+        tenantId,
+        variantId,
         batchNo,
-        quantity: parseInt(quantity),
-        remainingQty: parseInt(quantity),
+        quantity: qty,
+        remainingQty: qty,
         manufactureDate: manufactureDate ? new Date(manufactureDate) : new Date(),
         expiryDate: new Date(expiryDate),
         cost: parseFloat(cost || 0),
@@ -157,24 +168,27 @@ export async function POST(req: Request) {
         notes,
       },
       include: {
-        product: true,
+        variant: {
+          include: { item: true },
+        },
       },
     });
 
-    // Update product stock
-    await prisma.product.update({
-      where: { id: productId },
+    // Update variant stock
+    await prisma.itemVariant.update({
+      where: { id: variantId },
       data: {
-        stock: { increment: parseInt(quantity) },
+        stock: { increment: qty },
       },
     });
 
     // Create stock movement record
     await prisma.stockMovement.create({
       data: {
-        productId,
+        tenantId,
+        variantId,
         type: "IN",
-        quantity: parseInt(quantity),
+        quantity: qty,
         reference: batchNo,
         reason: "Batch received",
         notes: `Batch ${batchNo} - Expiry: ${new Date(expiryDate).toLocaleDateString()}`,
@@ -191,3 +205,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

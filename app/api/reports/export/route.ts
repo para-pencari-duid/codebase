@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     const dateParam = searchParams.get("date");
 
     const settings = await prisma.settings.findFirst();
-    const businessName = settings?.businessName || "Toko Roti";
+    const businessName = settings?.businessName || "Usaha";
 
     let workbook;
     let filename;
@@ -205,7 +205,7 @@ async function generateDailySalesData(
   for (let h = 8; h <= 21; h++) {
     hourlyMap[h] = { transactions: 0, amount: 0 };
   }
-  
+
   transactions.forEach((t) => {
     const hour = t.createdAt.getHours();
     if (hourlyMap[hour]) {
@@ -228,11 +228,11 @@ async function generateDailySalesData(
   const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      if (!productSales[item.productName]) {
-        productSales[item.productName] = { name: item.productName, quantity: 0, revenue: 0 };
+      if (!productSales[item.itemName]) {
+        productSales[item.itemName] = { name: item.itemName, quantity: 0, revenue: 0 };
       }
-      productSales[item.productName].quantity += item.quantity;
-      productSales[item.productName].revenue += Number(item.subtotal);
+      productSales[item.itemName].quantity += item.quantity;
+      productSales[item.itemName].revenue += Number(item.subtotal);
     });
   });
 
@@ -248,10 +248,10 @@ async function generateDailySalesData(
     }));
 
   // Category sales
-  const categories = await prisma.category.findMany();
-  const products = await prisma.product.findMany();
+  const categories = await prisma.itemCategory.findMany();
+  const itemsForCat = await prisma.item.findMany({ where: { type: "GOODS" }, select: { name: true, categoryId: true } });
   const productCategoryMap: Record<string, string> = {};
-  products.forEach((p) => {
+  itemsForCat.forEach((p) => {
     const cat = categories.find((c) => c.id === p.categoryId);
     productCategoryMap[p.name] = cat?.name || "Lainnya";
   });
@@ -259,22 +259,16 @@ async function generateDailySalesData(
   const categorySalesMap: Record<string, number> = {};
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      const category = productCategoryMap[item.productName] || "Lainnya";
+      const category = productCategoryMap[item.itemName] || "Lainnya";
       categorySalesMap[category] = (categorySalesMap[category] || 0) + Number(item.subtotal);
     });
   });
 
-  const categoryIcons: Record<string, string> = {
-    "Roti": "🍞",
-    "Roti Manis": "🍞",
-    "Roti Tawar": "🍞",
-    "Minuman": "☕",
-    "Pastry": "🥐",
-    "Kue": "🎂",
-    "Cake": "🎂",
-    "Donat": "🍩",
-    "Lainnya": "📦",
-  };
+  // Build category icon map dynamically from DB
+  const categoryIcons: Record<string, string> = { "Lainnya": "📦" };
+  categories.forEach((c) => {
+    if (c.icon) categoryIcons[c.name] = c.icon;
+  });
 
   const categorySales = Object.entries(categorySalesMap)
     .sort((a, b) => b[1] - a[1])
@@ -311,12 +305,13 @@ async function generateDailySalesData(
   }
 
   // Check low stock
-  const lowStockProducts = await prisma.product.findMany({
-    where: { stock: { lte: 15 }, isActive: true },
+  const lowStockVariants = await prisma.itemVariant.findMany({
+    where: { stock: { lte: 15 }, item: { isActive: true, type: "GOODS" } },
+    include: { item: { select: { name: true } } },
     take: 3,
   });
-  lowStockProducts.forEach((p) => {
-    notes.push(`⚠ Stok ${p.name} menipis (sisa ${p.stock} pcs)`);
+  lowStockVariants.forEach((v) => {
+    notes.push(`⚠ Stok ${v.item.name} menipis (sisa ${v.stock} pcs)`);
   });
 
   return {
@@ -399,28 +394,28 @@ async function generateMonthlySalesData(
   const periodLength = endDate.getTime() - startDate.getTime();
   const prevPeriodStart = new Date(startDate.getTime() - periodLength);
   const prevPeriodEnd = new Date(startDate.getTime() - 1);
-  
+
   const prevTransactions = await prisma.transaction.findMany({
     where: {
       createdAt: { gte: prevPeriodStart, lte: prevPeriodEnd },
     },
   });
-  
+
   const prevSales = prevTransactions.reduce((sum, t) => sum + Number(t.total), 0);
   const growthVsLast = prevSales > 0 ? ((totalSales - prevSales) / prevSales) * 100 : 0;
-  
+
   // Calculate year-over-year growth
   const yearAgoPeriodStart = new Date(startDate);
   yearAgoPeriodStart.setFullYear(yearAgoPeriodStart.getFullYear() - 1);
   const yearAgoPeriodEnd = new Date(endDate);
   yearAgoPeriodEnd.setFullYear(yearAgoPeriodEnd.getFullYear() - 1);
-  
+
   const yearAgoTransactions = await prisma.transaction.findMany({
     where: {
       createdAt: { gte: yearAgoPeriodStart, lte: yearAgoPeriodEnd },
     },
   });
-  
+
   const yearAgoSales = yearAgoTransactions.reduce((sum, t) => sum + Number(t.total), 0);
   const growthVsYear = yearAgoSales > 0 ? ((totalSales - yearAgoSales) / yearAgoSales) * 100 : 0;
 
@@ -428,11 +423,11 @@ async function generateMonthlySalesData(
   const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      if (!productSales[item.productName]) {
-        productSales[item.productName] = { name: item.productName, quantity: 0, revenue: 0 };
+      if (!productSales[item.itemName]) {
+        productSales[item.itemName] = { name: item.itemName, quantity: 0, revenue: 0 };
       }
-      productSales[item.productName].quantity += item.quantity;
-      productSales[item.productName].revenue += Number(item.subtotal);
+      productSales[item.itemName].quantity += item.quantity;
+      productSales[item.itemName].revenue += Number(item.subtotal);
     });
   });
 
@@ -448,10 +443,10 @@ async function generateMonthlySalesData(
     }));
 
   // Category sales
-  const categories = await prisma.category.findMany();
-  const products = await prisma.product.findMany();
+  const categories = await prisma.itemCategory.findMany();
+  const itemsForCat = await prisma.item.findMany({ where: { type: "GOODS" }, select: { name: true, categoryId: true } });
   const productCategoryMap: Record<string, string> = {};
-  products.forEach((p) => {
+  itemsForCat.forEach((p) => {
     const cat = categories.find((c) => c.id === p.categoryId);
     productCategoryMap[p.name] = cat?.name || "Lainnya";
   });
@@ -459,16 +454,16 @@ async function generateMonthlySalesData(
   const categorySalesMap: Record<string, number> = {};
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      const category = productCategoryMap[item.productName] || "Lainnya";
+      const category = productCategoryMap[item.itemName] || "Lainnya";
       categorySalesMap[category] = (categorySalesMap[category] || 0) + Number(item.subtotal);
     });
   });
 
-  const categoryIcons: Record<string, string> = {
-    "Roti": "🍞", "Roti Manis": "🍞", "Roti Tawar": "🍞",
-    "Minuman": "☕", "Pastry": "🥐", "Kue": "🎂", "Cake": "🎂",
-    "Donat": "🍩", "Lainnya": "📦",
-  };
+  // Build category icon map dynamically from DB
+  const categoryIcons: Record<string, string> = { "Lainnya": "📦" };
+  categories.forEach((c) => {
+    if (c.icon) categoryIcons[c.name] = c.icon;
+  });
 
   const categorySales = Object.entries(categorySalesMap)
     .sort((a, b) => b[1] - a[1])
@@ -502,16 +497,16 @@ async function generateMonthlySalesData(
   const newCustomersInPeriod = allCustomers.filter(
     (c) => c.createdAt >= startDate && c.createdAt <= endDate
   ).length;
-  
+
   // Calculate real repeat rate
   const customerIdsArray = Array.from(uniqueCustomerIds).filter((id): id is string => id !== null);
   const customersWithMultipleTrx = customerIdsArray.length > 0
     ? await prisma.customer.count({
-        where: {
-          id: { in: customerIdsArray },
-          transactions: { some: { createdAt: { lt: startDate } } },
-        },
-      })
+      where: {
+        id: { in: customerIdsArray },
+        transactions: { some: { createdAt: { lt: startDate } } },
+      },
+    })
     : 0;
   const repeatRate = customerIdsArray.length > 0
     ? Math.round((customersWithMultipleTrx / customerIdsArray.length) * 100)
@@ -636,16 +631,16 @@ async function generateProductReportData(
   });
 
   const productSales: Record<string, { name: string; quantity: number; revenue: number; lastSold: Date }> = {};
-  
+
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      if (!productSales[item.productName]) {
-        productSales[item.productName] = { name: item.productName, quantity: 0, revenue: 0, lastSold: t.createdAt };
+      if (!productSales[item.itemName]) {
+        productSales[item.itemName] = { name: item.itemName, quantity: 0, revenue: 0, lastSold: t.createdAt };
       }
-      productSales[item.productName].quantity += item.quantity;
-      productSales[item.productName].revenue += Number(item.subtotal);
-      if (t.createdAt > productSales[item.productName].lastSold) {
-        productSales[item.productName].lastSold = t.createdAt;
+      productSales[item.itemName].quantity += item.quantity;
+      productSales[item.itemName].revenue += Number(item.subtotal);
+      if (t.createdAt > productSales[item.itemName].lastSold) {
+        productSales[item.itemName].lastSold = t.createdAt;
       }
     });
   });
@@ -671,12 +666,12 @@ async function generateProductReportData(
     }));
 
   // Margin analysis using real product cost
-  const allProducts = await prisma.product.findMany();
+  const allItems = await prisma.item.findMany({ where: { type: "GOODS" }, select: { name: true, baseCost: true } });
   const productCostMap: Record<string, number> = {};
-  allProducts.forEach((p) => {
-    productCostMap[p.name] = Number(p.cost || 0);
+  allItems.forEach((p) => {
+    productCostMap[p.name] = Number(p.baseCost || 0);
   });
-  
+
   const marginAnalysis = sortedProducts.slice(0, 10).map((p) => {
     const costPerUnit = productCostMap[p.name] || 0;
     const cogs = costPerUnit * p.quantity;
@@ -695,7 +690,7 @@ async function generateProductReportData(
   const totalRevenue = sortedProducts.reduce((sum, p) => sum + p.revenue, 0);
   const top10Revenue = topProducts.slice(0, 10).reduce((sum, p) => sum + p.revenue, 0);
   const top10Percentage = totalRevenue > 0 ? Math.round((top10Revenue / totalRevenue) * 100) : 0;
-  
+
   const avgMargin = marginAnalysis.length > 0
     ? Math.round(marginAnalysis.reduce((sum, m) => sum + m.margin, 0) / marginAnalysis.length)
     : 0;
@@ -720,27 +715,28 @@ async function generateProductReportData(
 }
 
 async function generateInventoryReportData(businessName: string): Promise<InventoryReportData> {
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
+  const variants = await prisma.itemVariant.findMany({
+    where: { item: { isActive: true, type: "GOODS" } },
+    include: { item: { select: { name: true, unit: true } } },
     orderBy: { stock: "desc" },
   });
 
-  const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
-  const stockValueCost = products.reduce((sum, p) => sum + p.stock * Number(p.cost || 0), 0);
-  const stockValuePrice = products.reduce((sum, p) => sum + p.stock * Number(p.price), 0);
+  const totalStock = variants.reduce((sum, p) => sum + p.stock, 0);
+  const stockValueCost = variants.reduce((sum, p) => sum + p.stock * Number(p.cost || 0), 0);
+  const stockValuePrice = variants.reduce((sum, p) => sum + p.stock * Number(p.price), 0);
 
   const settings = await prisma.settings.findFirst();
   const minStock = settings?.lowStockThreshold || 10;
 
-  const safeStock = products.filter((p) => p.stock > minStock);
-  const lowStock = products.filter((p) => p.stock > 0 && p.stock <= minStock);
-  const outOfStock = products.filter((p) => p.stock === 0);
+  const safeStock = variants.filter((p) => p.stock > minStock);
+  const lowStock = variants.filter((p) => p.stock > 0 && p.stock <= minStock);
+  const outOfStock = variants.filter((p) => p.stock === 0);
 
   return {
     asOfDate: new Date(),
     businessName,
     summary: {
-      totalProducts: products.length,
+      totalProducts: variants.length,
       totalStock,
       stockValueCost,
       stockValuePrice,
@@ -751,16 +747,16 @@ async function generateInventoryReportData(businessName: string): Promise<Invent
       outOfStock: outOfStock.length,
     },
     topStockProducts: safeStock.slice(0, 10).map((p) => ({
-      name: p.name,
+      name: p.item.name,
       stock: p.stock,
-      unit: "pcs",
+      unit: p.item.unit || "pcs",
     })),
     lowStockProducts: lowStock.slice(0, 10).map((p) => ({
-      name: p.name,
+      name: p.item.name,
       stock: p.stock,
       minStock,
     })),
-    outOfStockProducts: outOfStock.slice(0, 10).map((p) => p.name),
+    outOfStockProducts: outOfStock.slice(0, 10).map((p) => p.item.name),
     recommendations: [
       outOfStock.length > 0 ? `Restock segera untuk ${outOfStock.length} produk habis` : "",
       lowStock.length > 0 ? `Tambah produksi untuk ${lowStock.length} produk menipis` : "",
@@ -785,7 +781,7 @@ async function generateCustomerReportData(
   });
 
   const activeCustomers = customers.filter((c) => c.transactions.length > 0);
-  
+
   // New customers (created in period)
   const newCustomers = customers.filter(
     (c) => c.createdAt >= startDate && c.createdAt <= endDate
@@ -815,7 +811,7 @@ async function generateCustomerReportData(
   // Calculate real retention metrics
   const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   const prevPeriodStart = new Date(startDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
-  
+
   const prevPeriodCustomers = await prisma.customer.findMany({
     where: {
       transactions: {
@@ -825,15 +821,15 @@ async function generateCustomerReportData(
       },
     },
   });
-  
+
   const retainedCustomers = prevPeriodCustomers.filter((c) =>
     activeCustomers.some((ac) => ac.id === c.id)
   ).length;
-  
+
   const retentionRate = prevPeriodCustomers.length > 0
     ? Math.round((retainedCustomers / prevPeriodCustomers.length) * 100)
     : 0;
-  
+
   const churnedCount = prevPeriodCustomers.length - retainedCustomers;
 
   // Segmentation by spending
@@ -891,13 +887,13 @@ async function generateCustomerReportData(
       totalSpent: c.totalSpent,
       lastVisit: c.lastVisit,
     }));
-  
+
   // Calculate total revenue from active customers
   const totalRevenue = activeCustomers.reduce(
     (sum, c) => sum + c.transactions.reduce((s, t) => s + Number(t.total), 0),
     0
   );
-  
+
   // Calculate top customer contribution
   const top20Revenue = topCustomers.slice(0, 20).reduce((sum, c) => sum + c.totalSpent, 0);
   const top20Percentage = totalRevenue > 0 ? Math.round((top20Revenue / totalRevenue) * 100) : 0;
@@ -951,22 +947,22 @@ async function generateProfitLossData(
   });
 
   const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.total), 0);
-  
+
   // Calculate real COGS from product costs
-  const products = await prisma.product.findMany();
+  const costItems = await prisma.item.findMany({ where: { type: "GOODS" }, select: { name: true, baseCost: true } });
   const productCostMap: Record<string, number> = {};
-  products.forEach((p) => {
-    productCostMap[p.name] = Number(p.cost || 0);
+  costItems.forEach((p) => {
+    productCostMap[p.name] = Number(p.baseCost || 0);
   });
-  
+
   let totalCOGS = 0;
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      const costPerUnit = productCostMap[item.productName] || 0;
+      const costPerUnit = productCostMap[item.itemName] || 0;
       totalCOGS += costPerUnit * item.quantity;
     });
   });
-  
+
   // If no cost data, estimate at 40%
   const cogs = totalCOGS > 0 ? totalCOGS : totalRevenue * 0.4;
   const grossProfit = totalRevenue - cogs;
@@ -978,14 +974,14 @@ async function generateProfitLossData(
       date: { gte: startDate, lte: endDate },
     },
   });
-  
+
   // Group expenses by category
   const expenseByCategory: Record<string, number> = {};
   expenses.forEach((e) => {
     const category = e.category || "LAIN_LAIN";
     expenseByCategory[category] = (expenseByCategory[category] || 0) + Number(e.amount);
   });
-  
+
   const categoryNames: Record<string, string> = {
     SALARY: "Gaji & Upah",
     RENT: "Sewa",
@@ -996,14 +992,14 @@ async function generateProfitLossData(
     TRANSPORTATION: "Transport",
     OTHER: "Lain-lain",
   };
-  
+
   const operationalExpenses = Object.entries(expenseByCategory)
     .map(([category, amount]) => ({
       name: categoryNames[category] || category,
       amount: Math.round(amount),
     }))
     .filter((e) => e.amount > 0);
-  
+
   // If no expense data, use estimates
   if (operationalExpenses.length === 0) {
     operationalExpenses.push(
@@ -1024,23 +1020,23 @@ async function generateProfitLossData(
   const totalOther = otherExpenses.reduce((sum, e) => sum + e.amount, 0);
   const netProfit = operatingProfit + totalOther;
   const netMargin = totalRevenue > 0 ? parseFloat(((netProfit / totalRevenue) * 100).toFixed(1)) : 0;
-  
+
   // Calculate real comparison with previous period
   const periodLength = endDate.getTime() - startDate.getTime();
   const prevPeriodStart = new Date(startDate.getTime() - periodLength);
   const prevPeriodEnd = new Date(startDate.getTime() - 1);
-  
+
   const prevPeriodData = await generateProfitLossDataSimple(prevPeriodStart, prevPeriodEnd);
   const vsLastMonth = prevPeriodData.netProfit > 0
     ? ((netProfit - prevPeriodData.netProfit) / prevPeriodData.netProfit) * 100
     : 0;
-  
+
   // Year-over-year
   const yearAgoPeriodStart = new Date(startDate);
   yearAgoPeriodStart.setFullYear(yearAgoPeriodStart.getFullYear() - 1);
   const yearAgoPeriodEnd = new Date(endDate);
   yearAgoPeriodEnd.setFullYear(yearAgoPeriodEnd.getFullYear() - 1);
-  
+
   const yearAgoData = await generateProfitLossDataSimple(yearAgoPeriodStart, yearAgoPeriodEnd);
   const vsLastYear = yearAgoData.netProfit > 0
     ? ((netProfit - yearAgoData.netProfit) / yearAgoData.netProfit) * 100
@@ -1084,34 +1080,34 @@ async function generateProfitLossDataSimple(
   });
 
   const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.total), 0);
-  
+
   // Calculate COGS
-  const products = await prisma.product.findMany();
+  const costItems = await prisma.item.findMany({ where: { type: "GOODS" }, select: { name: true, baseCost: true } });
   const productCostMap: Record<string, number> = {};
-  products.forEach((p) => {
-    productCostMap[p.name] = Number(p.cost || 0);
+  costItems.forEach((p) => {
+    productCostMap[p.name] = Number(p.baseCost || 0);
   });
-  
+
   let totalCOGS = 0;
   transactions.forEach((t) => {
     t.items.forEach((item) => {
-      const costPerUnit = productCostMap[item.productName] || 0;
+      const costPerUnit = productCostMap[item.itemName] || 0;
       totalCOGS += costPerUnit * item.quantity;
     });
   });
-  
+
   const cogs = totalCOGS > 0 ? totalCOGS : totalRevenue * 0.4;
   const grossProfit = totalRevenue - cogs;
-  
+
   // Get expenses
   const expenses = await prisma.expense.findMany({
     where: {
       date: { gte: startDate, lte: endDate },
     },
   });
-  
+
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const netProfit = grossProfit - totalExpenses;
-  
+
   return { revenue: totalRevenue, netProfit };
 }

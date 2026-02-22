@@ -11,18 +11,20 @@ import { Separator } from "@/components/ui/separator";
 export default async function SettingsPage() {
     const session = await auth();
     if (!session) redirect("/login");
+    const tenantId = session.user.tenantId;
 
     // Only OWNER and MANAGER can access settings
     if (session.user.role === "KASIR") {
         redirect("/dashboard");
     }
 
-    let settings = await db.settings.findFirst();
+    let settings = await db.settings.findFirst({ where: { tenantId } });
 
     if (!settings) {
         settings = await db.settings.create({
             data: {
-                businessName: "Toko Roti Bahagia",
+                tenantId,
+                businessName: "Usaha Saya",
                 taxRate: 11,
             },
         });
@@ -40,6 +42,20 @@ export default async function SettingsPage() {
         currency: settings.currency,
         receiptHeader: settings.receiptHeader || "",
         receiptFooter: settings.receiptFooter || "",
+        qrisString: settings.qrisString || "",
+        loyaltyEnabled: settings.loyaltyEnabled,
+        loyaltyPointsPerRupiah: settings.loyaltyPointsPerRupiah,
+        loyaltyPointValue: settings.loyaltyPointValue,
+        tierPricingEnabled: settings.tierPricingEnabled,
+        consignmentEnabled: settings.consignmentEnabled,
+        serialTrackEnabled: settings.serialTrackEnabled,
+        accountingEnabled: settings.accountingEnabled,
+        bankReconEnabled: settings.bankReconEnabled,
+        payrollEnabled: settings.payrollEnabled,
+        marketingEnabled: settings.marketingEnabled,
+        feedbackEnabled: settings.feedbackEnabled,
+        onlineOrderEnabled: settings.onlineOrderEnabled,
+        webhooksEnabled: settings.webhooksEnabled,
     };
 
     return (

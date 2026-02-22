@@ -126,8 +126,8 @@ export async function PUT(
         // Adjust stock for all items with variance
         for (const item of opname.items) {
           if (item.variance !== 0 && !item.adjusted) {
-            await tx.product.update({
-              where: { id: item.productId },
+            await tx.itemVariant.update({
+              where: { id: item.variantId },
               data: {
                 stock: item.countedStock,
               },
@@ -136,7 +136,8 @@ export async function PUT(
             // Create stock movement
             await tx.stockMovement.create({
               data: {
-                productId: item.productId,
+                tenantId: opname.tenantId,
+                variantId: item.variantId,
                 type: "ADJUSTMENT",
                 quantity: Math.abs(item.variance),
                 reference: opname.opnameNo,

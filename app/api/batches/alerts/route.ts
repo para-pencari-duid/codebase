@@ -13,20 +13,27 @@ export async function GET() {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+    const tenantId = session.user.tenantId!;
+
     // Get expired batches
-    const expired = await prisma.productBatch.findMany({
+    const expired = await prisma.itemBatch.findMany({
       where: {
+        tenantId,
         expiryDate: { lt: now },
         remainingQty: { gt: 0 },
         isActive: true,
       },
       include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-            price: true,
+        variant: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                basePrice: true,
+              },
+            },
           },
         },
       },
@@ -35,8 +42,9 @@ export async function GET() {
     });
 
     // Get near-expiry batches (within 7 days)
-    const nearExpiry = await prisma.productBatch.findMany({
+    const nearExpiry = await prisma.itemBatch.findMany({
       where: {
+        tenantId,
         expiryDate: {
           gte: now,
           lte: sevenDaysFromNow,
@@ -45,12 +53,16 @@ export async function GET() {
         isActive: true,
       },
       include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-            price: true,
+        variant: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                basePrice: true,
+              },
+            },
           },
         },
       },

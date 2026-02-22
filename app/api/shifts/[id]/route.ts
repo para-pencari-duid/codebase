@@ -27,7 +27,7 @@ export async function GET(
             createdAt: true,
             items: {
               select: {
-                productName: true,
+                itemName: true,
                 quantity: true,
                 price: true,
                 subtotal: true,
@@ -122,7 +122,7 @@ export async function PUT(
       .reduce((sum, t) => sum + Number(t.total), 0);
 
     const totalCard = transactions
-      .filter((t) => ["DEBIT_CARD", "CREDIT_CARD"].includes(t.paymentMethod))
+      .filter((t) => t.paymentMethod !== null && ["DEBIT_CARD", "CREDIT_CARD"].includes(t.paymentMethod))
       .reduce((sum, t) => sum + Number(t.total), 0);
 
     // Calculate expected closing balance (opening + cash sales)

@@ -5,7 +5,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Category } from "@prisma/client";
+import { ItemCategory } from "@prisma/client";
+
+type Category = ItemCategory;
 import { toast } from "sonner";
 import { Trash } from "lucide-react";
 
@@ -126,7 +128,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
                                 <FormItem>
                                     <FormLabel>Nama Kategori</FormLabel>
                                     <FormControl>
-                                        <Input disabled={loading} placeholder="Contoh: Roti, Minuman" {...field} />
+                                        <Input disabled={loading} placeholder="Contoh: Makanan, Minuman, Jasa" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

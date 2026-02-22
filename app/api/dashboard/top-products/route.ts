@@ -17,16 +17,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const tenantId = session.user.tenantId!;
+
     const { searchParams } = new URL(req.url);
     const range = (searchParams.get("range") as DateRangeOption) || "month";
     const limit = parseInt(searchParams.get("limit") || "10");
 
     const dateRange = getDateRange(range);
 
-    // Get all transaction items in range with product info
+    // Get all transaction items in range with variant/item info
     const items = await prisma.transactionItem.findMany({
       where: {
         transaction: {
+          tenantId,
           createdAt: {
             gte: dateRange.from,
             lte: dateRange.to,
@@ -35,15 +38,19 @@ export async function GET(req: Request) {
         },
       },
       include: {
-        product: {
+        variant: {
           include: {
-            category: true,
+            item: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
       },
     });
 
-    // Aggregate by product
+    // Aggregate by variant
     const productMap = new Map<
       string,
       {
@@ -56,17 +63,17 @@ export async function GET(req: Request) {
     >();
 
     items.forEach((item) => {
-      const existing = productMap.get(item.productId);
+      const existing = productMap.get(item.variantId);
       const revenue = Number(item.subtotal);
 
       if (existing) {
         existing.quantitySold += item.quantity;
         existing.revenue += revenue;
       } else {
-        productMap.set(item.productId, {
-          id: item.productId,
-          name: item.productName,
-          category: item.product?.category?.name || "Uncategorized",
+        productMap.set(item.variantId, {
+          id: item.variantId,
+          name: item.itemName,
+          category: item.variant?.item?.category?.name || "Uncategorized",
           quantitySold: item.quantity,
           revenue,
         });

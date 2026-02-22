@@ -5,10 +5,10 @@ import { notFound } from "next/navigation";
 
 export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const recipe = await prisma.recipe.findUnique({
+    const recipe = await prisma.billOfMaterial.findUnique({
         where: { id },
         include: {
-            ingredients: true,
+            components: true,
         },
     });
 
@@ -16,13 +16,13 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         notFound();
     }
 
-    const products = await prisma.product.findMany({
-        where: { isActive: true },
+    const products = await prisma.item.findMany({
+        where: { type: "GOODS", isActive: true },
         orderBy: { name: "asc" },
     });
 
-    const materials = await prisma.rawMaterial.findMany({
-        where: { isActive: true },
+    const materials = await prisma.item.findMany({
+        where: { type: "RAW_MATERIAL", isActive: true },
         orderBy: { name: "asc" },
     });
 

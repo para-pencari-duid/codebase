@@ -16,6 +16,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const tenantId = session.user.tenantId!;
+
     // Get today's range
     const todayRange = getDateRange("today");
     const yesterdayRange = getPreviousPeriodRange(todayRange);
@@ -23,6 +25,7 @@ export async function GET() {
     // Today's transactions
     const todayTransactions = await prisma.transaction.findMany({
       where: {
+        tenantId,
         createdAt: {
           gte: todayRange.from,
           lte: todayRange.to,
@@ -38,6 +41,7 @@ export async function GET() {
     // Yesterday's transactions (for comparison)
     const yesterdayTransactions = await prisma.transaction.findMany({
       where: {
+        tenantId,
         createdAt: {
           gte: yesterdayRange.from,
           lte: yesterdayRange.to,
@@ -60,27 +64,24 @@ export async function GET() {
       yesterdayTransactions.filter((t) => t.customerId).map((t) => t.customerId)
     ).size;
 
-    // Low stock products count
-    const lowStockCount = await prisma.product.count({
-      where: {
-        stock: {
-          lte: prisma.product.fields.minStock,
-        },
-        isActive: true,
-      },
+    // Low stock items count (check via variants)
+    const allVariants = await prisma.itemVariant.findMany({
+      where: { isActive: true, item: { tenantId, isActive: true, type: "GOODS" } },
+      select: { stock: true, minStock: true },
     });
+    const lowStockCount = allVariants.filter(v => v.stock <= v.minStock).length;
 
     // Best selling product today
     const productSales: Map<string, { name: string; quantity: number }> = new Map();
     
     todayTransactions.forEach((transaction) => {
       transaction.items.forEach((item) => {
-        const existing = productSales.get(item.productId) || {
-          name: item.productName,
+        const existing = productSales.get(item.variantId) || {
+          name: item.itemName,
           quantity: 0,
         };
-        productSales.set(item.productId, {
-          name: item.productName,
+        productSales.set(item.variantId, {
+          name: item.itemName,
           quantity: existing.quantity + item.quantity,
         });
       });

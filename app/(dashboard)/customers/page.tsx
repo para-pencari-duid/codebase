@@ -6,8 +6,10 @@ import { CustomerClient } from "@/components/customers/customer-client";
 export default async function CustomersPage() {
     const session = await auth();
     if (!session?.user) redirect("/login");
+    const tenantId = session.user.tenantId;
 
     const customers = await db.customer.findMany({
+        where: { tenantId },
         include: {
             _count: { select: { transactions: true } },
             transactions: {

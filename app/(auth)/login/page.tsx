@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,7 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
     email: z.string().email({
@@ -68,7 +69,7 @@ export default function LoginPage() {
     return (
         <Card>
             <CardHeader className="space-y-1 text-center">
-                <CardTitle className="text-2xl font-bold">Login Toko Roti</CardTitle>
+                <CardTitle className="text-2xl font-bold">Masuk ke Sistem</CardTitle>
                 <CardDescription>
                     Masukkan email dan password untuk masuk ke sistem
                 </CardDescription>
@@ -83,7 +84,7 @@ export default function LoginPage() {
                                 <FormItem>
                                     <FormLabel>Email</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="admin@tokoroti.com" {...field} disabled={isLoading} />
+                                        <Input placeholder="email@usaha.com" {...field} disabled={isLoading} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -108,6 +109,14 @@ export default function LoginPage() {
                     </form>
                 </Form>
             </CardContent>
+            <CardFooter className="justify-center">
+                <p className="text-sm text-muted-foreground">
+                    Belum punya akun usaha?{" "}
+                    <Link href="/register" className="font-semibold text-primary hover:underline">
+                        Daftar di sini
+                    </Link>
+                </p>
+            </CardFooter>
         </Card>
     );
 }

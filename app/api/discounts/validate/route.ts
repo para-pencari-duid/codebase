@@ -17,7 +17,7 @@ export async function POST(req: Request) {
             return new NextResponse("Kode diskon wajib diisi", { status: 400 });
         }
 
-        const discount = await db.discount.findUnique({
+        const discount = await db.discount.findFirst({
             where: { code },
         });
 

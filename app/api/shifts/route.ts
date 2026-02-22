@@ -111,8 +111,10 @@ export async function POST(req: Request) {
     }
 
     // Create shift
+    const tenantId = session.user.tenantId!;
     const shift = await prisma.shift.create({
       data: {
+        tenantId,
         shiftNo,
         userId: session.user.id,
         openingBalance: parseFloat(openingBalance || 0),

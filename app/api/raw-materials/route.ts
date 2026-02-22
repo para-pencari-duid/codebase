@@ -6,7 +6,7 @@ import prisma from "@/lib/db";
 
 /**
  * GET /api/raw-materials
- * List all raw materials
+ * List all raw materials (Items with type=RAW_MATERIAL)
  */
 export async function GET(req: Request) {
   try {
@@ -17,10 +17,15 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
-    const isActive = searchParams.get("isActive");
+    const isActiveParam = searchParams.get("isActive");
 
-    const where: any = {};
-    
+    const tenantId = session.user.tenantId!;
+
+    const where: any = {
+      tenantId,
+      type: "RAW_MATERIAL",
+    };
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -28,12 +33,13 @@ export async function GET(req: Request) {
       ];
     }
 
-    if (isActive !== null && isActive !== undefined) {
-      where.isActive = isActive === "true";
+    if (isActiveParam !== null && isActiveParam !== undefined) {
+      where.isActive = isActiveParam === "true";
     }
 
-    const materials = await prisma.rawMaterial.findMany({
+    const materials = await prisma.item.findMany({
       where,
+      include: { variants: true },
       orderBy: { name: "asc" },
     });
 
@@ -49,7 +55,7 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/raw-materials
- * Create a new raw material
+ * Create a new raw material (Item with type=RAW_MATERIAL + default variant)
  */
 export async function POST(req: Request) {
   try {
@@ -68,10 +74,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if SKU already exists
+    const tenantId = session.user.tenantId!;
+
+    // Check if SKU already exists for this tenant
     if (sku) {
-      const existing = await prisma.rawMaterial.findUnique({
-        where: { sku },
+      const existing = await prisma.item.findFirst({
+        where: { tenantId, sku },
       });
       if (existing) {
         return NextResponse.json(
@@ -81,17 +89,33 @@ export async function POST(req: Request) {
       }
     }
 
-    const material = await prisma.rawMaterial.create({
+    const generatedSku = sku || `RM-${Date.now()}`;
+
+    const material = await prisma.item.create({
       data: {
+        tenantId,
         name,
-        sku: sku || null,
+        sku: generatedSku,
         unit,
-        stock: stock ? parseFloat(stock) : 0,
-        minStock: minStock ? parseFloat(minStock) : 1,
-        cost: cost ? parseFloat(cost) : 0,
-        supplier: supplier || null,
-        notes: notes || null,
+        type: "RAW_MATERIAL",
+        basePrice: 0,
+        baseCost: cost ? parseFloat(cost) : 0,
+        description: notes || null,
+        isActive: true,
+        variants: {
+          create: {
+            tenantId,
+            sku: `${generatedSku}-DEFAULT`,
+            name: "Default",
+            price: 0,
+            cost: cost ? parseFloat(cost) : 0,
+            stock: stock ? parseFloat(stock) : 0,
+            minStock: minStock ? parseFloat(minStock) : 1,
+            isActive: true,
+          },
+        },
       },
+      include: { variants: true },
     });
 
     return NextResponse.json(material, { status: 201 });

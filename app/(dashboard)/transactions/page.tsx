@@ -6,8 +6,10 @@ import { TransactionClient } from "@/components/transactions/transaction-client"
 export default async function TransactionsPage() {
     const session = await auth();
     if (!session?.user) redirect("/login");
+    const tenantId = session.user.tenantId;
 
     const transactions = await db.transaction.findMany({
+        where: { tenantId },
         include: {
             customer: true,
             user: { select: { id: true, name: true } },
@@ -27,14 +29,14 @@ export default async function TransactionsPage() {
         tax: Number(t.tax),
         discount: Number(t.discount),
         total: Number(t.total),
-        paymentMethod: t.paymentMethod,
+        paymentMethod: t.paymentMethod || "CASH",
         paymentAmount: Number(t.paymentAmount),
         changeAmount: Number(t.changeAmount),
         status: t.status,
         notes: t.notes,
         createdAt: t.createdAt.toISOString(),
         items: t.items.map((item) => ({
-            productName: item.productName,
+            productName: item.itemName,
             quantity: item.quantity,
             price: Number(item.price),
             discount: Number(item.discount),

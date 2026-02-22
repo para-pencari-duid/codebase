@@ -7,8 +7,10 @@ export default async function UsersPage() {
     const session = await auth();
     if (!session) redirect("/login");
     if (session.user.role === "KASIR") redirect("/dashboard");
+    const tenantId = session.user.tenantId;
 
     const users = await db.user.findMany({
+        where: { tenantId },
         select: {
             id: true,
             name: true,

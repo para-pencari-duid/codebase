@@ -21,16 +21,8 @@ export async function GET(
     const production = await prisma.productionOrder.findUnique({
       where: { id },
       include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-        materials: {
-          include: {
-            material: true,
-          },
-        },
+        items: true,
+        materials: true,
       },
     });
 
@@ -69,6 +61,8 @@ export async function PUT(
     const body = await req.json();
     const { action, notes, items } = body;
 
+    const tenantId = session.user.tenantId!;
+
     // Check if production exists
     const existing = await prisma.productionOrder.findUnique({
       where: { id },
@@ -94,31 +88,31 @@ export async function PUT(
         );
       }
 
-      // Check material availability
+      // Check variant availability
       for (const material of existing.materials) {
-        const rawMaterial = await prisma.rawMaterial.findUnique({
-          where: { id: material.materialId },
+        const variant = await prisma.itemVariant.findUnique({
+          where: { id: material.variantId },
         });
 
-        if (!rawMaterial) {
+        if (!variant) {
           return NextResponse.json(
-            { error: `Material ${material.materialName} not found` },
+            { error: `Material variant for ${material.materialName} not found` },
             { status: 400 }
           );
         }
 
-        if (Number(rawMaterial.stock) < Number(material.quantity)) {
+        if (Number(variant.stock) < Number(material.quantity)) {
           return NextResponse.json(
-            { error: `Insufficient stock for ${material.materialName}. Required: ${material.quantity} ${material.unit}, Available: ${rawMaterial.stock} ${rawMaterial.unit}` },
+            { error: `Insufficient stock for ${material.materialName}. Required: ${material.quantity} ${material.unit}, Available: ${variant.stock}` },
             { status: 400 }
           );
         }
       }
 
-      // Deduct materials from stock
+      // Deduct variant stock
       for (const material of existing.materials) {
-        await prisma.rawMaterial.update({
-          where: { id: material.materialId },
+        await prisma.itemVariant.update({
+          where: { id: material.variantId },
           data: {
             stock: {
               decrement: Number(material.quantity),
@@ -135,16 +129,8 @@ export async function PUT(
           startedAt: new Date(),
         },
         include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          materials: {
-            include: {
-              material: true,
-            },
-          },
+          items: true,
+          materials: true,
         },
       });
 
@@ -164,9 +150,9 @@ export async function PUT(
         );
       }
 
-      // Update item quantities and add to product stock
+      // Update item quantities and add to variant stock
       for (const itemUpdate of items) {
-        const item = existing.items.find(i => i.id === itemUpdate.id);
+        const item = existing.items.find((i) => i.id === itemUpdate.id);
         if (!item) continue;
 
         // Update production item
@@ -178,9 +164,9 @@ export async function PUT(
           },
         });
 
-        // Add produced quantity to product stock
-        await prisma.product.update({
-          where: { id: item.productId },
+        // Add produced quantity to variant stock
+        await prisma.itemVariant.update({
+          where: { id: item.variantId },
           data: {
             stock: {
               increment: parseInt(itemUpdate.producedQuantity),
@@ -191,7 +177,8 @@ export async function PUT(
         // Create stock movement for tracking
         await prisma.stockMovement.create({
           data: {
-            productId: item.productId,
+            tenantId,
+            variantId: item.variantId,
             type: "IN",
             quantity: parseInt(itemUpdate.producedQuantity),
             reference: existing.orderNo,
@@ -210,16 +197,8 @@ export async function PUT(
           completedAt: new Date(),
         },
         include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          materials: {
-            include: {
-              material: true,
-            },
-          },
+          items: true,
+          materials: true,
         },
       });
 
@@ -235,8 +214,8 @@ export async function PUT(
       // If production was started, return materials to stock
       if (existing.status === "IN_PROGRESS") {
         for (const material of existing.materials) {
-          await prisma.rawMaterial.update({
-            where: { id: material.materialId },
+          await prisma.itemVariant.update({
+            where: { id: material.variantId },
             data: {
               stock: {
                 increment: Number(material.quantity),
@@ -253,16 +232,8 @@ export async function PUT(
           status: "CANCELLED",
         },
         include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          materials: {
-            include: {
-              material: true,
-            },
-          },
+          items: true,
+          materials: true,
         },
       });
 
@@ -275,16 +246,8 @@ export async function PUT(
           ...(notes !== undefined && { notes }),
         },
         include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          materials: {
-            include: {
-              material: true,
-            },
-          },
+          items: true,
+          materials: true,
         },
       });
 

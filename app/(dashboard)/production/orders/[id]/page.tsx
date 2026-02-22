@@ -13,16 +13,8 @@ export default async function ProductionOrderPage({ params }: { params: Promise<
     const order = await prisma.productionOrder.findUnique({
         where: { id },
         include: {
-            items: {
-                include: {
-                    product: true,
-                },
-            },
-            materials: {
-                include: {
-                    material: true,
-                },
-            },
+            items: true,
+            materials: true,
         },
     });
 
@@ -90,8 +82,8 @@ export default async function ProductionOrderPage({ params }: { params: Promise<
                             {order.items.map((item) => (
                                 <div key={item.id} className="flex justify-between items-center border-b pb-2 last:border-0 last:pb-0">
                                     <div>
-                                        <p className="font-medium">{item.productName}</p>
-                                        <p className="text-sm text-muted-foreground">{item.product.sku}</p>
+                                        <p className="font-medium">{item.itemName}</p>
+                                        <p className="text-sm text-muted-foreground">{item.variantName}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-medium">{item.targetQuantity} pcs</p>

@@ -288,11 +288,14 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
                     items: selectedTransaction.items,
                     subtotal: selectedTransaction.subtotal,
                     tax: selectedTransaction.tax,
+                    taxRate: selectedTransaction.tax > 0 ? Math.round((selectedTransaction.tax / selectedTransaction.subtotal) * 100) : 0,
+                    taxIncluded: selectedTransaction.tax > 0,
                     discount: selectedTransaction.discount,
                     total: selectedTransaction.total,
                     paymentMethod: selectedTransaction.paymentMethod,
                     paymentAmount: selectedTransaction.paymentAmount,
                     changeAmount: selectedTransaction.changeAmount,
+                    businessName: "",
                 } : null}
             />
         </>

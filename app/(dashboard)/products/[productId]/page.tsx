@@ -10,20 +10,24 @@ export default async function ProductPage({
 }) {
     const session = await auth();
     if (!session) redirect("/login");
+    const tenantId = session.user.tenantId;
 
     const { productId } = await params;
 
-    const categories = await db.category.findMany({
+    const categories = await db.itemCategory.findMany({
+        where: { tenantId },
         orderBy: { name: 'asc' }
     });
 
     let product = null;
 
     if (productId !== "new") {
-        product = await db.product.findUnique({
+        product = await db.item.findFirst({
             where: {
-                id: productId
-            }
+                id: productId,
+                tenantId,
+            },
+            include: { variants: true },
         });
     }
 

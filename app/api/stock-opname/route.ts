@@ -62,13 +62,16 @@ export async function POST(req: Request) {
     }
 
     const data = await req.json();
-    const { scheduledDate, products } = data;
+    const { scheduledDate, variants } = data;
+
+    const tenantId = session.user.tenantId!;
 
     // Generate opname number
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
     const lastOpname = await prisma.stockOpname.findFirst({
       where: {
+        tenantId,
         opnameNo: {
           startsWith: `OPN-${dateStr}`,
         },
@@ -83,27 +86,31 @@ export async function POST(req: Request) {
       opnameNo = `OPN-${dateStr}-${nextNum}`;
     }
 
-    // Get products to audit
-    const productList = products && products.length > 0
-      ? await prisma.product.findMany({
-          where: { id: { in: products } },
+    // Get variants to audit
+    const variantList = variants && variants.length > 0
+      ? await prisma.itemVariant.findMany({
+          where: { id: { in: variants } },
+          include: { item: { select: { name: true } } },
         })
-      : await prisma.product.findMany({
-          where: { isActive: true },
+      : await prisma.itemVariant.findMany({
+          where: { item: { tenantId, isActive: true, type: "GOODS" } },
+          include: { item: { select: { name: true } } },
         });
 
     // Create opname with items
     const opname = await prisma.stockOpname.create({
       data: {
+        tenantId,
         opnameNo,
         scheduledDate: new Date(scheduledDate),
         status: "SCHEDULED",
-        totalItems: productList.length,
+        totalItems: variantList.length,
         items: {
-          create: productList.map((product) => ({
-            productId: product.id,
-            productName: product.name,
-            systemStock: product.stock,
+          create: variantList.map((variant) => ({
+            variantId: variant.id,
+            itemName: variant.item.name,
+            variantName: variant.name,
+            systemStock: variant.stock,
             countedStock: 0,
             variance: 0,
           })),

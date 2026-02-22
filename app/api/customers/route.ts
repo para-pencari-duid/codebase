@@ -26,7 +26,11 @@ export async function GET(req: Request) {
         const search = searchParams.get("search") || "";
         const phone = searchParams.get("phone"); // Exact phone lookup
 
-        const where: any = {};
+        const tenantId = session.user.tenantId!;
+        let where: any = { 
+            tenantId,
+            isActive: true 
+        };
         
         // Exact phone lookup (for POS customer check)
         if (phone) {
@@ -46,7 +50,8 @@ export async function GET(req: Request) {
             include: {
                 _count: { select: { transactions: true } },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { name: "asc" }, // Sort by name for better UX
+            take: search ? 20 : undefined, // Limit search results
         });
 
         return NextResponse.json(customers);
@@ -66,9 +71,12 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = customerSchema.parse(body);
 
+        const tenantId = session.user.tenantId!;
+
         const customer = await db.customer.create({
             data: {
                 ...validatedData,
+                tenantId,
                 email: validatedData.email || null,
                 birthDate: validatedData.birthDate ? new Date(validatedData.birthDate) : null,
             },

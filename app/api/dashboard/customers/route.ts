@@ -17,17 +17,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const tenantId = session.user.tenantId!;
+
     const { searchParams } = new URL(req.url);
     const range = (searchParams.get("range") as DateRangeOption) || "month";
 
     const dateRange = getDateRange(range);
 
     // Total customers (all time)
-    const totalCustomers = await prisma.customer.count();
+    const totalCustomers = await prisma.customer.count({ where: { tenantId } });
 
     // New customers in range
     const newCustomers = await prisma.customer.count({
       where: {
+        tenantId,
         createdAt: {
           gte: dateRange.from,
           lte: dateRange.to,
@@ -38,6 +41,7 @@ export async function GET(req: Request) {
     // Transactions in range with customer info
     const transactions = await prisma.transaction.findMany({
       where: {
+        tenantId,
         createdAt: {
           gte: dateRange.from,
           lte: dateRange.to,

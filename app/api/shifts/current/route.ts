@@ -56,7 +56,7 @@ export async function GET() {
       .reduce((sum, t) => sum + Number(t.total), 0);
 
     const totalCard = transactions
-      .filter((t) => ["DEBIT_CARD", "CREDIT_CARD"].includes(t.paymentMethod))
+      .filter((t) => t.paymentMethod !== null && ["DEBIT_CARD", "CREDIT_CARD"].includes(t.paymentMethod))
       .reduce((sum, t) => sum + Number(t.total), 0);
 
     return NextResponse.json({

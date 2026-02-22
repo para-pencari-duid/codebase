@@ -19,7 +19,10 @@ export async function GET() {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const categories = await db.category.findMany({
+        const tenantId = session.user.tenantId!;
+
+        const categories = await db.itemCategory.findMany({
+            where: { tenantId },
             orderBy: { createdAt: "desc" },
         });
 
@@ -36,14 +39,13 @@ export async function POST(req: Request) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        // Role check: Only Owner/Manager can key in data? For now let everyone add via UI permissions.
-        // Ideally check (session.user.role !== "KASIR")
-
         const body = await req.json();
         const validatedData = categorySchema.parse(body);
 
-        const category = await db.category.create({
-            data: validatedData,
+        const tenantId = session.user.tenantId!;
+
+        const category = await db.itemCategory.create({
+            data: { ...validatedData, tenantId },
         });
 
         return NextResponse.json(category);

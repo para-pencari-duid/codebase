@@ -18,17 +18,17 @@ export async function GET(
     }
 
     const { id } = await params;
-    const recipe = await prisma.recipe.findUnique({
+    const recipe = await prisma.billOfMaterial.findUnique({
       where: { id },
       include: {
-        product: {
+        item: {
           include: {
             category: true,
           },
         },
-        ingredients: {
+        components: {
           include: {
-            material: true,
+            componentItem: true,
           },
         },
       },
@@ -65,8 +65,8 @@ export async function PUT(
     const body = await req.json();
     const { notes, yield: recipeYield, yieldUnit, prepTime, cookTime, ingredients, isActive } = body;
 
-    // Check if recipe exists
-    const existing = await prisma.recipe.findUnique({
+    // Check if BOM exists
+    const existing = await prisma.billOfMaterial.findUnique({
       where: { id },
     });
 
@@ -74,8 +74,8 @@ export async function PUT(
       return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
     }
 
-    // Update recipe and ingredients
-    const recipe = await prisma.recipe.update({
+    // Update BOM and components
+    const recipe = await prisma.billOfMaterial.update({
       where: { id },
       data: {
         ...(notes !== undefined && { notes }),
@@ -85,10 +85,10 @@ export async function PUT(
         ...(cookTime !== undefined && { cookTime: cookTime ? parseInt(cookTime) : null }),
         ...(isActive !== undefined && { isActive }),
         ...(ingredients && {
-          ingredients: {
+          components: {
             deleteMany: {},
             create: ingredients.map((ing: any) => ({
-              materialId: ing.materialId,
+              componentItemId: ing.materialId || ing.componentItemId,
               quantity: parseFloat(ing.quantity),
               unit: ing.unit,
               notes: ing.notes || null,
@@ -97,10 +97,10 @@ export async function PUT(
         }),
       },
       include: {
-        product: true,
-        ingredients: {
+        item: true,
+        components: {
           include: {
-            material: true,
+            componentItem: true,
           },
         },
       },
@@ -131,8 +131,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Check if recipe exists
-    const recipe = await prisma.recipe.findUnique({
+    const recipe = await prisma.billOfMaterial.findUnique({
       where: { id },
     });
 
@@ -140,7 +139,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
     }
 
-    await prisma.recipe.delete({
+    await prisma.billOfMaterial.delete({
       where: { id },
     });
 

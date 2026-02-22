@@ -61,10 +61,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action } = body;
 
+    const tenantId = session.user.tenantId!;
+
     // Mark all as read
     if (action === "markAllRead") {
       await prisma.notification.updateMany({
-        where: { isRead: false },
+        where: { isRead: false, tenantId },
         data: { isRead: true },
       });
       return NextResponse.json({ message: "Semua notifikasi telah dibaca" });
@@ -72,14 +74,20 @@ export async function POST(req: NextRequest) {
 
     // Check low stock and create notifications
     if (action === "checkLowStock") {
-      // Use each product's own minStock field instead of global threshold
-      const lowStockProducts = await prisma.$queryRaw<
-        { id: string; name: string; stock: number; minStock: number }[]
-      >`
-        SELECT id, name, stock, "minStock"
-        FROM "Product"
-        WHERE stock <= "minStock" AND "isActive" = true
-      `;
+      // Query ItemVariants with low stock
+      const allVariants = await prisma.itemVariant.findMany({
+        where: { isActive: true, item: { isActive: true, type: "GOODS", tenantId } },
+        select: { id: true, stock: true, minStock: true, item: { select: { id: true, name: true } } },
+      });
+      const lowStockProducts = allVariants
+        .filter((v) => Number(v.stock) <= Number(v.minStock))
+        .map((v) => ({
+          id: v.id,
+          itemId: v.item.id,
+          name: v.item.name,
+          stock: Number(v.stock),
+          minStock: Number(v.minStock),
+        }));
 
       const notifications = [];
 
@@ -87,6 +95,7 @@ export async function POST(req: NextRequest) {
         // Check if notification already exists for this product today
         const existingNotification = await prisma.notification.findFirst({
           where: {
+            tenantId,
             type: product.stock === 0 ? "OUT_OF_STOCK" : "LOW_STOCK",
             data: { contains: product.id },
             createdAt: {
@@ -98,12 +107,13 @@ export async function POST(req: NextRequest) {
         if (!existingNotification) {
           const notification = await prisma.notification.create({
             data: {
+              tenantId,
               type: product.stock === 0 ? "OUT_OF_STOCK" : "LOW_STOCK",
               title: product.stock === 0 ? "Stok Habis" : "Stok Rendah",
               message: product.stock === 0
                 ? `${product.name} sudah habis!`
                 : `${product.name} tersisa ${product.stock} unit (minimum: ${product.minStock})`,
-              data: JSON.stringify({ productId: product.id, stock: product.stock, minStock: product.minStock }),
+              data: JSON.stringify({ variantId: product.id, itemId: product.itemId, stock: product.stock, minStock: product.minStock }),
             },
           });
           notifications.push(notification);
@@ -119,7 +129,7 @@ export async function POST(req: NextRequest) {
             productsToNotify.map((p) => ({ name: p.name, stock: p.stock }))
           );
 
-          sendNotificationIfEnabled(settings.ownerPhone, message, "lowstock").catch(
+          sendNotificationIfEnabled(settings.ownerPhone, message, "lowstock", tenantId).catch(
             (err) => console.error("[WA] Failed to send low stock alert:", err)
           );
         }
