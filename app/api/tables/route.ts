@@ -17,7 +17,8 @@ export async function GET() {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
 
         const tables = await db.table.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             include: {
                 activeOrder: {
                     include: {
@@ -42,10 +43,9 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = tableSchema.parse(body);
-        const tenantId = session.user.tenantId!;
 
         const table = await db.table.create({
-            data: { ...data, tenantId },
+            data: { ...data },
         });
 
         return NextResponse.json(table);

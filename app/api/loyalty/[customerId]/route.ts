@@ -17,11 +17,10 @@ export async function GET(
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
 
         const { customerId } = await params;
-        const tenantId = session.user.tenantId!;
 
         const [settings, loyaltyPoint, recentHistory] = await Promise.all([
             db.settings.findFirst({
-                where: { tenantId },
+                where: {},
                 select: {
                     loyaltyEnabled: true,
                     loyaltyPointsPerRupiah: true,
@@ -32,7 +31,7 @@ export async function GET(
                 where: { customerId },
             }),
             db.pointHistory.findMany({
-                where: { customerId, tenantId },
+                where: { customerId },
                 orderBy: { createdAt: "desc" },
                 take: 10,
             }),

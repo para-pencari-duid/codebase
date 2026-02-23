@@ -64,14 +64,11 @@ export async function POST(req: Request) {
     const data = await req.json();
     const { scheduledDate, variants } = data;
 
-    const tenantId = session.user.tenantId!;
-
     // Generate opname number
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
     const lastOpname = await prisma.stockOpname.findFirst({
       where: {
-        tenantId,
         opnameNo: {
           startsWith: `OPN-${dateStr}`,
         },
@@ -93,14 +90,13 @@ export async function POST(req: Request) {
           include: { item: { select: { name: true } } },
         })
       : await prisma.itemVariant.findMany({
-          where: { item: { tenantId, isActive: true, type: "GOODS" } },
+          where: { item: { isActive: true, type: "GOODS" } },
           include: { item: { select: { name: true } } },
         });
 
     // Create opname with items
     const opname = await prisma.stockOpname.create({
       data: {
-        tenantId,
         opnameNo,
         scheduledDate: new Date(scheduledDate),
         status: "SCHEDULED",

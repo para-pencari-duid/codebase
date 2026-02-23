@@ -104,7 +104,6 @@ export async function PUT(
 
       await prisma.$transaction(async (tx) => {
         // Return items to stock
-        const tenantId = session.user.tenantId!;
         for (const item of returnRecord.items) {
           if (item.returnToStock) {
             await tx.itemVariant.update({
@@ -117,7 +116,6 @@ export async function PUT(
             // Create stock movement
             await tx.stockMovement.create({
               data: {
-                tenantId,
                 variantId: item.variantId,
                 type: "IN",
                 quantity: item.quantity,

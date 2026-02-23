@@ -10,13 +10,12 @@ export default async function CategoryPage({
 }) {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const { categoryId } = await params;
     const category = categoryId === "new"
         ? null
         : await db.itemCategory.findFirst({
-            where: { id: categoryId, tenantId }
+            where: { id: categoryId }
         });
 
     return (

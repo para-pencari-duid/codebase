@@ -18,7 +18,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const perms = await db.rolePermission.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             orderBy: [{ role: "asc" }, { resource: "asc" }],
         });
         return NextResponse.json(perms);
@@ -31,15 +32,14 @@ export async function PUT(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = permSchema.parse(body);
-        const tenantId = session.user.tenantId!;
         const role = (data.role ?? null) as Role | null;
         // Find existing
-        const existing = await db.rolePermission.findFirst({ where: { tenantId, role, resource: data.resource } });
+        const existing = await db.rolePermission.findFirst({ where: { role, resource: data.resource } });
         let perm;
         if (existing) {
             perm = await db.rolePermission.update({ where: { id: existing.id }, data: { actions: data.actions } });
         } else {
-            perm = await db.rolePermission.create({ data: { tenantId, role, userId: data.userId, resource: data.resource, actions: data.actions } });
+            perm = await db.rolePermission.create({ data: { role, userId: data.userId, resource: data.resource, actions: data.actions } });
         }
         return NextResponse.json(perm);
     } catch (e) {

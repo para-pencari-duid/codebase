@@ -16,8 +16,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Get today's range
     const todayRange = getDateRange("today");
     const yesterdayRange = getPreviousPeriodRange(todayRange);
@@ -25,7 +23,6 @@ export async function GET() {
     // Today's transactions
     const todayTransactions = await prisma.transaction.findMany({
       where: {
-        tenantId,
         createdAt: {
           gte: todayRange.from,
           lte: todayRange.to,
@@ -41,7 +38,6 @@ export async function GET() {
     // Yesterday's transactions (for comparison)
     const yesterdayTransactions = await prisma.transaction.findMany({
       where: {
-        tenantId,
         createdAt: {
           gte: yesterdayRange.from,
           lte: yesterdayRange.to,
@@ -66,7 +62,7 @@ export async function GET() {
 
     // Low stock items count (check via variants)
     const allVariants = await prisma.itemVariant.findMany({
-      where: { isActive: true, item: { tenantId, isActive: true, type: "GOODS" } },
+      where: { isActive: true, item: { isActive: true, type: "GOODS" } },
       select: { stock: true, minStock: true },
     });
     const lowStockCount = allVariants.filter(v => v.stock <= v.minStock).length;

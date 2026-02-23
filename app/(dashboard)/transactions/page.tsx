@@ -6,10 +6,9 @@ import { TransactionClient } from "@/components/transactions/transaction-client"
 export default async function TransactionsPage() {
     const session = await auth();
     if (!session?.user) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const transactions = await db.transaction.findMany({
-        where: { tenantId },
+        where: {},
         include: {
             customer: true,
             user: { select: { id: true, name: true } },

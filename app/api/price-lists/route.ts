@@ -23,7 +23,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const lists = await db.priceList.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             include: { items: { include: { variant: { include: { item: true } } } } },
             orderBy: { name: "asc" },
         });
@@ -37,13 +38,11 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
         if (data.isDefault) {
-            await db.priceList.updateMany({ where: { tenantId, isDefault: true }, data: { isDefault: false } });
+            await db.priceList.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
         }
         const list = await db.priceList.create({
             data: {
-                tenantId,
                 name: data.name,
                 description: data.description,
                 isDefault: data.isDefault ?? false,

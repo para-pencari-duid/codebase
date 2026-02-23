@@ -15,7 +15,6 @@ export async function GET(req: Request) {
         const q = searchParams.get("q");
         const serials = await db.serialNumber.findMany({
             where: {
-                tenantId: session.user.tenantId!,
                 ...(variantId ? { variantId } : {}),
                 ...(status ? { status } as any : {}),
                 ...(q ? { serialNo: { contains: q, mode: "insensitive" } } : {}),
@@ -41,10 +40,8 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
         await db.serialNumber.createMany({
             data: data.serialNos.map(sn => ({
-                tenantId,
                 variantId: data.variantId,
                 serialNo: sn,
                 purchaseRef: data.purchaseRef,

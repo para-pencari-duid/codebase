@@ -104,12 +104,9 @@ export async function POST(req: Request) {
       returnNo = `RET-${dateStr}-${nextNum}`;
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Create return
     const returnRecord = await prisma.return.create({
       data: {
-        tenantId,
         returnNo,
         transactionId,
         transactionNo: transaction.transactionNo,

@@ -82,11 +82,9 @@ export async function POST(req: Request) {
         }
 
         const hashedPassword = await bcrypt.hash(data.password, 12);
-        const tenantId = session.user.tenantId!;
 
         const user = await db.user.create({
             data: {
-                tenantId,
                 name: data.name,
                 email: data.email,
                 password: hashedPassword,

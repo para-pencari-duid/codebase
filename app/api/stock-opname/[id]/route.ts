@@ -136,7 +136,6 @@ export async function PUT(
             // Create stock movement
             await tx.stockMovement.create({
               data: {
-                tenantId: opname.tenantId,
                 variantId: item.variantId,
                 type: "ADJUSTMENT",
                 quantity: Math.abs(item.variance),

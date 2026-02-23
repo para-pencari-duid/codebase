@@ -36,7 +36,8 @@ export async function GET(req: Request) {
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "50");
 
-        const where: any = { tenantId: session.user.tenantId! };
+        const where: any = {
+ };
 
         if (date) {
             const d = new Date(date);
@@ -78,14 +79,12 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = createSchema.parse(body);
-        const tenantId = session.user.tenantId!;
 
-        const count = await db.booking.count({ where: { tenantId } });
+        const count = await db.booking.count({ where: {} });
         const bookingNo = `BK-${Date.now().toString().slice(-6)}-${(count + 1).toString().padStart(4, "0")}`;
 
         const booking = await db.booking.create({
             data: {
-                tenantId,
                 bookingNo,
                 customerName: data.customerName,
                 customerPhone: data.customerPhone,

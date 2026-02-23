@@ -19,10 +19,8 @@ export async function GET() {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const tenantId = session.user.tenantId!;
-
         const categories = await db.itemCategory.findMany({
-            where: { tenantId },
+            where: {},
             orderBy: { createdAt: "desc" },
         });
 
@@ -42,10 +40,8 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = categorySchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
         const category = await db.itemCategory.create({
-            data: { ...validatedData, tenantId },
+            data: { ...validatedData },
         });
 
         return NextResponse.json(category);

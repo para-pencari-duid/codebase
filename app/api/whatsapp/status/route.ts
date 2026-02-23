@@ -21,8 +21,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const queryTenantId = searchParams.get("tenantId");
 
-    const erpTenantId = session.user.tenantId!;
-    const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
+    const settings = await prisma.settings.findFirst();
 
     // Use query tenant ID if provided, otherwise use DB tenant ID
     const tenantId = queryTenantId || settings?.whatsappTenantId;
@@ -58,8 +57,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       connected: isConnected,
-      tenantId: tenantId,
       enabled: settings?.whatsappEnabled || false,
+      tenantId: settings?.whatsappTenantId || null,
       lastConnected: settings?.whatsappLastConnected,
       notifications: {
         onTransaction: settings?.notifyOnTransaction || false,

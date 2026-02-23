@@ -323,8 +323,8 @@ export async function sendWhatsAppMessage(
  * Get existing tenant ID or create a new one
  * Settings should already exist from seed/migration
  */
-export async function getOrCreateTenantId(erpTenantId: string): Promise<string> {
-  let settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
+export async function getOrCreateTenantId(): Promise<string> {
+  let settings = await prisma.settings.findFirst();
 
   // If settings exists and has tenant ID, return it
   if (settings?.whatsappTenantId) {
@@ -332,9 +332,7 @@ export async function getOrCreateTenantId(erpTenantId: string): Promise<string> 
     return settings.whatsappTenantId;
   }
 
-  // Use tenant slug as prefix so session ID reflects the actual business
-  const tenant = await prisma.tenant.findUnique({ where: { id: erpTenantId }, select: { slug: true } });
-  const prefix = tenant?.slug?.replace(/[^a-z0-9]/gi, "-").substring(0, 20) || "tenant";
+  const prefix = settings?.businessName?.replace(/[^a-z0-9]/gi, "-").substring(0, 20) || "tenant";
 
   // Generate new tenant ID (12 random alphanumeric chars)
   const randomString = randomBytes(9).toString("base64").replace(/[+/=]/g, "").substring(0, 12);
@@ -349,12 +347,11 @@ export async function getOrCreateTenantId(erpTenantId: string): Promise<string> 
       data: { whatsappTenantId: tenantId },
     });
   } else {
-    // Fallback: create settings row for this tenant
-    console.warn("[WA] No settings found for tenant, creating defaults");
+    // Fallback: create settings row (singleton)
+    console.warn("[WA] No settings found, creating defaults");
     settings = await prisma.settings.create({
       data: {
-        tenantId: erpTenantId,
-        businessName: tenant?.slug || "Toko",
+        businessName: "Toko",
         taxRate: 11,
         whatsappTenantId: tenantId,
       },
@@ -367,8 +364,8 @@ export async function getOrCreateTenantId(erpTenantId: string): Promise<string> 
 /**
  * Check if WhatsApp is enabled and connected
  */
-export async function isWhatsAppReady(erpTenantId: string): Promise<boolean> {
-  const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
+export async function isWhatsAppReady(): Promise<boolean> {
+  const settings = await prisma.settings.findFirst();
 
   if (!settings?.whatsappEnabled || !settings?.whatsappTenantId) {
     return false;
@@ -388,11 +385,10 @@ export async function sendWhatsAppNotification(
   phone: string,
   label: string,
   message: string,
-  erpTenantId: string,
   bypassRateLimit = true
 ): Promise<boolean> {
   try {
-    const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
+    const settings = await prisma.settings.findFirst();
     if (!settings?.whatsappEnabled || !settings?.whatsappTenantId) {
       console.log(`[WA] WhatsApp not enabled, skipping ${label}`);
       return false;
@@ -421,10 +417,9 @@ export async function sendWhatsAppNotification(
 export async function sendNotificationIfEnabled(
   phone: string,
   message: string,
-  notificationType: "transaction" | "lowstock" | "backup" | "report",
-  erpTenantId: string
+  notificationType: "transaction" | "lowstock" | "backup" | "report"
 ): Promise<void> {
-  const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
+  const settings = await prisma.settings.findFirst();
 
   if (!settings?.whatsappEnabled || !settings?.whatsappTenantId) {
     console.log("[WA] WhatsApp not enabled, skipping notification");

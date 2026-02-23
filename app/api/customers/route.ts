@@ -25,10 +25,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") || "";
         const phone = searchParams.get("phone"); // Exact phone lookup
-
-        const tenantId = session.user.tenantId!;
         let where: any = { 
-            tenantId,
             isActive: true 
         };
         
@@ -71,12 +68,9 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = customerSchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
         const customer = await db.customer.create({
             data: {
                 ...validatedData,
-                tenantId,
                 email: validatedData.email || null,
                 birthDate: validatedData.birthDate ? new Date(validatedData.birthDate) : null,
             },

@@ -11,7 +11,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         const table = await db.table.findUnique({
             where: { qrToken: token },
             include: {
-                tenant: { select: { id: true, name: true } },
                 activeOrder: { include: { items: true } },
             },
         });
@@ -20,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
         // Fetch active categories + items for this tenant
         const categories = await db.itemCategory.findMany({
-            where: { tenantId: table.tenantId, isActive: true },
+            where: { isActive: true },
             include: {
                 items: {
                     where: { isActive: true, type: "GOODS" },
@@ -44,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
                 status: table.status,
                 activeOrder: table.activeOrder,
             },
-            tenant: table.tenant,
+            tenant: null,
             menu: categories,
         });
     } catch (error) {
@@ -84,8 +83,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
         const body = await req.json();
         const data = orderSchema.parse(body);
-        const tenantId = table.tenantId;
-
         let order = table.activeOrder;
 
         if (!order) {
@@ -93,13 +90,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
                 return new NextResponse("Table occupied — ask staff", { status: 409 });
             }
 
-            const count = await db.tableOrder.count({ where: { tenantId } });
+            const count = await db.tableOrder.count({ where: {} });
             const orderNo = `ORD-${Date.now()}-${count + 1}`;
 
             order = await db.$transaction(async (prisma) => {
                 const newOrder = await prisma.tableOrder.create({
                     data: {
-                        tenantId,
                         tableId: table.id,
                         orderNo,
                         guestName: data.guestName,
@@ -139,12 +135,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         }
 
         // Auto-create kitchen ticket
-        const kitchenCount = await db.kitchenTicket.count({ where: { tenantId } });
+        const kitchenCount = await db.kitchenTicket.count({ where: {} });
         const ticketNo = `KTV-${(kitchenCount + 1).toString().padStart(4, "0")}`;
 
         await db.kitchenTicket.create({
             data: {
-                tenantId,
                 ticketNo,
                 tableOrderId: order.id,
                 tableNumber: table.number,

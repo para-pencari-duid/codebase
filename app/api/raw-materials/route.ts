@@ -19,10 +19,7 @@ export async function GET(req: Request) {
     const search = searchParams.get("search");
     const isActiveParam = searchParams.get("isActive");
 
-    const tenantId = session.user.tenantId!;
-
     const where: any = {
-      tenantId,
       type: "RAW_MATERIAL",
     };
 
@@ -74,12 +71,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Check if SKU already exists for this tenant
     if (sku) {
       const existing = await prisma.item.findFirst({
-        where: { tenantId, sku },
+        where: { sku },
       });
       if (existing) {
         return NextResponse.json(
@@ -93,7 +88,6 @@ export async function POST(req: Request) {
 
     const material = await prisma.item.create({
       data: {
-        tenantId,
         name,
         sku: generatedSku,
         unit,
@@ -104,7 +98,6 @@ export async function POST(req: Request) {
         isActive: true,
         variants: {
           create: {
-            tenantId,
             sku: `${generatedSku}-DEFAULT`,
             name: "Default",
             price: 0,

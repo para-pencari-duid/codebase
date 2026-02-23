@@ -28,7 +28,6 @@ export async function GET(req: Request) {
         const unreconciled = searchParams.get("unreconciled") === "true";
         const stmts = await db.bankStatement.findMany({
             where: {
-                tenantId: session.user.tenantId!,
                 ...(bankAccountId ? { bankAccountId } : {}),
                 ...(unreconciled ? { isReconciled: false } : {}),
             },
@@ -45,10 +44,8 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
         await db.bankStatement.createMany({
             data: data.statements.map(s => ({
-                tenantId,
                 bankAccountId: data.bankAccountId,
                 date: new Date(s.date),
                 description: s.description,

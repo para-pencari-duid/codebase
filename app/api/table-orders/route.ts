@@ -22,7 +22,6 @@ export async function GET(req: Request) {
 
         const orders = await db.tableOrder.findMany({
             where: {
-                tenantId: session.user.tenantId!,
                 ...(status ? { status: status as any } : { status: { in: ["OPEN", "BILL_REQUESTED"] } }),
             },
             include: {
@@ -47,11 +46,10 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = createSchema.parse(body);
-        const tenantId = session.user.tenantId!;
 
         // Check table exists and is available
         const table = await db.table.findFirst({
-            where: { id: data.tableId, tenantId },
+            where: { id: data.tableId },
         });
         if (!table) return new NextResponse("Table not found", { status: 404 });
         if (table.status === "OCCUPIED") {
@@ -59,13 +57,12 @@ export async function POST(req: Request) {
         }
 
         // Generate order number
-        const count = await db.tableOrder.count({ where: { tenantId } });
+        const count = await db.tableOrder.count({ where: {} });
         const orderNo = `ORD-${Date.now().toString().slice(-6)}-${(count + 1).toString().padStart(3, "0")}`;
 
         const order = await db.$transaction(async (prisma) => {
             const newOrder = await prisma.tableOrder.create({
                 data: {
-                    tenantId,
                     tableId: data.tableId,
                     orderNo,
                     guestName: data.guestName,

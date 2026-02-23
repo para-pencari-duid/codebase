@@ -27,7 +27,8 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const activeOnly = searchParams.get("active") !== "false";
         const employees = await db.employee.findMany({
-            where: { tenantId: session.user.tenantId!, ...(activeOnly ? { isActive: true } : {}) },
+            where: {
+ ...(activeOnly ? { isActive: true } : {}) },
             orderBy: { name: "asc" },
         });
         return NextResponse.json(employees);
@@ -40,11 +41,10 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
-        const count = await db.employee.count({ where: { tenantId } });
+        const count = await db.employee.count({ where: {} });
         const employeeNo = `EMP-${(count + 1).toString().padStart(4, "0")}`;
         const emp = await db.employee.create({
-            data: { tenantId, employeeNo, ...data, joinDate: new Date(data.joinDate) },
+            data: { employeeNo, ...data, joinDate: new Date(data.joinDate) },
         });
         return NextResponse.json(emp);
     } catch (e) {

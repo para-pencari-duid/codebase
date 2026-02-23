@@ -10,7 +10,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ periodI
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { periodId } = await params;
         const period = await db.payrollPeriod.findFirst({
-            where: { id: periodId, tenantId: session.user.tenantId! },
+            where: { id: periodId,
+ },
             include: { entries: { include: { employee: { select: { name: true, employeeNo: true, position: true } } } } },
         });
         if (!period) return new NextResponse("Not Found", { status: 404 });
@@ -24,9 +25,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ period
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { periodId } = await params;
         const { action, entries } = await req.json();
-        const tenantId = session.user.tenantId!;
 
-        const period = await db.payrollPeriod.findFirst({ where: { id: periodId, tenantId } });
+        const period = await db.payrollPeriod.findFirst({ where: { id: periodId } });
         if (!period) return new NextResponse("Not Found", { status: 404 });
 
         if (action === "process") {

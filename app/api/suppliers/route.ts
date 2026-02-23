@@ -80,7 +80,6 @@ export async function POST(req: NextRequest) {
 
     const supplier = await prisma.supplier.create({
       data: {
-        tenantId: session.user.tenantId!,
         name,
         phone,
         email,

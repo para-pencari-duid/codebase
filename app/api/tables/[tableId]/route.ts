@@ -19,7 +19,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ tableId: s
         const { tableId } = await params;
 
         const table = await db.table.findFirst({
-            where: { id: tableId, tenantId: session.user.tenantId! },
+            where: { id: tableId,
+ },
             include: {
                 activeOrder: { include: { items: true, kitchenTickets: true } },
             },
@@ -42,7 +43,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tableId:
         const data = updateSchema.parse(body);
 
         const table = await db.table.update({
-            where: { id: tableId, tenantId: session.user.tenantId! },
+            where: { id: tableId,
+ },
             data,
         });
 
@@ -61,7 +63,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ tableId
         const { tableId } = await params;
 
         await db.table.delete({
-            where: { id: tableId, tenantId: session.user.tenantId! },
+            where: { id: tableId,
+ },
         });
 
         return new NextResponse(null, { status: 204 });

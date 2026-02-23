@@ -31,7 +31,6 @@ export async function GET(req: Request) {
         const page = parseInt(searchParams.get("page") || "1");
         const entries = await db.journalEntry.findMany({
             where: {
-                tenantId: session.user.tenantId!,
                 ...(startDate && endDate ? { date: { gte: new Date(startDate), lte: new Date(endDate + "T23:59:59Z") } } : {}),
             },
             include: { lines: { include: { account: { select: { code: true, name: true } } } } },
@@ -49,18 +48,16 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
         // Validate balanced entry
         const totalDebit = data.lines.reduce((s, l) => s + l.debit, 0);
         const totalCredit = data.lines.reduce((s, l) => s + l.credit, 0);
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
             return NextResponse.json({ error: "Jurnal tidak seimbang (debit ≠ kredit)" }, { status: 400 });
         }
-        const count = await db.journalEntry.count({ where: { tenantId } });
+        const count = await db.journalEntry.count({ where: {} });
         const entryNo = `JE-${new Date().getFullYear()}-${(count + 1).toString().padStart(5, "0")}`;
         const entry = await db.journalEntry.create({
             data: {
-                tenantId,
                 entryNo,
                 date: new Date(data.date),
                 description: data.description,

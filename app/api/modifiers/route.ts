@@ -26,10 +26,8 @@ export async function GET(req: Request) {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
 
-        const tenantId = session.user.tenantId!;
-
         const modifierGroups = await db.itemModifierGroup.findMany({
-            where: { tenantId },
+            where: {},
             include: {
                 options: { orderBy: { sortOrder: "asc" } },
                 items: { select: { id: true, name: true, sku: true } },
@@ -48,14 +46,11 @@ export async function POST(req: Request) {
     try {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
-
-        const tenantId = session.user.tenantId!;
         const body = await req.json();
         const data = modifierGroupSchema.parse(body);
 
         const modifierGroup = await db.itemModifierGroup.create({
             data: {
-                tenantId,
                 name: data.name,
                 required: data.required,
                 multiple: data.multiple,

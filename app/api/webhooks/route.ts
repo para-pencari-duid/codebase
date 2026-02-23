@@ -18,7 +18,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const endpoints = await db.webhookEndpoint.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             include: { _count: { select: { logs: true } } },
             orderBy: { createdAt: "desc" },
         });
@@ -34,7 +35,8 @@ export async function POST(req: Request) {
         const data = webhookSchema.parse(body);
         const secret = crypto.randomBytes(32).toString("hex");
         const endpoint = await db.webhookEndpoint.create({
-            data: { ...data, tenantId: session.user.tenantId!, secret },
+            data: { ...data,
+ secret },
         });
         return NextResponse.json(endpoint);
     } catch (e) {

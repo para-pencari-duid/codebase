@@ -60,8 +60,6 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = pointAdjustmentSchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
         // Get or create loyalty point record
         let loyaltyPoint = await db.loyaltyPoint.findUnique({
             where: { customerId: validatedData.customerId },
@@ -70,7 +68,6 @@ export async function POST(req: Request) {
         if (!loyaltyPoint) {
             loyaltyPoint = await db.loyaltyPoint.create({
                 data: {
-                    tenantId,
                     customerId: validatedData.customerId,
                     points: 0,
                 },
@@ -106,7 +103,6 @@ export async function POST(req: Request) {
         // Create history record
         await db.pointHistory.create({
             data: {
-                tenantId,
                 customerId: validatedData.customerId,
                 points: validatedData.points,
                 type: validatedData.type,

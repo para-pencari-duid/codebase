@@ -131,7 +131,6 @@ export async function POST(req: Request) {
         });
 
         // Resolve payment lines (support both new `payments[]` and legacy single payment)
-        const tenantId = session.user.tenantId!;
         const resolvedPayments: Array<{ method: string; amount: number; reference?: string | null }> = (() => {
             if (validatedData.payments && validatedData.payments.length > 0) {
                 return validatedData.payments;
@@ -146,7 +145,7 @@ export async function POST(req: Request) {
         const totalPaid = resolvedPayments.reduce((sum, p) => sum + p.amount, 0);
 
         // Fetch tenant settings (tax rate + loyalty)
-        const tenantSettings = await db.settings.findFirst({ where: { tenantId } });
+        const tenantSettings = await db.settings.findFirst({ where: {} });
 
         // Calculate totals
         const subtotal = validatedData.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -166,7 +165,7 @@ export async function POST(req: Request) {
         const prefix = `TRX-${year}${month}${day}-`;
 
         const lastTransaction = await db.transaction.findFirst({
-            where: { transactionNo: { startsWith: prefix }, tenantId },
+            where: { transactionNo: { startsWith: prefix } },
             orderBy: { transactionNo: 'desc' },
         });
 
@@ -237,7 +236,6 @@ export async function POST(req: Request) {
             // 1. Create Transaction Record
             const newTransaction = await prisma.transaction.create({
                 data: {
-                    tenantId,
                     transactionNo,
                     userId: session.user?.id as string,
                     customerId: validatedData.customerId || null,
@@ -303,7 +301,6 @@ export async function POST(req: Request) {
 
                 await prisma.stockMovement.create({
                     data: {
-                        tenantId,
                         variantId: resolvedVariantId,
                         type: "OUT",
                         quantity: item.quantity,
@@ -327,7 +324,6 @@ export async function POST(req: Request) {
                 await db.loyaltyPoint.upsert({
                     where: { customerId: validatedData.customerId },
                     create: {
-                        tenantId,
                         customerId: validatedData.customerId,
                         points: 0,
                         totalEarned: 0,
@@ -340,7 +336,6 @@ export async function POST(req: Request) {
                 });
                 await db.pointHistory.create({
                     data: {
-                        tenantId,
                         customerId: validatedData.customerId,
                         points: -validatedData.pointsRedeemed,
                         type: "REDEEM",
@@ -356,7 +351,6 @@ export async function POST(req: Request) {
                 await db.loyaltyPoint.upsert({
                     where: { customerId: validatedData.customerId },
                     create: {
-                        tenantId,
                         customerId: validatedData.customerId,
                         points: earnedPoints,
                         totalEarned: earnedPoints,
@@ -369,7 +363,6 @@ export async function POST(req: Request) {
                 });
                 await db.pointHistory.create({
                     data: {
-                        tenantId,
                         customerId: validatedData.customerId,
                         points: earnedPoints,
                         type: "EARN",
@@ -408,7 +401,7 @@ export async function POST(req: Request) {
                 });
 
                 // Send async (fire and forget)
-                sendNotificationIfEnabled(transaction.customer.phone, message, "transaction", tenantId).catch(
+                sendNotificationIfEnabled(transaction.customer.phone, message, "transaction").catch(
                     (err) => console.error("[WA] Failed to send transaction receipt:", err)
                 );
             }

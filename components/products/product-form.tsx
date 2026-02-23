@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 // Local types replacing removed Prisma model exports
-type Category = { id: string; name: string; description?: string | null; tenantId: string; createdAt: Date; updatedAt: Date; };
+type Category = { id: string; name: string; description?: string | null; createdAt: Date; updatedAt: Date; };
 type Product = { id: string; name: string; sku: string; categoryId?: string | null; price?: any; cost?: any; stock?: any; minStock?: any; unit?: string; description?: string | null; images?: string[]; isActive?: boolean; };
 import { toast } from "sonner";
 import { Trash } from "lucide-react";

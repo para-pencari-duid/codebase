@@ -10,7 +10,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { id } = await params;
         const campaign = await db.marketingCampaign.findFirst({
-            where: { id, tenantId: session.user.tenantId! },
+            where: { id,
+ },
             include: { recipients: true },
         });
         if (!campaign) return new NextResponse("Not Found", { status: 404 });
@@ -25,7 +26,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const { id } = await params;
         const body = await req.json();
         const campaign = await db.marketingCampaign.updateMany({
-            where: { id, tenantId: session.user.tenantId! },
+            where: { id,
+ },
             data: {
                 name: body.name, message: body.message, imageUrl: body.imageUrl,
                 scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
@@ -41,10 +43,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { id } = await params;
         const { action } = await req.json();
-        const tenantId = session.user.tenantId!;
 
         if (action === "send") {
-            const campaign = await db.marketingCampaign.findFirst({ where: { id, tenantId } });
+            const campaign = await db.marketingCampaign.findFirst({ where: { id } });
             if (!campaign) return new NextResponse("Not Found", { status: 404 });
             // Mark as SENDING, set sentAt
             const updated = await db.marketingCampaign.update({
@@ -66,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         }
 
         if (action === "cancel") {
-            const updated = await db.marketingCampaign.updateMany({ where: { id, tenantId }, data: { status: "CANCELLED" } });
+            const updated = await db.marketingCampaign.updateMany({ where: { id }, data: { status: "CANCELLED" } });
             return NextResponse.json(updated);
         }
 

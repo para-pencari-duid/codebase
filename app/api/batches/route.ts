@@ -17,10 +17,7 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
 
-    const tenantId = session.user.tenantId!;
-
     const where: Prisma.ItemBatchWhereInput = {
-      tenantId,
       isActive: true,
     };
 
@@ -137,11 +134,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Check if batch number already exists for this tenant
     const existingBatch = await prisma.itemBatch.findFirst({
-      where: { batchNo, tenantId },
+      where: { batchNo },
     });
 
     if (existingBatch) {
@@ -156,7 +151,6 @@ export async function POST(req: Request) {
     // Create batch
     const batch = await prisma.itemBatch.create({
       data: {
-        tenantId,
         variantId,
         batchNo,
         quantity: qty,
@@ -185,7 +179,6 @@ export async function POST(req: Request) {
     // Create stock movement record
     await prisma.stockMovement.create({
       data: {
-        tenantId,
         variantId,
         type: "IN",
         quantity: qty,

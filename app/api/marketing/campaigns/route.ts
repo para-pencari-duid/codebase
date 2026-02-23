@@ -20,7 +20,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const campaigns = await db.marketingCampaign.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             include: { _count: { select: { recipients: true } } },
             orderBy: { createdAt: "desc" },
         });
@@ -34,21 +35,19 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = campaignSchema.parse(body);
-        const tenantId = session.user.tenantId!;
 
         // Resolve recipients from customers based on segment or explicit ids
         let recipients: Array<{ customerId: string; name: string; contact: string }> = [];
         if (data.recipientIds?.length) {
-            const customers = await db.customer.findMany({ where: { id: { in: data.recipientIds }, tenantId } });
+            const customers = await db.customer.findMany({ where: { id: { in: data.recipientIds } } });
             recipients = customers.map(c => ({ customerId: c.id, name: c.name, contact: c.phone ?? c.email ?? "" }));
         } else if (data.targetSegment) {
-            const customers = await db.customer.findMany({ where: { tenantId, segment: data.targetSegment } });
+            const customers = await db.customer.findMany({ where: { segment: data.targetSegment } });
             recipients = customers.map(c => ({ customerId: c.id, name: c.name, contact: c.phone ?? c.email ?? "" }));
         }
 
         const campaign = await db.marketingCampaign.create({
             data: {
-                tenantId,
                 name: data.name,
                 type: data.type,
                 targetSegment: data.targetSegment,

@@ -36,11 +36,9 @@ export async function POST(req: Request) {
     const data = await req.json();
     const { code, name, address, phone, email, manager, isMainStore } = data;
 
-    const tenantId = session.user.tenantId!;
-
     // Check if code exists
     const existing = await prisma.store.findFirst({
-      where: { tenantId, code },
+      where: { code },
     });
 
     if (existing) {
@@ -53,14 +51,13 @@ export async function POST(req: Request) {
     // If this is main store, unset other main stores
     if (isMainStore) {
       await prisma.store.updateMany({
-        where: { tenantId, isMainStore: true },
+        where: { isMainStore: true },
         data: { isMainStore: false },
       });
     }
 
     const store = await prisma.store.create({
       data: {
-        tenantId,
         code,
         name,
         address,

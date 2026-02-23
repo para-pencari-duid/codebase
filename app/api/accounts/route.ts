@@ -23,7 +23,6 @@ export async function GET(req: Request) {
         const type = searchParams.get("type");
         const accounts = await db.account.findMany({
             where: {
-                tenantId: session.user.tenantId!,
                 ...(type ? { type } as any : {}),
                 isActive: true,
             },
@@ -40,11 +39,10 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
         // Auto normalBalance if not provided
         const normalBalance = data.normalBalance ?? (["ASSET", "EXPENSE"].includes(data.type) ? "DEBIT" : "CREDIT");
         const account = await db.account.create({
-            data: { tenantId, ...data, normalBalance },
+            data: { ...data, normalBalance },
         });
         return NextResponse.json(account);
     } catch (e) {

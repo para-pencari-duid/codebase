@@ -6,10 +6,9 @@ import { TableClient } from "@/components/tables/table-client";
 export default async function TablesPage() {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId!;
 
     const tables = await db.table.findMany({
-        where: { tenantId },
+        where: {},
         include: {
             activeOrder: {
                 include: { items: true },

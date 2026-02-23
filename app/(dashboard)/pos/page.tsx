@@ -6,10 +6,9 @@ import { POSClient } from "@/components/pos/pos-client";
 export default async function POSPage() {
     const session = await auth();
     if (!session || !session.user) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const products = await db.item.findMany({
-        where: { isActive: true, type: "GOODS", tenantId },
+        where: { isActive: true, type: "GOODS" },
         include: {
             category: true,
             variants: true,
@@ -28,12 +27,12 @@ export default async function POSPage() {
     });
 
     const categories = await db.itemCategory.findMany({
-        where: { tenantId },
+        where: {},
         orderBy: { name: 'asc' }
     });
 
     // Fetch business settings
-    const settings = await db.settings.findFirst({ where: { tenantId } });
+    const settings = await db.settings.findFirst({ where: {} });
 
     const formattedProducts = products.map((item) => ({
         id: item.id,

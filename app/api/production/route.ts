@@ -20,9 +20,7 @@ export async function GET(req: Request) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    const tenantId = session.user.tenantId!;
-
-    const where: any = { tenantId };
+    const where: any = {};
 
     if (status) {
       where.status = status;
@@ -78,10 +76,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Generate order number
-    const count = await prisma.productionOrder.count({ where: { tenantId } });
+    const count = await prisma.productionOrder.count({ where: {} });
     const orderNo = `PROD-${String(count + 1).padStart(6, "0")}`;
 
     // Calculate required materials from BOM
@@ -171,7 +167,6 @@ export async function POST(req: Request) {
     // Create production order
     const production = await prisma.productionOrder.create({
       data: {
-        tenantId,
         orderNo,
         scheduledDate: new Date(scheduledDate),
         status: "PLANNED",

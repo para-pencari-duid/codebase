@@ -17,8 +17,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const tenantId = session.user.tenantId!;
-
     const { searchParams } = new URL(req.url);
     const range = (searchParams.get("range") as DateRangeOption) || "month";
 
@@ -28,7 +26,6 @@ export async function GET(req: Request) {
     const items = await prisma.transactionItem.findMany({
       where: {
         transaction: {
-          tenantId,
           createdAt: {
             gte: dateRange.from,
             lte: dateRange.to,

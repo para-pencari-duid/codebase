@@ -18,9 +18,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("productId") || searchParams.get("itemId");
 
-    const tenantId = session.user.tenantId!;
-
-    const where: any = { tenantId };
+    const where: any = {};
     if (itemId) {
       where.itemId = itemId;
     }
@@ -84,8 +82,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Check if BOM already exists for this item
     const existing = await prisma.billOfMaterial.findUnique({
       where: { itemId: resolvedItemId },
@@ -101,7 +97,6 @@ export async function POST(req: Request) {
     // Create BOM with components
     const recipe = await prisma.billOfMaterial.create({
       data: {
-        tenantId,
         itemId: resolvedItemId,
         notes: notes || null,
         yield: recipeYield ? parseFloat(recipeYield) : 1,

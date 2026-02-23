@@ -39,9 +39,6 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const tenantId = session.user.tenantId!;
-    where.tenantId = tenantId;
-
     const [orders, total] = await Promise.all([
       prisma.jobTicket.findMany({
         where,
@@ -102,8 +99,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const tenantId = session.user.tenantId!;
-
     const qty = parseInt(quantity) || 1;
     const price = parseFloat(unitPrice);
     const total = price * qty;
@@ -112,14 +107,13 @@ export async function POST(req: NextRequest) {
 
     // Generate nomor tiket
     let ticketNo = generateTicketNo();
-    const existing = await prisma.jobTicket.findFirst({ where: { ticketNo, tenantId } });
+    const existing = await prisma.jobTicket.findFirst({ where: { ticketNo } });
     if (existing) {
       ticketNo = generateTicketNo();
     }
 
     const jobTicket = await prisma.jobTicket.create({
       data: {
-        tenantId,
         ticketNo,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
@@ -149,7 +143,7 @@ export async function POST(req: NextRequest) {
 
     // Kirim WhatsApp konfirmasi ke customer
     try {
-      const settings = await prisma.settings.findFirst({ where: { tenantId } });
+      const settings = await prisma.settings.findFirst({ where: {} });
       if (settings?.whatsappEnabled && customerPhone) {
         await sendWhatsAppNotification(
           customerPhone,
@@ -168,7 +162,6 @@ export async function POST(req: NextRequest) {
             businessName: settings.businessName || "Toko",
             businessPhone: settings.businessPhone || "",
           }),
-          tenantId
         );
       }
     } catch (waError) {

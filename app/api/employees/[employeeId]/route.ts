@@ -11,7 +11,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ employeeId
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { employeeId } = await params;
         const emp = await db.employee.findFirst({
-            where: { id: employeeId, tenantId: session.user.tenantId! },
+            where: { id: employeeId,
+ },
             include: { attendances: { orderBy: { date: "desc" }, take: 30 } },
         });
         if (!emp) return new NextResponse("Not Found", { status: 404 });
@@ -40,7 +41,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ employee
         const { employeeId } = await params;
         const body = await req.json();
         const data = schema.parse(body);
-        const existing = await db.employee.findFirst({ where: { id: employeeId, tenantId: session.user.tenantId! } });
+        const existing = await db.employee.findFirst({ where: { id: employeeId,
+ } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
         const updated = await db.employee.update({ where: { id: employeeId }, data });
         return NextResponse.json(updated);
@@ -55,7 +57,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ employe
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { employeeId } = await params;
-        const existing = await db.employee.findFirst({ where: { id: employeeId, tenantId: session.user.tenantId! } });
+        const existing = await db.employee.findFirst({ where: { id: employeeId,
+ } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
         await db.employee.update({ where: { id: employeeId }, data: { isActive: false } });
         return new NextResponse(null, { status: 204 });

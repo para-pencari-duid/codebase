@@ -32,7 +32,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ bookingI
         const { bookingId } = await params;
 
         const booking = await db.booking.findFirst({
-            where: { id: bookingId, tenantId: session.user.tenantId! },
+            where: { id: bookingId,
+ },
             include: {
                 customer: { select: { id: true, name: true, phone: true, email: true } },
                 staff: { select: { id: true, name: true, email: true } },
@@ -54,10 +55,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ bookingI
 
         const body = await req.json();
         const data = updateSchema.parse(body);
-        const tenantId = session.user.tenantId!;
         const { bookingId } = await params;
 
-        const existing = await db.booking.findFirst({ where: { id: bookingId, tenantId } });
+        const existing = await db.booking.findFirst({ where: { id: bookingId } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
 
         const updated = await db.booking.update({
@@ -99,10 +99,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ booki
     try {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
-
-        const tenantId = session.user.tenantId!;
         const { bookingId } = await params;
-        const existing = await db.booking.findFirst({ where: { id: bookingId, tenantId } });
+        const existing = await db.booking.findFirst({ where: { id: bookingId } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
 
         await db.booking.delete({ where: { id: bookingId } });

@@ -22,12 +22,11 @@ export async function GET(req: Request) {
         const employeeId = searchParams.get("employeeId");
         const date = searchParams.get("date");
         const month = searchParams.get("month"); // YYYY-MM
-        const tenantId = session.user.tenantId!;
         let dateFilter: any = {};
         if (date) { const d = new Date(date); const next = new Date(d); next.setDate(d.getDate() + 1); dateFilter = { gte: d, lt: next }; }
         else if (month) { const [yr, mo] = month.split("-").map(Number); dateFilter = { gte: new Date(yr, mo - 1, 1), lt: new Date(yr, mo, 1) }; }
         const records = await db.attendance.findMany({
-            where: { tenantId, ...(employeeId ? { employeeId } : {}), ...(Object.keys(dateFilter).length ? { date: dateFilter } : {}) },
+            where: { ...(employeeId ? { employeeId } : {}), ...(Object.keys(dateFilter).length ? { date: dateFilter } : {}) },
             include: { employee: { select: { name: true, employeeNo: true } } },
             orderBy: [{ date: "desc" }, { employee: { name: "asc" } }],
         });
@@ -41,11 +40,9 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
         const record = await db.attendance.upsert({
-            where: { tenantId_employeeId_date: { tenantId, employeeId: data.employeeId, date: new Date(data.date) } },
+            where: { employeeId_date: { employeeId: data.employeeId, date: new Date(data.date) } },
             create: {
-                tenantId,
                 employeeId: data.employeeId,
                 date: new Date(data.date),
                 checkIn: data.checkIn ? new Date(data.checkIn) : null,

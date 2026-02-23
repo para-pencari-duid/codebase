@@ -11,7 +11,6 @@ export default async function UserPage({
     const session = await auth();
     if (!session) redirect("/login");
     if (session.user.role !== "OWNER") redirect("/dashboard");
-    const tenantId = session.user.tenantId;
 
     const { userId } = await params;
 
@@ -19,7 +18,7 @@ export default async function UserPage({
 
     if (userId !== "new") {
         const found = await db.user.findFirst({
-            where: { id: userId, tenantId },
+            where: { id: userId },
             select: {
                 id: true,
                 name: true,

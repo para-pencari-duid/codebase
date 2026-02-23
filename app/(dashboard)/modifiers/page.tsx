@@ -7,10 +7,8 @@ export default async function ModifiersPage() {
     const session = await auth();
     if (!session || !session.user) redirect("/login");
 
-    const tenantId = session.user.tenantId!;
-
     const modifierGroups = await db.itemModifierGroup.findMany({
-        where: { tenantId },
+        where: {},
         include: {
             options: { orderBy: { sortOrder: "asc" } },
             items: { select: { id: true, name: true, sku: true } },
@@ -20,7 +18,7 @@ export default async function ModifiersPage() {
 
     // Fetch all items (GOODS) for the multi-select
     const items = await db.item.findMany({
-        where: { tenantId, type: "GOODS", isActive: true },
+        where: { type: "GOODS", isActive: true },
         select: { id: true, name: true, sku: true },
         orderBy: { name: "asc" },
     });

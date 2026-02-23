@@ -7,10 +7,9 @@ import { redirect } from "next/navigation";
 export default async function CategoriesPage() {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const categories = await db.itemCategory.findMany({
-        where: { tenantId },
+        where: {},
         orderBy: {
             createdAt: "desc",
         },

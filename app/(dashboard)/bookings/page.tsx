@@ -6,7 +6,6 @@ import { BookingClient } from "@/components/bookings/booking-client";
 export default async function BookingsPage() {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId!;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -15,7 +14,7 @@ export default async function BookingsPage() {
 
     const [bookings, staff] = await Promise.all([
         db.booking.findMany({
-            where: { tenantId, date: { gte: today, lte: next7 } },
+            where: { date: { gte: today, lte: next7 } },
             include: {
                 customer: { select: { id: true, name: true, phone: true } },
                 staff: { select: { id: true, name: true } },
@@ -23,7 +22,7 @@ export default async function BookingsPage() {
             orderBy: [{ date: "asc" }, { startTime: "asc" }],
         }),
         db.user.findMany({
-            where: { tenantId, isActive: true },
+            where: { isActive: true },
             select: { id: true, name: true },
             orderBy: { name: "asc" },
         }),

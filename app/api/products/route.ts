@@ -29,12 +29,9 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { name, sku, categoryId, price, cost, stock, minStock, unit, description, images, isActive } = productSchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
         // Create Item with a default variant
         const item = await db.item.create({
             data: {
-                tenantId,
                 name,
                 sku,
                 categoryId: categoryId || null,
@@ -47,7 +44,6 @@ export async function POST(req: Request) {
                 type: "GOODS",
                 variants: {
                     create: {
-                        tenantId,
                         sku: `${sku}-DEFAULT`,
                         name: "Default",
                         price,
@@ -81,11 +77,8 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const categoryId = searchParams.get("categoryId") || undefined;
 
-        const tenantId = session.user.tenantId!;
-
         const items = await db.item.findMany({
             where: {
-                tenantId,
                 type: "GOODS",
                 isActive: true,
                 ...(categoryId && { categoryId }),

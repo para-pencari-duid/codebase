@@ -8,7 +8,6 @@ export async function GET(req: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
-        const tenantId = session.user.tenantId!;
         const { searchParams } = new URL(req.url);
         const range = searchParams.get("range") ?? "30"; // days
         const days = parseInt(range);
@@ -16,14 +15,14 @@ export async function GET(req: NextRequest) {
 
         const [transactions, feedbacks, customers, topVariants] = await Promise.all([
             db.transaction.findMany({
-                where: { tenantId, createdAt: { gte: since }, status: "COMPLETED" },
+                where: { createdAt: { gte: since }, status: "COMPLETED" },
                 select: { total: true, createdAt: true },
             }),
-            db.customerFeedback.findMany({ where: { tenantId, createdAt: { gte: since } }, select: { rating: true } }),
-            db.customer.findMany({ where: { tenantId }, select: { id: true, segment: true, createdAt: true } }),
+            db.customerFeedback.findMany({ where: { createdAt: { gte: since } }, select: { rating: true } }),
+            db.customer.findMany({ where: {}, select: { id: true, segment: true, createdAt: true } }),
             db.transactionItem.groupBy({
                 by: ["variantId"],
-                where: { transaction: { tenantId, createdAt: { gte: since }, status: "COMPLETED" } },
+                where: { transaction: { createdAt: { gte: since }, status: "COMPLETED" } },
                 _sum: { quantity: true, subtotal: true },
                 orderBy: { _sum: { subtotal: "desc" } },
                 take: 10,

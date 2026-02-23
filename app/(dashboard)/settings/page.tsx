@@ -11,19 +11,17 @@ import { Separator } from "@/components/ui/separator";
 export default async function SettingsPage() {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     // Only OWNER and MANAGER can access settings
     if (session.user.role === "KASIR") {
         redirect("/dashboard");
     }
 
-    let settings = await db.settings.findFirst({ where: { tenantId } });
+    let settings = await db.settings.findFirst({ where: {} });
 
     if (!settings) {
         settings = await db.settings.create({
             data: {
-                tenantId,
                 businessName: "Usaha Saya",
                 taxRate: 11,
             },

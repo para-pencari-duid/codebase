@@ -21,10 +21,8 @@ export async function GET(req: NextRequest) {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { searchParams } = new URL(req.url);
-        const tenantId = session.user.tenantId!;
         const feedbacks = await db.customerFeedback.findMany({
             where: {
-                tenantId,
                 ...(searchParams.get("rating") ? { rating: parseInt(searchParams.get("rating")!) } : {}),
                 ...(searchParams.get("customerId") ? { customerId: searchParams.get("customerId")! } : {}),
             },
@@ -47,7 +45,8 @@ export async function POST(req: Request) {
         const body = await req.json();
         const data = feedbackSchema.parse(body);
         const feedback = await db.customerFeedback.create({
-            data: { ...data, tenantId: session.user.tenantId! },
+            data: { ...data,
+ },
         });
         return NextResponse.json(feedback);
     } catch (e) {

@@ -79,9 +79,7 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const { amount } = schema.parse(body);
-
-        const tenantId = session.user.tenantId!;
-        const settings = await db.settings.findFirst({ where: { tenantId } });
+        const settings = await db.settings.findFirst({ where: {} });
 
         if (!settings?.qrisString?.trim()) {
             return NextResponse.json(

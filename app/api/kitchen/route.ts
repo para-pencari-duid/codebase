@@ -29,7 +29,6 @@ export async function GET(req: Request) {
 
         const tickets = await db.kitchenTicket.findMany({
             where: {
-                tenantId: session.user.tenantId!,
                 status: status
                     ? (status as any)
                     : { in: ["PENDING", "PREPARING", "READY"] },
@@ -52,14 +51,12 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = createSchema.parse(body);
-        const tenantId = session.user.tenantId!;
 
-        const count = await db.kitchenTicket.count({ where: { tenantId } });
+        const count = await db.kitchenTicket.count({ where: {} });
         const ticketNo = `KTV-${(count + 1).toString().padStart(5, "0")}`;
 
         const ticket = await db.kitchenTicket.create({
             data: {
-                tenantId,
                 ticketNo,
                 tableOrderId: data.tableOrderId,
                 tableNumber: data.tableNumber,

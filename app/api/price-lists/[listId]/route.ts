@@ -19,7 +19,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ listId: st
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { listId } = await params;
         const list = await db.priceList.findFirst({
-            where: { id: listId, tenantId: session.user.tenantId! },
+            where: { id: listId,
+ },
             include: { items: { include: { variant: { select: { id: true, name: true, sku: true, price: true, item: { select: { name: true } } } } } } },
         });
         if (!list) return new NextResponse("Not Found", { status: 404 });
@@ -34,11 +35,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ listId: 
         const { listId } = await params;
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
-        const existing = await db.priceList.findFirst({ where: { id: listId, tenantId } });
+        const existing = await db.priceList.findFirst({ where: { id: listId } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
         if (data.isDefault) {
-            await db.priceList.updateMany({ where: { tenantId, isDefault: true, id: { not: listId } }, data: { isDefault: false } });
+            await db.priceList.updateMany({ where: { isDefault: true, id: { not: listId } }, data: { isDefault: false } });
         }
         const updated = await db.priceList.update({ where: { id: listId }, data });
         return NextResponse.json(updated);
@@ -53,8 +53,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ listId:
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { listId } = await params;
-        const tenantId = session.user.tenantId!;
-        const existing = await db.priceList.findFirst({ where: { id: listId, tenantId } });
+        const existing = await db.priceList.findFirst({ where: { id: listId } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
         await db.priceList.delete({ where: { id: listId } });
         return new NextResponse(null, { status: 204 });

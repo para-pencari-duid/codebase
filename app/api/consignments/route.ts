@@ -30,7 +30,8 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const status = searchParams.get("status");
         const consignments = await db.consignment.findMany({
-            where: { tenantId: session.user.tenantId!, ...(status ? { status } as any : {}) },
+            where: {
+ ...(status ? { status } as any : {}) },
             include: { items: true },
             orderBy: { createdAt: "desc" },
         });
@@ -44,12 +45,10 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = schema.parse(body);
-        const tenantId = session.user.tenantId!;
-        const count = await db.consignment.count({ where: { tenantId } });
+        const count = await db.consignment.count({ where: {} });
         const consignNo = `CSG-${Date.now().toString().slice(-6)}-${(count + 1).toString().padStart(3, "0")}`;
         const consignment = await db.consignment.create({
             data: {
-                tenantId,
                 consignNo,
                 consignerName: data.consignerName,
                 consignerPhone: data.consignerPhone,

@@ -48,14 +48,11 @@ export async function GET() {
         const session = await auth();
         if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
-        const tenantId = session.user.tenantId!;
-
-        let settings = await db.settings.findFirst({ where: { tenantId } });
+        let settings = await db.settings.findFirst({ where: {} });
 
         if (!settings) {
             settings = await db.settings.create({
                 data: {
-                    tenantId,
                     businessName: "Usaha Saya",
                     taxRate: 11,
                 },
@@ -77,18 +74,16 @@ export async function PUT(req: Request) {
         const body = await req.json();
         const validatedData = settingsSchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
-        let settings = await db.settings.findFirst({ where: { tenantId } });
+        let settings = await db.settings.findFirst({ where: {} });
 
         if (settings) {
             settings = await db.settings.update({
-                where: { tenantId },
+                where: { id: settings.id },
                 data: validatedData,
             });
         } else {
             settings = await db.settings.create({
-                data: { ...validatedData, tenantId },
+                data: { ...validatedData },
             });
         }
 
@@ -110,16 +105,14 @@ export async function PATCH(req: Request) {
         const body = await req.json();
         const validatedData = whatsappSettingsSchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
-        let settings = await db.settings.findFirst({ where: { tenantId } });
+        let settings = await db.settings.findFirst({ where: {} });
 
         if (!settings) {
             return new NextResponse("Settings not found", { status: 404 });
         }
 
         settings = await db.settings.update({
-            where: { tenantId },
+            where: { id: settings.id },
             data: validatedData,
         });
 

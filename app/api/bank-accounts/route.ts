@@ -18,7 +18,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const accounts = await db.bankAccount.findMany({
-            where: { tenantId: session.user.tenantId!, isActive: true },
+            where: {
+ isActive: true },
             include: { _count: { select: { statements: true } } },
             orderBy: { bankName: "asc" },
         });
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
         const body = await req.json();
         const data = schema.parse(body);
         const account = await db.bankAccount.create({
-            data: { tenantId: session.user.tenantId!, ...data },
+            data: {
+ ...data },
         });
         return NextResponse.json(account);
     } catch (e) {

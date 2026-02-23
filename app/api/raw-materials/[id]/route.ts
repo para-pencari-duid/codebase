@@ -72,7 +72,7 @@ export async function PUT(
     // Check if SKU is being changed and if it already exists
     if (sku && sku !== existing.sku) {
       const skuExists = await prisma.item.findFirst({
-        where: { sku, tenantId: existing.tenantId },
+        where: { sku },
       });
       if (skuExists) {
         return NextResponse.json(

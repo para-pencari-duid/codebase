@@ -6,14 +6,13 @@ import { DiscountClient } from "@/components/discounts/discount-client";
 export default async function DiscountsPage() {
     const session = await auth();
     if (!session?.user) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     if (session.user.role === "KASIR") {
         redirect("/pos");
     }
 
     const discounts = await db.discount.findMany({
-        where: { tenantId },
+        where: {},
         orderBy: { createdAt: "desc" },
     });
 

@@ -8,10 +8,9 @@ import { redirect } from "next/navigation";
 export default async function ProductsPage() {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const products = await db.item.findMany({
-        where: { type: "GOODS", tenantId },
+        where: { type: "GOODS" },
         include: {
             category: true,
             variants: true,

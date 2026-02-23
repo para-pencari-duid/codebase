@@ -11,7 +11,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ consignId:
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { consignId } = await params;
         const c = await db.consignment.findFirst({
-            where: { id: consignId, tenantId: session.user.tenantId! },
+            where: { id: consignId,
+ },
             include: { items: true },
         });
         if (!c) return new NextResponse("Not Found", { status: 404 });
@@ -33,7 +34,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ consignI
         const { consignId } = await params;
         const body = await req.json();
         const data = updateSchema.parse(body);
-        const existing = await db.consignment.findFirst({ where: { id: consignId, tenantId: session.user.tenantId! } });
+        const existing = await db.consignment.findFirst({ where: { id: consignId,
+ } });
         if (!existing) return new NextResponse("Not Found", { status: 404 });
         const updated = await db.consignment.update({
             where: { id: consignId },

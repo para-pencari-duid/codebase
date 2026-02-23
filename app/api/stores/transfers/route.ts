@@ -78,12 +78,9 @@ export async function POST(req: Request) {
       transferNo = `TRF-${dateStr}-${nextNum}`;
     }
 
-    const tenantId = session.user.tenantId!;
-
     // Create transfer
     const transfer = await prisma.storeTransfer.create({
       data: {
-        tenantId,
         transferNo,
         fromStoreId,
         toStoreId,

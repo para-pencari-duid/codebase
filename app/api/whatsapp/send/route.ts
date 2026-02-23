@@ -26,8 +26,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const erpTenantId = session.user.tenantId!;
-    const settings = await prisma.settings.findFirst({ where: { tenantId: erpTenantId } });
+    const settings = await prisma.settings.findFirst();
 
     if (!settings?.whatsappTenantId || !settings?.whatsappEnabled) {
       return NextResponse.json(

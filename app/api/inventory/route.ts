@@ -57,8 +57,6 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validatedData = adjustmentSchema.parse(body);
 
-        const tenantId = session.user.tenantId!;
-
         const variant = await db.itemVariant.findUnique({
             where: { id: validatedData.variantId },
         });
@@ -82,7 +80,6 @@ export async function POST(req: Request) {
         const result = await db.$transaction(async (prisma) => {
             const movement = await prisma.stockMovement.create({
                 data: {
-                    tenantId,
                     variantId: validatedData.variantId,
                     type: validatedData.type,
                     quantity: Math.abs(stockChange),

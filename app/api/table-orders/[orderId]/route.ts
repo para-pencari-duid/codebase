@@ -26,7 +26,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ orderId: s
         const { orderId } = await params;
 
         const order = await db.tableOrder.findFirst({
-            where: { id: orderId, tenantId: session.user.tenantId! },
+            where: { id: orderId,
+ },
             include: {
                 table: true,
                 items: { orderBy: { createdAt: "asc" } },
@@ -60,7 +61,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ orderI
             if (!variant) return new NextResponse("Variant not found", { status: 404 });
 
             const order = await db.tableOrder.findFirst({
-                where: { id: orderId, tenantId: session.user.tenantId! },
+                where: { id: orderId,
+ },
                 include: { table: true },
             });
             if (!order) return new NextResponse("Order not found", { status: 404 });
@@ -80,12 +82,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ orderI
 
             // Send to kitchen if requested
             if (itemData.sendToKitchen) {
-                const ticketCount = await db.kitchenTicket.count({ where: { tenantId: session.user.tenantId! } });
+                const ticketCount = await db.kitchenTicket.count({ where: {
+ } });
                 const ticketNo = `KTV-${(ticketCount + 1).toString().padStart(5, "0")}`;
 
                 await db.kitchenTicket.create({
                     data: {
-                        tenantId: session.user.tenantId!,
                         ticketNo,
                         tableOrderId: orderId,
                         tableNumber: order.table.number,
@@ -110,7 +112,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ orderI
 
         const order = await db.$transaction(async (prisma) => {
             const updated = await prisma.tableOrder.update({
-                where: { id: orderId, tenantId: session.user!.tenantId! },
+                where: { id: orderId },
                 data: {
                     ...data,
                     ...(data.status === "PAID" || data.status === "CANCELLED"
@@ -146,7 +148,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ orderId
         const { orderId } = await params;
 
         const order = await db.tableOrder.findFirst({
-            where: { id: orderId, tenantId: session.user.tenantId! },
+            where: { id: orderId,
+ },
         });
         if (!order) return new NextResponse("Not Found", { status: 404 });
 

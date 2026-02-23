@@ -19,7 +19,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const integrations = await db.marketplaceIntegration.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             include: { _count: { select: { orders: true } } },
         });
         return NextResponse.json(integrations);
@@ -33,8 +34,9 @@ export async function POST(req: Request) {
         const body = await req.json();
         const data = integrationSchema.parse(body);
         const integration = await db.marketplaceIntegration.upsert({
-            where: { tenantId_platform: { tenantId: session.user.tenantId!, platform: data.platform } },
-            create: { ...data, tenantId: session.user.tenantId!, isActive: true },
+            where: { platform: data.platform },
+            create: { ...data,
+ isActive: true },
             update: { ...data, isActive: true },
         });
         return NextResponse.json(integration);

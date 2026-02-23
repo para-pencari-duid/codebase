@@ -55,9 +55,7 @@ export async function PUT(
     if (!jobTicket) {
       return NextResponse.json({ error: "Pre-order tidak ditemukan" }, { status: 404 });
     }
-
-    const tenantId = session.user.tenantId!;
-    const settings = await prisma.settings.findFirst({ where: { tenantId } });
+    const settings = await prisma.settings.findFirst({ where: {} });
 
     // ── ACTION: update_status ─────────────────────────────
     if (action === "update_status") {
@@ -110,7 +108,7 @@ Sampai jumpa di toko ya!
 ~ ${settings.businessName || "Toko"} ~
 `.trim();
 
-            await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_ready", message, tenantId);
+            await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_ready", message);
           }
         } catch (waError) {
           console.error("[JobTicket] WA ready notification failed:", waError);
@@ -177,7 +175,7 @@ lebih lanjut.
 
 ~ ${settings.businessName || "Toko"} ~
 `.trim();
-          await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_cancel", message, tenantId);
+          await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_cancel", message);
         }
       } catch {
         // non-blocking

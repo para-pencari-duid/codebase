@@ -63,7 +63,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ ticket
         };
 
         const ticket = await db.kitchenTicket.update({
-            where: { id: ticketId, tenantId: session.user.tenantId! },
+            where: { id: ticketId,
+ },
             data: {
                 ...(data.status ? { status: data.status } : {}),
                 ...(data.status && statusTimestamps[data.status] ? statusTimestamps[data.status] : {}),
@@ -94,7 +95,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ ticketI
         const { ticketId } = await params;
 
         await db.kitchenTicket.delete({
-            where: { id: ticketId, tenantId: session.user.tenantId! },
+            where: { id: ticketId,
+ },
         });
 
         return new NextResponse(null, { status: 204 });

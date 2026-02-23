@@ -115,10 +115,8 @@ export async function POST(req: Request) {
     }
 
     // Create expense
-    const tenantId = session.user.tenantId!;
     const expense = await prisma.expense.create({
       data: {
-        tenantId,
         category,
         amount: parseFloat(amount),
         date: date ? new Date(date) : new Date(),

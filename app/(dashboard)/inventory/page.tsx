@@ -6,10 +6,9 @@ import { InventoryClient } from "@/components/inventory/inventory-client";
 export default async function InventoryPage() {
     const session = await auth();
     if (!session?.user) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const products = await db.item.findMany({
-        where: { type: "GOODS", tenantId },
+        where: { type: "GOODS" },
         include: { category: true, variants: true },
         orderBy: { name: "asc" },
     });

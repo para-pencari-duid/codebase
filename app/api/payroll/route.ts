@@ -17,7 +17,8 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const periods = await db.payrollPeriod.findMany({
-            where: { tenantId: session.user.tenantId! },
+            where: {
+ },
             include: { _count: { select: { entries: true } } },
             orderBy: { startDate: "desc" },
         });
@@ -31,19 +32,16 @@ export async function POST(req: Request) {
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const body = await req.json();
         const data = periodSchema.parse(body);
-        const tenantId = session.user.tenantId!;
         // Auto-generate entries from active employees
-        const employees = await db.employee.findMany({ where: { tenantId, isActive: true } });
+        const employees = await db.employee.findMany({ where: { isActive: true } });
         const period = await db.payrollPeriod.create({
             data: {
-                tenantId,
                 name: data.name,
                 startDate: new Date(data.startDate),
                 endDate: new Date(data.endDate),
                 notes: data.notes,
                 entries: {
                     create: employees.map(emp => ({
-                        tenantId,
                         employeeId: emp.id,
                         baseSalary: emp.baseSalary,
                         netSalary: emp.baseSalary,

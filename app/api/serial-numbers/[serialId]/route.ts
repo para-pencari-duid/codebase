@@ -11,7 +11,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ serialI
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { serialId } = await params;
         const serial = await db.serialNumber.findFirst({
-            where: { id: serialId, tenantId: session.user.tenantId! },
+            where: { id: serialId,
+ },
             include: { variant: { include: { item: { select: { name: true } } } } },
         });
         if (!serial) return new NextResponse("Not Found", { status: 404 });
@@ -25,7 +26,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ serialId
         if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
         const { serialId } = await params;
         const body = await req.json();
-        const tenantId = session.user.tenantId!;
 
         let status: SerialNumberStatus | undefined;
         const updateData: {
@@ -54,7 +54,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ serialId
         if (status) updateData.status = status;
         if (body.notes) updateData.notes = body.notes;
 
-        const updated = await db.serialNumber.updateMany({ where: { id: serialId, tenantId }, data: updateData });
+        const updated = await db.serialNumber.updateMany({ where: { id: serialId }, data: updateData });
         return NextResponse.json(updated);
     } catch (e) { console.error(e); return new NextResponse("Error", { status: 500 }); }
 }

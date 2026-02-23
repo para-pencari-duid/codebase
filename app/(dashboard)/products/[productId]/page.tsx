@@ -10,12 +10,11 @@ export default async function ProductPage({
 }) {
     const session = await auth();
     if (!session) redirect("/login");
-    const tenantId = session.user.tenantId;
 
     const { productId } = await params;
 
     const categories = await db.itemCategory.findMany({
-        where: { tenantId },
+        where: {},
         orderBy: { name: 'asc' }
     });
 
@@ -25,7 +24,6 @@ export default async function ProductPage({
         product = await db.item.findFirst({
             where: {
                 id: productId,
-                tenantId,
             },
             include: { variants: true },
         });

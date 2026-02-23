@@ -61,8 +61,6 @@ export async function PUT(
     const body = await req.json();
     const { action, notes, items } = body;
 
-    const tenantId = session.user.tenantId!;
-
     // Check if production exists
     const existing = await prisma.productionOrder.findUnique({
       where: { id },
@@ -177,7 +175,6 @@ export async function PUT(
         // Create stock movement for tracking
         await prisma.stockMovement.create({
           data: {
-            tenantId,
             variantId: item.variantId,
             type: "IN",
             quantity: parseInt(itemUpdate.producedQuantity),
