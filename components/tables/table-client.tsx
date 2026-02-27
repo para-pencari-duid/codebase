@@ -20,7 +20,7 @@ type TableStatus = "AVAILABLE" | "OCCUPIED" | "RESERVED" | "CLEANING";
 
 interface TableData {
     id: string;
-    number: number;
+    number: string;
     name: string | null;
     capacity: number;
     floor: string | null;
@@ -75,7 +75,7 @@ export function TableClient({ tables: initialTables }: { tables: TableData[] }) 
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    number: parseInt(newTable.number),
+                    number: newTable.number,
                     name: newTable.name || undefined,
                     capacity: parseInt(newTable.capacity),
                     floor: newTable.floor || undefined,

@@ -8,7 +8,8 @@ import { randomBytes } from "crypto";
 import prisma from "@/lib/db";
 
 // WhatsApp Service URL and Authentication
-const WA_SERVICE_URL = process.env.WA_SERVICE_URL || "http://localhost:4000";
+// Strip trailing slash to prevent double-slash URLs (e.g. https://host//session/init)
+const WA_SERVICE_URL = (process.env.WA_SERVICE_URL || "http://localhost:4000").replace(/\/+$/, "");
 const WA_SECRET_KEY = process.env.WA_SECRET_KEY || "LokkahPOS2026DevSecretKey99";
 
 // Log WA service URL on module load

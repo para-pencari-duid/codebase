@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const updateSchema = z.object({
-    number: z.string().min(1).optional(),
+    number: z.union([z.string().min(1), z.number().int().min(1)]).transform(String).optional(),
     name: z.string().optional(),
     capacity: z.number().int().min(1).optional(),
     floor: z.string().optional(),
