@@ -33,8 +33,8 @@ export function PosProductPanel({
   onAddToCart,
 }: PosProductPanelProps) {
   return (
-    <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
-      <div className="flex gap-4">
+    <div className="flex-1 min-h-0 flex flex-col py-4 px-10 gap-4 overflow-hidden">
+      <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -44,8 +44,9 @@ export function PosProductPanel({
             onChange={(event) => onSearchChange(event.target.value)}
           />
         </div>
+
         <Select value={selectedCategory} onValueChange={onCategoryChange}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -59,8 +60,8 @@ export function PosProductPanel({
         </Select>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
+      <ScrollArea className="flex-1 min-h-0 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
           {products.map((product) => (
             <Card
               key={product.id}

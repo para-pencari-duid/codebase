@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Banknote, Building2, CreditCard, QrCode, Wallet } from "lucide-react";
+import {
+  Banknote,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  QrCode,
+  Wallet,
+  ShoppingCart,
+} from "lucide-react";
 import { toast } from "sonner";
 import useCart from "@/hooks/use-cart";
 import type { CartItem, CartItemModifier } from "@/hooks/use-cart";
@@ -24,6 +33,7 @@ import { PosProductPanel } from "./pos-client/product-panel";
 import { PosCartPanel } from "./pos-client/cart-panel";
 import { PosCheckoutPanel } from "./pos-client/checkout-panel";
 import type { PosPaymentMethodUiOption } from "./pos-client/types";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 interface POSClientProps {
   products: PosProduct[];
@@ -55,6 +65,8 @@ export const POSClient: React.FC<POSClientProps> = ({
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [mode, setMode] = useState<"cart" | "checkout">("cart");
+  const [isCartExpanded, setIsCartExpanded] = useState(true);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<PosReceiptData | null>(null);
@@ -190,7 +202,7 @@ export const POSClient: React.FC<POSClientProps> = ({
           : undefined,
       });
     },
-    [cart, cart.items],
+    [cart],
   );
 
   const onModifierConfirm = useCallback(
@@ -327,6 +339,7 @@ export const POSClient: React.FC<POSClientProps> = ({
       toast.success("Transaksi Berhasil!");
       cart.removeAll();
       setMode("cart");
+      setIsMobileCartOpen(false);
       resetCheckout();
       setIsReceiptOpen(true);
     } catch {
@@ -354,9 +367,80 @@ export const POSClient: React.FC<POSClientProps> = ({
     resetCheckout,
   ]);
 
+  const cartCheckoutContent =
+    mode === "cart" ? (
+      <div className="flex flex-1 min-h-0 flex-col">
+        <PosCartPanel
+          items={cart.items}
+          itemCount={cartItemCount}
+          subtotal={subtotal}
+          tax={tax}
+          taxRate={settings.taxRate}
+          taxIncluded={settings.taxIncluded}
+          onDecreaseQuantity={handleDecreaseQuantity}
+          onIncreaseQuantity={handleIncreaseQuantity}
+          onClearCart={cart.removeAll}
+          onGoToCheckout={handleGoToCheckout}
+        />
+      </div>
+    ) : (
+      <div className="flex flex-1 min-h-0 flex-col">
+        <PosCheckoutPanel
+          items={cart.items}
+          customerOpen={customerOpen}
+          setCustomerOpen={setCustomerOpen}
+          customerQuery={customerQuery}
+          setCustomerQuery={setCustomerQuery}
+          customers={customers}
+          selectedCustomer={selectedCustomer}
+          setSelectedCustomer={setSelectedCustomer}
+          searchLoading={searchLoading}
+          showAddNew={showAddNew}
+          setShowAddNew={setShowAddNew}
+          newCustomerName={newCustomerName}
+          setNewCustomerName={setNewCustomerName}
+          newCustomerPhone={newCustomerPhone}
+          setNewCustomerPhone={setNewCustomerPhone}
+          addNewLoading={addNewLoading}
+          onAddNewCustomer={handleAddNewCustomer}
+          loyaltyInfo={loyaltyInfo}
+          usePoints={usePoints}
+          setUsePoints={setUsePoints}
+          pointsToRedeem={pointsToRedeem}
+          setPointsToRedeem={setPointsToRedeem}
+          pointsRedemptionAmount={pointsRedemptionAmount}
+          paymentMethods={paymentMethods}
+          paymentMethod={paymentMethod}
+          setPaymentMethod={setPaymentMethod}
+          qrisLoadState={qrisLoadState}
+          qrisImage={qrisImage}
+          finalTotal={finalTotal}
+          paymentAmount={paymentAmount}
+          setPaymentAmount={setPaymentAmount}
+          quickCashAmounts={quickCashAmounts}
+          discountInput={discountInput}
+          setDiscountInput={setDiscountInput}
+          discountType={discountType}
+          setDiscountType={setDiscountType}
+          notes={notes}
+          setNotes={setNotes}
+          subtotal={subtotal}
+          tax={tax}
+          taxRate={settings.taxRate}
+          taxIncluded={settings.taxIncluded}
+          manualDiscount={manualDiscount}
+          changeAmount={changeAmount}
+          canPay={canPay}
+          loading={loading}
+          onBackToCart={handleBackToCart}
+          onConfirmPayment={handleConfirmPayment}
+        />
+      </div>
+    );
+
   return (
     <>
-      <div className="flex h-[calc(100vh-80px)] overflow-hidden">
+      <div className="flex h-[calc(100vh-80px)] min-h-0 overflow-hidden">
         <PosProductPanel
           search={search}
           onSearchChange={setSearch}
@@ -367,74 +451,63 @@ export const POSClient: React.FC<POSClientProps> = ({
           onAddToCart={onAddToCart}
         />
 
-        <div className="w-[360px] lg:w-[420px] border-l bg-slate-50/50 flex flex-col h-full">
-          {mode === "cart" ? (
-            <PosCartPanel
-              items={cart.items}
-              itemCount={cartItemCount}
-              subtotal={subtotal}
-              tax={tax}
-              taxRate={settings.taxRate}
-              taxIncluded={settings.taxIncluded}
-              onDecreaseQuantity={handleDecreaseQuantity}
-              onIncreaseQuantity={handleIncreaseQuantity}
-              onClearCart={cart.removeAll}
-              onGoToCheckout={handleGoToCheckout}
-            />
-          ) : (
-            <PosCheckoutPanel
-              items={cart.items}
-              customerOpen={customerOpen}
-              setCustomerOpen={setCustomerOpen}
-              customerQuery={customerQuery}
-              setCustomerQuery={setCustomerQuery}
-              customers={customers}
-              selectedCustomer={selectedCustomer}
-              setSelectedCustomer={setSelectedCustomer}
-              searchLoading={searchLoading}
-              showAddNew={showAddNew}
-              setShowAddNew={setShowAddNew}
-              newCustomerName={newCustomerName}
-              setNewCustomerName={setNewCustomerName}
-              newCustomerPhone={newCustomerPhone}
-              setNewCustomerPhone={setNewCustomerPhone}
-              addNewLoading={addNewLoading}
-              onAddNewCustomer={handleAddNewCustomer}
-              loyaltyInfo={loyaltyInfo}
-              usePoints={usePoints}
-              setUsePoints={setUsePoints}
-              pointsToRedeem={pointsToRedeem}
-              setPointsToRedeem={setPointsToRedeem}
-              pointsRedemptionAmount={pointsRedemptionAmount}
-              paymentMethods={paymentMethods}
-              paymentMethod={paymentMethod}
-              setPaymentMethod={setPaymentMethod}
-              qrisLoadState={qrisLoadState}
-              qrisImage={qrisImage}
-              finalTotal={finalTotal}
-              paymentAmount={paymentAmount}
-              setPaymentAmount={setPaymentAmount}
-              quickCashAmounts={quickCashAmounts}
-              discountInput={discountInput}
-              setDiscountInput={setDiscountInput}
-              discountType={discountType}
-              setDiscountType={setDiscountType}
-              notes={notes}
-              setNotes={setNotes}
-              subtotal={subtotal}
-              tax={tax}
-              taxRate={settings.taxRate}
-              taxIncluded={settings.taxIncluded}
-              manualDiscount={manualDiscount}
-              changeAmount={changeAmount}
-              canPay={canPay}
-              loading={loading}
-              onBackToCart={handleBackToCart}
-              onConfirmPayment={handleConfirmPayment}
-            />
-          )}
-        </div>
+        {cart.items.length > 0 && (
+          <div
+            className={`relative hidden lg:flex border-l bg-slate-50/50 flex-col h-full min-h-0 transition-all duration-200 ${
+              isCartExpanded ? "w-[360px] xl:w-[420px]" : "w-14"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setIsCartExpanded((prev) => !prev)}
+              className="absolute top-3 right-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white text-slate-700 hover:bg-slate-100"
+              aria-label={
+                isCartExpanded ? "Kecilkan keranjang" : "Perbesar keranjang"
+              }
+              title={
+                isCartExpanded ? "Kecilkan keranjang" : "Perbesar keranjang"
+              }
+            >
+              {isCartExpanded ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </button>
+
+            {isCartExpanded ? (
+              cartCheckoutContent
+            ) : (
+              <div className="flex flex-1 items-center justify-center px-2 pt-12">
+                <ShoppingCart />
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {cartItemCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setIsMobileCartOpen(true)}
+          className="fixed right-4 bottom-4 z-40 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-full bg-primary px-4 text-primary-foreground shadow-lg lg:hidden"
+          aria-label="Buka keranjang"
+        >
+          <ShoppingCart className="h-5 w-5" />
+          <span className="text-sm font-semibold">{cartItemCount}</span>
+        </button>
+      )}
+
+      <Sheet open={isMobileCartOpen} onOpenChange={setIsMobileCartOpen}>
+        <SheetContent
+          side="right"
+          className="h-[100dvh] w-screen max-w-none gap-0 p-0 sm:max-w-none lg:hidden"
+        >
+          <div className="flex h-full min-h-0 flex-col bg-slate-50/50">
+            {cartCheckoutContent}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ReceiptDialog
         open={isReceiptOpen}
