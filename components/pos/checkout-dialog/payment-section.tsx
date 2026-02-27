@@ -9,6 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  formatNumberInputValue,
+  parseDigitsToNumber,
+} from "@/lib/number-input";
 import { formatCurrency } from "@/lib/utils";
 import {
   Banknote,
@@ -102,11 +106,16 @@ export function PaymentSection({
             <div className="space-y-2">
               <Label>Jumlah Bayar</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                aria-label="Jumlah bayar"
                 placeholder="0"
-                value={payments[0].amount || ""}
+                value={formatNumberInputValue(payments[0].amount)}
                 onChange={(event) =>
-                  onUpdatePaymentAmount("1", Number(event.target.value))
+                  onUpdatePaymentAmount(
+                    "1",
+                    parseDigitsToNumber(event.target.value),
+                  )
                 }
               />
               <div className="flex flex-wrap gap-2">
@@ -176,12 +185,17 @@ export function PaymentSection({
                   </SelectContent>
                 </Select>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  aria-label={`Nominal bayar ${index + 1}`}
                   className="w-32 h-8 text-sm"
                   placeholder="Nominal"
-                  value={line.amount || ""}
+                  value={formatNumberInputValue(line.amount)}
                   onChange={(event) =>
-                    onUpdatePaymentAmount(line.id, Number(event.target.value))
+                    onUpdatePaymentAmount(
+                      line.id,
+                      parseDigitsToNumber(event.target.value),
+                    )
                   }
                 />
                 {payments.length > 1 && (

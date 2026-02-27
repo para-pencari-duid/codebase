@@ -28,6 +28,11 @@ import {
   Gift,
   Check,
 } from "lucide-react";
+import {
+  clampPercentDiscount,
+  formatNumberInputValue,
+  parseDigitsToNumber,
+} from "@/lib/number-input";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CartItem } from "@/hooks/use-cart";
 import type {
@@ -333,14 +338,17 @@ export function PosCheckoutPanel({
             {usePoints && (
               <div className="space-y-1.5">
                 <Input
-                  type="number"
-                  min={0}
-                  max={loyaltyInfo.points}
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Jumlah poin"
                   placeholder="Jumlah poin"
-                  value={pointsToRedeem || ""}
+                  value={formatNumberInputValue(pointsToRedeem)}
                   onChange={(event) =>
                     setPointsToRedeem(
-                      Math.min(Number(event.target.value), loyaltyInfo.points),
+                      Math.min(
+                        parseDigitsToNumber(event.target.value),
+                        loyaltyInfo.points,
+                      ),
                     )
                   }
                   className="h-8 text-sm"
@@ -431,10 +439,14 @@ export function PosCheckoutPanel({
           <div className="space-y-2">
             <Label className="font-semibold text-sm">Jumlah Bayar</Label>
             <Input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              aria-label="Jumlah bayar"
               placeholder="0"
-              value={paymentAmount || ""}
-              onChange={(event) => setPaymentAmount(Number(event.target.value))}
+              value={formatNumberInputValue(paymentAmount)}
+              onChange={(event) =>
+                setPaymentAmount(parseDigitsToNumber(event.target.value))
+              }
               className="text-right font-mono text-base h-10"
             />
             <div className="grid grid-cols-3 gap-1.5">
@@ -465,10 +477,28 @@ export function PosCheckoutPanel({
           <Label className="font-semibold text-sm">Diskon</Label>
           <div className="flex gap-2">
             <Input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              aria-label={
+                discountType === "amount" ? "Diskon rupiah" : "Diskon persen"
+              }
               placeholder="0"
-              value={discountInput || ""}
-              onChange={(event) => setDiscountInput(Number(event.target.value))}
+              value={
+                discountInput > 0
+                  ? discountType === "amount"
+                    ? formatNumberInputValue(discountInput)
+                    : String(discountInput)
+                  : ""
+              }
+              onChange={(event) =>
+                setDiscountInput(
+                  discountType === "percent"
+                    ? clampPercentDiscount(
+                        parseDigitsToNumber(event.target.value),
+                      )
+                    : parseDigitsToNumber(event.target.value),
+                )
+              }
               className="flex-1 h-9 text-sm"
             />
             <div className="flex rounded-md border overflow-hidden shrink-0">

@@ -3,6 +3,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Loader2, Tag, X } from "lucide-react";
+import {
+  clampPercentDiscount,
+  formatNumberInputValue,
+  parseDigitsToNumber,
+} from "@/lib/number-input";
 import { formatCurrency } from "@/lib/utils";
 
 interface AppliedPromo {
@@ -105,10 +110,28 @@ export function PromoDiscountSection({
           <Label>Diskon Manual</Label>
           <div className="flex gap-2">
             <Input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              aria-label={
+                discountType === "amount" ? "Diskon rupiah" : "Diskon persen"
+              }
               placeholder="0"
-              value={discountInput || ""}
-              onChange={(event) => setDiscountInput(Number(event.target.value))}
+              value={
+                discountInput > 0
+                  ? discountType === "amount"
+                    ? formatNumberInputValue(discountInput)
+                    : String(discountInput)
+                  : ""
+              }
+              onChange={(event) =>
+                setDiscountInput(
+                  discountType === "percent"
+                    ? clampPercentDiscount(
+                        parseDigitsToNumber(event.target.value),
+                      )
+                    : parseDigitsToNumber(event.target.value),
+                )
+              }
               className="flex-1"
             />
             <div className="flex rounded-md border">

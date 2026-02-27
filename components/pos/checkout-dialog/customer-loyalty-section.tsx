@@ -29,6 +29,10 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import {
+  formatNumberInputValue,
+  parseDigitsToNumber,
+} from "@/lib/number-input";
 import { formatCurrency } from "@/lib/utils";
 import type { PosCustomer, PosLoyaltyInfo } from "@/lib/types/pos-checkout";
 
@@ -305,24 +309,21 @@ export function CustomerLoyaltySection({
                   <div className="flex-1">
                     <Label className="text-xs">Jumlah Poin Ditukar</Label>
                     <Input
-                      type="number"
-                      min={0}
-                      max={Math.min(
-                        loyaltyInfo.points,
-                        Math.ceil(
-                          (subtotal + tax - calculatedDiscount) /
-                            loyaltyInfo.pointValue,
-                        ),
-                      )}
-                      value={pointsToRedeem || ""}
+                      type="text"
+                      inputMode="numeric"
+                      aria-label="Jumlah poin ditukar"
+                      value={formatNumberInputValue(pointsToRedeem)}
                       onChange={(event) => {
-                        const value = Math.min(
-                          Number(event.target.value),
+                        const maxRedeemablePoints = Math.min(
                           loyaltyInfo.points,
                           Math.ceil(
                             (subtotal + tax - calculatedDiscount) /
                               loyaltyInfo.pointValue,
                           ),
+                        );
+                        const value = Math.min(
+                          parseDigitsToNumber(event.target.value),
+                          maxRedeemablePoints,
                         );
                         setPointsToRedeem(Math.max(0, value));
                       }}

@@ -23,6 +23,10 @@ import {
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  formatNumberInputValue,
+  parseDigitsToNumber,
+} from "@/lib/number-input";
 import { cn } from "@/lib/utils";
 
 const EXPENSE_CATEGORIES = [
@@ -64,7 +68,9 @@ interface ExpenseFormProps {
 export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [date, setDate] = useState<Date>(expense?.date ? new Date(expense.date) : new Date());
+  const [date, setDate] = useState<Date>(
+    expense?.date ? new Date(expense.date) : new Date(),
+  );
   const [formData, setFormData] = useState({
     category: expense?.category || "",
     amount: expense?.amount?.toString() || "",
@@ -76,8 +82,13 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.category || !formData.amount || !formData.description || !formData.paymentMethod) {
+
+    if (
+      !formData.category ||
+      !formData.amount ||
+      !formData.description ||
+      !formData.paymentMethod
+    ) {
       toast.error("Harap isi semua field yang wajib");
       return;
     }
@@ -102,8 +113,12 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
         throw new Error(error.error || "Failed to save expense");
       }
 
-      toast.success(expense ? "Pengeluaran berhasil diupdate" : "Pengeluaran berhasil ditambahkan");
-      
+      toast.success(
+        expense
+          ? "Pengeluaran berhasil diupdate"
+          : "Pengeluaran berhasil ditambahkan",
+      );
+
       if (onSuccess) {
         onSuccess();
       } else {
@@ -120,7 +135,9 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{expense ? "Edit Pengeluaran" : "Tambah Pengeluaran"}</CardTitle>
+        <CardTitle>
+          {expense ? "Edit Pengeluaran" : "Tambah Pengeluaran"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,12 +173,16 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
               </Label>
               <Input
                 id="amount"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
+                aria-label="Jumlah pengeluaran"
                 placeholder="0"
-                value={formData.amount}
+                value={formatNumberInputValue(formData.amount)}
                 onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
+                  setFormData({
+                    ...formData,
+                    amount: String(parseDigitsToNumber(e.target.value)),
+                  })
                 }
                 required
               />
@@ -178,7 +199,7 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
+                      !date && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -222,7 +243,9 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
 
             {/* Reference */}
             <div className="space-y-2">
-              <Label htmlFor="reference">No. Referensi (Invoice/Kuitansi)</Label>
+              <Label htmlFor="reference">
+                No. Referensi (Invoice/Kuitansi)
+              </Label>
               <Input
                 id="reference"
                 placeholder="INV-001"
