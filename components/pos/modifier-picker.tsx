@@ -17,34 +17,18 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { Plus } from "lucide-react";
-import type { PosProduct } from "@/lib/types/pos";
-
-export interface ModifierGroup {
-  id: string;
-  name: string;
-  required: boolean;
-  multiple: boolean;
-  maxSelect: number | null;
-  options: ModifierOption[];
-}
-
-export interface ModifierOption {
-  id: string;
-  name: string;
-  price: number;
-}
-
-interface SelectedModifier {
-  groupName: string;
-  optionName: string;
-  price: number;
-}
+import type { CartItemModifier } from "@/hooks/use-cart";
+import type {
+  PosModifierGroup,
+  PosModifierOption,
+  PosProduct,
+} from "@/lib/types/pos";
 
 interface ModifierPickerProps {
   open: boolean;
   onClose: () => void;
   product: PosProduct | null;
-  onConfirm: (product: PosProduct, modifiers: SelectedModifier[]) => void;
+  onConfirm: (product: PosProduct, modifiers: CartItemModifier[]) => void;
 }
 
 export function ModifierPicker({
@@ -62,7 +46,7 @@ export function ModifierPicker({
 
   const groups = product.modifierGroups;
 
-  const toggleOption = (group: ModifierGroup, option: ModifierOption) => {
+  const toggleOption = (group: PosModifierGroup, option: PosModifierOption) => {
     setSelections((prev) => {
       const current = new Set(prev[group.id] || []);
       if (group.multiple) {
@@ -104,7 +88,7 @@ export function ModifierPicker({
   }, 0);
 
   const handleConfirm = () => {
-    const mods: SelectedModifier[] = [];
+    const mods: CartItemModifier[] = [];
     for (const group of groups) {
       const selected = selections[group.id];
       if (!selected) continue;
