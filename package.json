@@ -9,7 +9,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "docker:up": "sh scripts/docker-up.sh",
+    "docker:init": "sh scripts/docker-init.sh",
+    "docker:down": "sh scripts/docker-down.sh",
+    "docker:logs": "sh scripts/docker-logs.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
