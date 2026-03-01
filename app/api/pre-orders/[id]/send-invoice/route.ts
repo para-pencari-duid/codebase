@@ -6,17 +6,6 @@ import { auth } from "@/lib/auth";
 import { sendWhatsAppNotification } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/utils";
 
-function fmtDate(d: Date | string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(d));
-}
-
 // POST /api/pre-orders/[id]/send-invoice
 // Manual trigger: kirim invoice via WA ke pelanggan
 export async function POST(
@@ -49,46 +38,28 @@ export async function POST(
 
     const settings = await prisma.settings.findFirst();
     const storeName = settings?.businessName ?? "Toko";
-    const storePhone = settings?.businessPhone ?? "";
 
     const isPaid = ticket.status === "COMPLETED" || Number(ticket.remainingAmount) === 0;
-    const isDP = Number(ticket.dpAmount) > 0 && Number(ticket.remainingAmount) > 0;
 
-    // Format item list
+    // Format item list — simple, no price per item
     const itemLines = ticket.items.length > 0
-      ? ticket.items.map(it => `  - ${it.name} x${it.quantity} = ${formatCurrency(Number(it.subtotal))}`).join("\n")
-      : `  - ${ticket.title} x${ticket.quantity} = ${formatCurrency(Number(ticket.totalPrice))}`;
+      ? ticket.items.map(it => `- ${it.name} x${it.quantity}`).join("\n")
+      : `- ${ticket.title} x${ticket.quantity}`;
+
+    const statusLine = isPaid ? `Status: PAID ✅` : `Status: BELUM LUNAS ⏳`;
 
     const message = [
-      `🧾 *INVOICE PESANAN*`,
-      `━━━━━━━━━━━━━━━━━`,
+      `INVOICE ${storeName.toUpperCase()}`,
       ``,
-      `*No. Order:* ${ticket.ticketNo}`,
-      `*Produk:* ${ticket.title}`,
+      `Nama: ${ticket.customerName}`,
+      `No HP: ${ticket.customerPhone}`,
       ``,
-      `📋 *RINCIAN PESANAN*`,
+      `Pesanan:`,
       itemLines,
       ``,
-      `💰 *PEMBAYARAN*`,
-      `Total: *${formatCurrency(Number(ticket.totalPrice))}*`,
-      Number(ticket.dpAmount) > 0 ? `DP: ${formatCurrency(Number(ticket.dpAmount))} ✅` : null,
-      Number(ticket.remainingAmount) > 0 ? `Sisa: *${formatCurrency(Number(ticket.remainingAmount))}*` : null,
-      isPaid ? `Status: *LUNAS* ✅` : isDP ? `Status: *DP DITERIMA* — Sisa dilunasi saat ambil` : `Status: *BELUM BAYAR*`,
-      ``,
-      ticket.deliveryType === "DELIVERY"
-        ? `🚚 *Pengiriman* ke: ${ticket.customerAddress ?? "-"}`
-        : `🏪 *Ambil di toko*`,
-      `📅 *Tanggal:* ${fmtDate(ticket.dueDate)}`,
-      ``,
-      ticket.notes ? `📝 Catatan: ${ticket.notes}` : null,
-      ``,
-      `━━━━━━━━━━━━━━━━━`,
-      `🏪 *${storeName}*`,
-      storePhone ? `📞 ${storePhone}` : null,
-      ``,
-      `Terima kasih atas pesanannya! 🙏`,
+      `Total: ${formatCurrency(Number(ticket.totalPrice))}`,
+      statusLine,
     ]
-      .filter((l) => l !== null)
       .join("\n");
 
     const sent = await sendWhatsAppNotification(
