@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       customerName,
       customerPhone,
       customerAddress,
+      customerId,
       productName,
       description,
       quantity,
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
         deliveryType: deliveryType || "PICKUP",
         status: "CONFIRMED",
         createdBy: session.user.id,
+        customerId: customerId || null,
       },
       include: {
         createdByUser: {
@@ -140,6 +142,39 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    // Jika sudah lunas saat pembuatan (remaining = 0), buat Transaction record
+    if (remaining <= 0 && dp > 0) {
+      try {
+        await prisma.transaction.create({
+          data: {
+            transactionNo: jobTicket.ticketNo,
+            type: "B2B_INVOICE",
+            customerId: customerId || null,
+            userId: session.user.id,
+            subtotal: total,
+            tax: 0,
+            discount: 0,
+            total,
+            paymentMethod: (dpMethod as any) || "CASH",
+            paymentAmount: total,
+            changeAmount: 0,
+            paymentStatus: "PAID",
+            status: "COMPLETED",
+            notes: `Pre-Order: ${jobTicket.title} (${jobTicket.ticketNo})`,
+            payments: {
+              create: [{
+                method: (dpMethod as any) || "CASH",
+                amount: total,
+                reference: `Lunas - ${jobTicket.ticketNo}`,
+              }],
+            },
+          },
+        });
+      } catch (txErr) {
+        console.error("[pre-orders POST] Failed to create Transaction record:", txErr);
+      }
+    }
 
     // Kirim WhatsApp konfirmasi ke customer
     try {

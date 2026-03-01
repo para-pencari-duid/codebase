@@ -3,11 +3,11 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { getOrCreateTenantId, initWhatsAppSession } from "@/lib/whatsapp";
+import { getFonnteQRCode } from "@/lib/whatsapp";
 
 /**
  * POST /api/whatsapp/init
- * Initialize WhatsApp session and get QR code
+ * Get Fonnte QR code for connecting WhatsApp
  */
 export async function POST() {
   try {
@@ -16,62 +16,46 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get or create WhatsApp session ID
-    const tenantId = await getOrCreateTenantId();
+    const result = await getFonnteQRCode();
 
-    // Initialize session with WA service
-    const result = await initWhatsAppSession(tenantId);
+    if (!result.status) {
+      return NextResponse.json(
+        { error: result.error || "Gagal mengambil QR code dari Fonnte" },
+        { status: 503 }
+      );
+    }
 
-    if (result.status === "qr_ready" && result.qr_code) {
-      // Update settings - mark as connecting
+    if (result.alreadyConnected) {
+      // Device already linked — update DB
       const settings = await prisma.settings.findFirst();
       if (settings) {
         await prisma.settings.update({
           where: { id: settings.id },
-          data: {
-            whatsappTenantId: tenantId,
-            whatsappEnabled: true,
-          },
+          data: { whatsappConnected: true, whatsappEnabled: true, whatsappLastConnected: new Date() },
         });
       }
+      return NextResponse.json({ success: true, connected: true, message: "WhatsApp sudah terhubung" });
+    }
 
-      return NextResponse.json({
-        success: true,
-        qrCode: result.qr_code,
-        tenantId,
-        message: "Scan QR code dengan WhatsApp Anda",
+    // Mark as enabling (not yet connected until user scans)
+    const settings = await prisma.settings.findFirst();
+    if (settings) {
+      await prisma.settings.update({
+        where: { id: settings.id },
+        data: { whatsappEnabled: true },
       });
     }
 
-    if (result.status === "connected") {
-      // Already connected
-      const settings = await prisma.settings.findFirst();
-      if (settings) {
-        await prisma.settings.update({
-          where: { id: settings.id },
-          data: {
-            whatsappConnected: true,
-            whatsappLastConnected: new Date(),
-          },
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        connected: true,
-        message: "WhatsApp sudah terhubung",
-      });
-    }
-
-    return NextResponse.json(
-      { error: result.error || "Failed to initialize WhatsApp" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      qrCode: result.qrBase64,
+      message: "Scan QR code dengan WhatsApp Anda",
+    });
   } catch (error) {
     console.error("WhatsApp init error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 503 }
     );
   }
 }

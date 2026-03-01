@@ -3,7 +3,6 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { disconnectWhatsApp } from "@/lib/whatsapp";
 
 /**
  * POST /api/whatsapp/reset
@@ -24,17 +23,6 @@ export async function POST() {
         { error: "Settings tidak ditemukan" },
         { status: 404 }
       );
-    }
-
-    // Disconnect from WA Gateway if connected
-    if (settings.whatsappTenantId) {
-      try {
-        console.log(`[WA Reset] Disconnecting tenant: ${settings.whatsappTenantId}`);
-        await disconnectWhatsApp(settings.whatsappTenantId);
-      } catch (error) {
-        console.error("[WA Reset] Error disconnecting:", error);
-        // Continue with reset even if disconnect fails
-      }
     }
 
     // Clear ALL WhatsApp settings

@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { QrCode, Smartphone, Wifi, WifiOff, AlertCircle, CheckCircle2, Settings2, RotateCcw } from "lucide-react";
-import QRCode from "qrcode";
+import { QrCode, Smartphone, Wifi, WifiOff, AlertCircle, CheckCircle2, Settings2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,7 @@ import {
 interface WhatsAppStatus {
   connected: boolean;
   enabled: boolean;
-  tenantId?: string;
+  device?: string;
   lastConnected?: string;
   notifications?: {
     onTransaction: boolean;
@@ -49,7 +48,6 @@ export function WhatsAppClient() {
   const [status, setStatus] = useState<WhatsAppStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [settings, setSettings] = useState<SettingsData>({
     ownerPhone: "",
@@ -123,48 +121,32 @@ export function WhatsAppClient() {
       }
 
       if (data.qrCode) {
-        // Store tenant ID for this session
-        setCurrentTenantId(data.tenantId);
-        
-        // Generate QR code image
-        const qrDataUrl = await QRCode.toDataURL(data.qrCode, {
-          width: 300,
-          margin: 2,
-        });
-        setQrCode(qrDataUrl);
+        // Fonnte returns base64 PNG directly
+        setQrCode(`data:image/png;base64,${data.qrCode}`);
         toast.info("Scan QR code dengan WhatsApp Anda");
 
-        // Wait 5 seconds before starting to poll
-        // This gives WA time to complete pairing, reconnect, and authenticate
-        setTimeout(async () => {
+        // Wait 5s then start polling
+        setTimeout(() => {
           setPolling(true);
           toast.info("Menunggu autentikasi WhatsApp...", { duration: 3000 });
 
-          // Poll for connection status
           let pollCount = 0;
-          const maxPolls = 20; // 20 polls x 3 seconds = 60 seconds max
-          
+          const maxPolls = 20; // 20 x 3s = 60s
+
           const pollInterval = setInterval(async () => {
             pollCount++;
-            console.log(`[WA Client] Poll #${pollCount}, checking tenant: ${data.tenantId}`);
-            
-            const statusRes = await fetch(`/api/whatsapp/status?tenantId=${data.tenantId}`);
+            const statusRes = await fetch("/api/whatsapp/status");
             const statusData = await statusRes.json();
 
-            console.log("[WA Client] Status response:", statusData);
-
-            if (statusData.connected && statusData.tenantId === data.tenantId) {
+            if (statusData.connected) {
               clearInterval(pollInterval);
               setQrCode(null);
-              setCurrentTenantId(null);
               setPolling(false);
               toast.success("WhatsApp terhubung! ✅");
               await fetchStatus();
             } else if (pollCount >= maxPolls) {
-              // Timeout after max polls
               clearInterval(pollInterval);
               setQrCode(null);
-              setCurrentTenantId(null);
               setPolling(false);
               toast.error("Timeout: QR code expired. Silakan coba lagi.");
             }
@@ -173,10 +155,7 @@ export function WhatsAppClient() {
       }
     } catch (error) {
       console.error("Connect error:", error);
-      const errMsg = error instanceof Error ? error.message : "Unknown error";
-      toast.error(errMsg.includes("Session rusak") 
-        ? errMsg 
-        : "Gagal menghubungkan WhatsApp. Coba Reset WhatsApp jika masalah berlanjut.");
+      toast.error(error instanceof Error ? error.message : "Gagal menghubungkan WhatsApp");
     } finally {
       setLoading(false);
     }
@@ -189,39 +168,11 @@ export function WhatsAppClient() {
       const res = await fetch("/api/whatsapp/disconnect", { method: "POST" });
       if (!res.ok) throw new Error("Failed to disconnect");
 
-      toast.success("WhatsApp disconnected. Tenant ID tersimpan untuk reconnect.");
+      toast.success("WhatsApp dinonaktifkan.");
       await fetchStatus();
     } catch (error) {
       console.error("Disconnect error:", error);
       toast.error("Gagal disconnect WhatsApp");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Full reset WhatsApp (clear tenant ID)
-  const handleReset = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/whatsapp/reset", { method: "POST" });
-      if (!res.ok) throw new Error("Failed to reset");
-
-      const data = await res.json();
-      toast.success(data.message || "WhatsApp di-reset. Scan QR baru diperlukan.");
-      
-      // Clear local state
-      setSettings({
-        ownerPhone: "",
-        notifyOnTransaction: false,
-        notifyOnLowStock: false,
-        notifyOnBackup: false,
-        notifyDailyReport: false,
-      });
-      
-      await fetchStatus();
-    } catch (error) {
-      console.error("Reset error:", error);
-      toast.error("Gagal reset WhatsApp");
     } finally {
       setLoading(false);
     }
@@ -330,11 +281,7 @@ export function WhatsAppClient() {
                   </>
                 )}
                 <p className="text-xs text-orange-600">QR code berlaku 60 detik</p>
-                {currentTenantId && (
-                  <p className="text-xs text-muted-foreground font-mono">
-                    Tenant: {currentTenantId}
-                  </p>
-                )}
+
               </div>
             </div>
           )}
@@ -351,76 +298,39 @@ export function WhatsAppClient() {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  {/* Normal Disconnect - Keep tenant ID */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" disabled={loading}>
-                        Disconnect
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Disconnect WhatsApp?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Notifikasi WhatsApp akan berhenti sementara.<br/>
-                          <strong>Session tersimpan</strong> - Anda bisa reconnect tanpa scan QR baru.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDisconnect}>
-                          Ya, Disconnect
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                  {/* Full Reset - Clear tenant ID */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" disabled={loading}>
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Reset
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Reset Total WhatsApp?</AlertDialogTitle>
-                        <AlertDialogDescription className="space-y-2">
-                          <div>Ini akan:</div>
-                          <ul className="list-disc list-inside text-sm space-y-1">
-                            <li>Putuskan koneksi WhatsApp</li>
-                            <li>Hapus tenant ID dan session</li>
-                            <li>Reset semua pengaturan notifikasi</li>
-                            <li>Memerlukan <strong>scan QR baru</strong> saat connect lagi</li>
-                          </ul>
-                          <div className="text-xs text-orange-600 mt-2">
-                            💡 Gunakan ini untuk fresh start, ganti HP, atau fix error session.
-                          </div>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/90">
-                          Ya, Reset Total
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={loading}>
+                      Nonaktifkan
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Nonaktifkan WhatsApp?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Notifikasi WhatsApp akan berhenti. Perangkat Fonnte tetap
+                        terhubung — Anda bisa aktifkan kembali kapan saja.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDisconnect}>
+                        Ya, Nonaktifkan
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}
 
           {!status?.connected && (
-            <div className="flex items-start gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div className="text-sm text-yellow-800">
-                <p className="font-medium">WhatsApp Service Status</p>
+            <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">Powered by Fonnte</p>
                 <p className="text-xs mt-1">
-                  Pastikan WA Gateway service berjalan di: <br />
-                  <code className="bg-yellow-100 px-1 rounded">wa-services.tegararsyadani.my.id</code>
+                  WhatsApp menggunakan Fonnte API. Pastikan token <code className="bg-blue-100 px-1 rounded">FONNTE_TOKEN</code> sudah diset di environment.
                 </p>
               </div>
             </div>

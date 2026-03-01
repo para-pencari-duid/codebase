@@ -11,81 +11,31 @@ import {
     Settings,
     LogOut,
     Menu,
-    Warehouse,
     Receipt,
     UserCog,
-    Percent,
-    Truck,
     Bell,
     TrendingDown,
-    Factory,
     Clock,
-    Undo2,
-    ClipboardList,
-    Store,
     CalendarClock,
-    FileText,
-    Wrench,
-    ListPlus,
-    UtensilsCrossed,
-    ChefHat,
-    CalendarCheck,
-    Tag,
-    Layers,
-    Hash,
-    BookOpen,
-    Landmark,
-    BadgePercent,
-    UserCheck,
-    Wallet,
-    Megaphone,
-    Star,
-    TrendingUp,
-    Webhook,
-    ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 
-// ─── Menu katalog lengkap ──────────────────────────────────────────────────
+// ─── MVP Menu — yang aktif ditampilkan ────────────────────────────────────────
 
-const MENU_CATALOG = [
+const MVP_MENU = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Pre-Order / Pesanan", href: "/pre-orders", icon: CalendarClock },
     { name: "Kasir (POS)", href: "/pos", icon: ShoppingCart },
-    { name: "Shift Kasir", href: "/shifts", icon: Clock },
+    // { name: "Shift Kasir", href: "/shifts", icon: Clock },
     { name: "Produk", href: "/products", icon: Package },
-    { name: "Modifier", href: "/modifiers", icon: ListPlus },
-    { name: "Inventory", href: "/inventory", icon: Warehouse },
-    { name: "Stock Opname", href: "/inventory/stock-opname", icon: ClipboardList },
-    { name: "Laporan", href: "/reports", icon: BarChart3 },
-    { name: "Diskon", href: "/discounts", icon: Percent },
-    { name: "Retur", href: "/returns", icon: Undo2 },
-    { name: "Transaksi", href: "/transactions", icon: Receipt },
-    { name: "Pre-Order / Servis", href: "/pre-orders", icon: CalendarClock },
-    { name: "Resep & Produksi", href: "/production", icon: Factory },
-    { name: "Faktur & Piutang", href: "/transactions?type=B2B_INVOICE", icon: FileText },
-    { name: "Supplier", href: "/suppliers", icon: Truck },
-    { name: "Multi-Store", href: "/stores", icon: Store },
-    { name: "Manajemen Meja", href: "/tables", icon: UtensilsCrossed },
-    { name: "Dapur (KDS)", href: "/kitchen", icon: ChefHat },
-    { name: "Booking / Jadwal", href: "/bookings", icon: CalendarCheck },
-    { name: "Tier Harga", href: "/price-lists", icon: Tag },
-    { name: "Konsinyasi", href: "/consignments", icon: Layers },
-    { name: "Serial Number", href: "/serial-numbers", icon: Hash },
-    { name: "Akuntansi", href: "/accounting", icon: BookOpen },
-    { name: "Rekonsiliasi Bank", href: "/bank-recon", icon: Landmark },
-    { name: "Tarif Pajak", href: "/tax-rates", icon: BadgePercent },
-    { name: "Karyawan", href: "/employees", icon: UserCheck },
-    { name: "Penggajian", href: "/payroll", icon: Wallet },
-    { name: "Marketing", href: "/marketing", icon: Megaphone },
-    { name: "Feedback / NPS", href: "/feedback", icon: Star },
-    { name: "Analitik Lanjutan", href: "/analytics", icon: TrendingUp },
-    { name: "Webhook / API", href: "/webhooks", icon: Webhook },
-    { name: "Marketplace", href: "/marketplace", icon: ShoppingBag },
+    {name: "inventori", href: "/inventory", icon: Package },
     { name: "Pelanggan", href: "/customers", icon: Users },
+    { name: "Transaksi", href: "/transactions", icon: Receipt },
     { name: "Pengeluaran", href: "/expenses", icon: TrendingDown },
+    { name: "Laporan", href: "/reports", icon: BarChart3 },
     { name: "Notifikasi", href: "/notifications", icon: Bell },
     { name: "Pengguna", href: "/users", icon: UserCog },
     { name: "Pengaturan", href: "/settings", icon: Settings },
@@ -94,7 +44,6 @@ const MENU_CATALOG = [
 // ─── Sidebar Component ────────────────────────────────────────────────────────
 
 interface SidebarProps {
-    /** Nama bisnis yang ditampilkan di header sidebar */
     businessName?: string;
 }
 
@@ -103,7 +52,7 @@ function NavLinks({ onNavClick }: { onNavClick?: () => void }) {
 
     return (
         <>
-            {MENU_CATALOG.map((item) => {
+            {MVP_MENU.map((item) => {
                 const Icon = item.icon;
                 const isActive =
                     pathname === item.href || pathname.startsWith(`${item.href.split("?")[0]}/`);

@@ -226,6 +226,37 @@ export async function GET(req: Request) {
                 return NextResponse.json({ type: "stock", summary, products: stockData });
             }
 
+            case "preorders": {
+                const poWhere: Record<string, unknown> = {
+                    status: { not: "CANCELLED" },
+                    remainingAmount: 0,
+                };
+                if (startDate || endDate) {
+                    poWhere.finalPaidAt = dateFilter;
+                }
+
+                const tickets = await db.jobTicket.findMany({
+                    where: poWhere,
+                    include: { items: true },
+                    orderBy: { finalPaidAt: "desc" },
+                });
+
+                const summary = {
+                    totalOrders: tickets.length,
+                    totalRevenue: tickets.reduce((s, t) => s + Number(t.totalPrice), 0),
+                    totalDP: tickets.reduce((s, t) => s + Number(t.dpAmount), 0),
+                    paymentBreakdown: Object.entries(
+                        tickets.reduce((acc, t) => {
+                            const m = t.finalPayMethod ?? t.dpMethod ?? "CASH";
+                            acc[m] = (acc[m] || 0) + Number(t.totalPrice);
+                            return acc;
+                        }, {} as Record<string, number>)
+                    ).map(([method, amount]) => ({ method, amount })),
+                };
+
+                return NextResponse.json({ type: "preorders", summary, tickets });
+            }
+
             default:
                 return new NextResponse("Invalid report type", { status: 400 });
         }

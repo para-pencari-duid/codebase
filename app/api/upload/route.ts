@@ -1,8 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import sharp from "sharp";
+import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -27,39 +25,44 @@ export async function POST(req: NextRequest) {
         }
 
         // Validate file size (max 5MB)
-        const maxSize = 5 * 1024 * 1024;
-        if (file.size > maxSize) {
+        if (file.size > 5 * 1024 * 1024) {
             return new NextResponse("Ukuran file maksimal 5MB", { status: 400 });
         }
-
-        // Create uploads directory if not exists
-        const uploadsDir = path.join(process.cwd(), "public", "uploads");
-        await mkdir(uploadsDir, { recursive: true });
 
         // Generate unique filename
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 8);
-        const filename = `${timestamp}-${randomStr}.webp`;
-        const filepath = path.join(uploadsDir, filename);
+        const ext = file.type === "image/webp" ? "webp"
+            : file.type === "image/png" ? "png"
+            : file.type === "image/gif" ? "gif"
+            : "jpg";
+        const filename = `${timestamp}-${randomStr}.${ext}`;
 
-        // Convert to webp using sharp
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        await sharp(buffer)
-            .resize(800, 800, {
-                fit: "inside",
-                withoutEnlargement: true,
-            })
-            .webp({ quality: 80 })
-            .toFile(filepath);
+        // Upload to Supabase Storage
+        const { error } = await supabaseAdmin.storage
+            .from(STORAGE_BUCKET)
+            .upload(filename, buffer, {
+                contentType: file.type,
+                upsert: false,
+            });
 
-        // Return the public URL
-        const url = `/uploads/${filename}`;
+        if (error) {
+            console.error("[Upload] Supabase storage error:", error.message);
+            return new NextResponse(`Upload gagal: ${error.message}`, { status: 500 });
+        }
 
-        return NextResponse.json({ url, filename });
+        // Get public URL
+        const { data: urlData } = supabaseAdmin.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(filename);
+
+        return NextResponse.json({ url: urlData.publicUrl, filename });
+
     } catch (error) {
-        console.error("[UPLOAD_POST]", error);
-        return new NextResponse("Internal Error", { status: 500 });
+        console.error("[Upload] Error:", error);
+        return new NextResponse("Internal server error", { status: 500 });
     }
 }

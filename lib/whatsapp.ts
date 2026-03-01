@@ -1,21 +1,16 @@
 /**
  * WhatsApp Integration Helper
- * Connects to WA Gateway Service (Golang) at localhost:4000
- * Architecture: Asynchronous Worker Pattern with Queue
+ * Uses Fonnte API (https://fonnte.com) for sending messages.
+ * Set FONNTE_TOKEN in .env
  */
 
-import { randomBytes } from "crypto";
 import prisma from "@/lib/db";
 
-// WhatsApp Service URL and Authentication
-// Strip trailing slash to prevent double-slash URLs (e.g. https://host//session/init)
-const WA_SERVICE_URL = (process.env.WA_SERVICE_URL || "http://localhost:4000").replace(/\/+$/, "");
-const WA_SECRET_KEY = process.env.WA_SECRET_KEY || "LokkahPOS2026DevSecretKey99";
+// Fonnte API token
+const FONNTE_TOKEN = process.env.FONNTE_TOKEN || "";
 
-// Log WA service URL on module load
 if (typeof window === "undefined") {
-  console.log("[WA] Service URL:", WA_SERVICE_URL);
-  console.log("[WA] Auth configured:", WA_SECRET_KEY ? "✓" : "✗");
+  console.log("[WA] Fonnte token configured:", FONNTE_TOKEN ? "✓" : "✗ (FONNTE_TOKEN not set)");
 }
 
 // ============================================
@@ -122,139 +117,73 @@ export function formatDate(date: Date): string {
 }
 
 // ============================================
-// WHATSAPP API FUNCTIONS
+// FONNTE API FUNCTIONS
 // ============================================
 
 /**
- * Initialize WhatsApp session and get QR code
- * If init fails with 500 (stale session), auto-logout and retry once
+ * Get QR code (base64 PNG) from Fonnte to connect a WhatsApp number.
+ * Returns base64 PNG string — use as <img src={`data:image/png;base64,${qrBase64}`} />
  */
-export async function initWhatsAppSession(tenantId: string): Promise<{
-  status: string;
-  qr_code?: string;
-  message?: string;
+export async function getFonnteQRCode(): Promise<{
+  status: boolean;
+  qrBase64?: string;
+  alreadyConnected?: boolean;
   error?: string;
 }> {
-  const doInit = async () => {
-    console.log(`[WA] Initializing session for tenant: ${tenantId}`);
-    console.log(`[WA] Connecting to: ${WA_SERVICE_URL}/session/init`);
-
-    const response = await fetch(`${WA_SERVICE_URL}/session/init`, {
+  try {
+    const response = await fetch("https://api.fonnte.com/qr", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Secret-Key": WA_SECRET_KEY,
-      },
-      body: JSON.stringify({ tenant_id: tenantId }),
+      headers: { Authorization: FONNTE_TOKEN },
     });
-
-    console.log(`[WA] Init response status: ${response.status}`);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[WA] Init failed with status ${response.status}:`, errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      const text = await response.text();
+      throw new Error(`Fonnte /qr HTTP ${response.status}: ${text.substring(0, 100)}`);
     }
-
     const data = await response.json();
-    console.log(`[WA] Init response:`, data.status);
-    return data;
-  };
-
-  try {
-    return await doInit();
-  } catch (error) {
-    // If init fails (e.g., stale/broken session), try logout first then retry
-    const errMsg = error instanceof Error ? error.message : "";
-    if (errMsg.includes("500")) {
-      console.log(`[WA] Init failed with 500, attempting logout + retry for tenant: ${tenantId}`);
-      try {
-        await disconnectWhatsApp(tenantId);
-        // Small delay to let WA service clean up
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return await doInit();
-      } catch (retryError) {
-        console.error("[WA] Retry after logout also failed:", retryError);
-        return {
-          status: "error",
-          error: "Session rusak. Silakan gunakan Reset WhatsApp lalu coba lagi.",
-        };
-      }
+    if (data.device_status === "connect") {
+      return { status: true, alreadyConnected: true };
     }
-
-    console.error("[WA] Init Error:", error);
+    return { status: true, qrBase64: data.url };
+  } catch (error) {
+    console.error("[Fonnte] Get QR error:", error);
     return {
-      status: "error",
-      error: error instanceof Error ? error.message : "Connection failed",
+      status: false,
+      error: error instanceof Error ? error.message : "Gagal mengambil QR code dari Fonnte",
     };
   }
 }
 
 /**
- * Check WhatsApp connection status
+ * Check WhatsApp connection status via Fonnte /device endpoint.
  */
-export async function checkWhatsAppStatus(tenantId: string): Promise<{
-  tenant_id: string;
-  status: string;
+export async function checkWhatsAppStatus(): Promise<{
+  connected: boolean;
+  device?: string;
 }> {
   try {
-    const response = await fetch(`${WA_SERVICE_URL}/session/status/${tenantId}`, {
-      method: "GET",
-      headers: {
-        "X-Secret-Key": WA_SECRET_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("WA Status Error:", error);
-    return {
-      tenant_id: tenantId,
-      status: "disconnected",
-    };
-  }
-}
-
-/**
- * Disconnect/Logout WhatsApp session
- * WA Service endpoint: POST /session/logout
- */
-export async function disconnectWhatsApp(tenantId: string): Promise<{
-  status: string;
-  message?: string;
-}> {
-  try {
-    const response = await fetch(`${WA_SERVICE_URL}/session/logout`, {
+    if (!FONNTE_TOKEN) return { connected: false };
+    const response = await fetch("https://api.fonnte.com/device", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Secret-Key": WA_SECRET_KEY,
-      },
-      body: JSON.stringify({ tenant_id: tenantId }),
+      headers: { Authorization: FONNTE_TOKEN },
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("WA Disconnect Error:", error);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
     return {
-      status: "error",
+      connected: data.device_status === "connect",
+      device: data.device,
     };
+  } catch (error) {
+    console.error("[Fonnte] Status check error:", error);
+    return { connected: false };
   }
 }
 
+// (disconnect is handled at the DB level — Fonnte device stays linked)
+
 /**
- * Send WhatsApp message with rate limiting
+ * Send WhatsApp message via Fonnte.
  */
 export async function sendWhatsAppMessage(
-  tenantId: string,
   phone: string,
   message: string,
   bypassRateLimit = false
@@ -266,46 +195,37 @@ export async function sendWhatsAppMessage(
 }> {
   const formattedPhone = formatPhoneNumber(phone);
 
-  // Check rate limit
   if (!bypassRateLimit) {
     if (!checkRateLimit(formattedPhone)) {
-      const resetTime = getRateLimitReset(formattedPhone);
       return {
         success: false,
         error: "Rate limit exceeded",
-        rateLimitReset: resetTime,
+        rateLimitReset: getRateLimitReset(formattedPhone),
       };
     }
   }
 
   try {
-    const response = await fetch(`${WA_SERVICE_URL}/send`, {
+    const body = new URLSearchParams({ target: formattedPhone, message });
+    const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "X-Secret-Key": WA_SECRET_KEY,
+        Authorization: FONNTE_TOKEN,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
-        tenant_id: tenantId,
-        phone: formattedPhone,
-        message: message,
-      }),
+      body: body.toString(),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP ${response.status}`);
+      const errText = await response.text();
+      throw new Error(`Fonnte HTTP ${response.status}: ${errText.substring(0, 100)}`);
     }
 
     const data = await response.json();
-    // New async architecture returns 'queued' status
-    console.log(`[WA] Message queued: ${data.status}`);
-    return {
-      success: true,
-      message: data.message || "Message queued successfully",
-    };
+    console.log(`[Fonnte] Sent to ${formattedPhone}:`, data);
+    return { success: true, message: "Message sent" };
   } catch (error) {
-    console.error("WA Send Error:", error);
+    console.error("[Fonnte] Send error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send message",
@@ -318,63 +238,13 @@ export async function sendWhatsAppMessage(
 // ============================================
 
 /**
- * Generate or get tenant ID from settings
- */
-/**
- * Get existing tenant ID or create a new one
- * Settings should already exist from seed/migration
- */
-export async function getOrCreateTenantId(): Promise<string> {
-  let settings = await prisma.settings.findFirst();
-
-  // If settings exists and has tenant ID, return it
-  if (settings?.whatsappTenantId) {
-    console.log(`[WA] Using existing tenant ID: ${settings.whatsappTenantId}`);
-    return settings.whatsappTenantId;
-  }
-
-  const prefix = settings?.businessName?.replace(/[^a-z0-9]/gi, "-").substring(0, 20) || "tenant";
-
-  // Generate new tenant ID (12 random alphanumeric chars)
-  const randomString = randomBytes(9).toString("base64").replace(/[+/=]/g, "").substring(0, 12);
-  const tenantId = `${prefix}-${randomString}`;
-
-  console.log(`[WA] Generated new tenant ID: ${tenantId}`);
-
-  // Update existing settings with tenant ID
-  if (settings) {
-    await prisma.settings.update({
-      where: { id: settings.id },
-      data: { whatsappTenantId: tenantId },
-    });
-  } else {
-    // Fallback: create settings row (singleton)
-    console.warn("[WA] No settings found, creating defaults");
-    settings = await prisma.settings.create({
-      data: {
-        businessName: "Toko",
-        taxRate: 11,
-        whatsappTenantId: tenantId,
-      },
-    });
-  }
-
-  return tenantId;
-}
-
-/**
- * Check if WhatsApp is enabled and connected
+ * Check if WhatsApp (Fonnte) is enabled and connected.
  */
 export async function isWhatsAppReady(): Promise<boolean> {
   const settings = await prisma.settings.findFirst();
-
-  if (!settings?.whatsappEnabled || !settings?.whatsappTenantId) {
-    return false;
-  }
-
-  // Check connection status
-  const status = await checkWhatsAppStatus(settings.whatsappTenantId);
-  return status.status === "connected";
+  if (!settings?.whatsappEnabled) return false;
+  const status = await checkWhatsAppStatus();
+  return status.connected;
 }
 
 /**
@@ -390,20 +260,15 @@ export async function sendWhatsAppNotification(
 ): Promise<boolean> {
   try {
     const settings = await prisma.settings.findFirst();
-    if (!settings?.whatsappEnabled || !settings?.whatsappTenantId) {
+    if (!settings?.whatsappEnabled) {
       console.log(`[WA] WhatsApp not enabled, skipping ${label}`);
       return false;
     }
-    const result = await sendWhatsAppMessage(
-      settings.whatsappTenantId,
-      phone,
-      message,
-      bypassRateLimit
-    );
+    const result = await sendWhatsAppMessage(phone, message, bypassRateLimit);
     if (result.success) {
-      console.log(`[WA] ${label} sent to ${phone}`);
+      console.log(`[Fonnte] ${label} sent to ${phone}`);
     } else {
-      console.error(`[WA] ${label} failed:`, result.error);
+      console.error(`[Fonnte] ${label} failed:`, result.error);
     }
     return result.success;
   } catch (err) {
@@ -422,13 +287,12 @@ export async function sendNotificationIfEnabled(
 ): Promise<void> {
   const settings = await prisma.settings.findFirst();
 
-  if (!settings?.whatsappEnabled || !settings?.whatsappTenantId) {
+  if (!settings?.whatsappEnabled) {
     console.log("[WA] WhatsApp not enabled, skipping notification");
     return;
   }
 
-  // Check if this notification type is enabled
-  const notificationEnabled = {
+  const notificationEnabled: Record<string, boolean | null | undefined> = {
     transaction: settings.notifyOnTransaction,
     lowstock: settings.notifyOnLowStock,
     backup: settings.notifyOnBackup,
@@ -440,18 +304,16 @@ export async function sendNotificationIfEnabled(
     return;
   }
 
-  // Send message
   const result = await sendWhatsAppMessage(
-    settings.whatsappTenantId,
     phone,
     message,
-    notificationType === "lowstock" // Bypass rate limit for critical alerts
+    notificationType === "lowstock"
   );
 
   if (!result.success) {
-    console.error(`[WA] Failed to send ${notificationType}:`, result.error);
+    console.error(`[Fonnte] Failed to send ${notificationType}:`, result.error);
   } else {
-    console.log(`[WA] ${notificationType} notification sent to ${phone}`);
+    console.log(`[Fonnte] ${notificationType} notification sent to ${phone}`);
   }
 }
 

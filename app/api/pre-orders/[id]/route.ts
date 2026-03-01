@@ -20,6 +20,7 @@ export async function GET(
     const jobTicket = await prisma.jobTicket.findUnique({
       where: { id },
       include: {
+        items: true,
         createdByUser: { select: { id: true, name: true } },
       },
     });
@@ -131,6 +132,7 @@ Sampai jumpa di toko ya!
 
       const updated = await prisma.jobTicket.update({
         where: { id },
+        include: { items: true },
         data: {
           finalPayMethod: payMethod,
           finalPaidAt: new Date(),
@@ -138,6 +140,101 @@ Sampai jumpa di toko ya!
           status: jobTicket.status === "READY" ? "COMPLETED" : jobTicket.status,
         },
       });
+
+      // Create Transaction record so pre-order shows in /transactions + customer stats
+      try {
+        const dpPayments: Array<{ method: string; amount: number; reference: string }> = [];
+        if (Number(updated.dpAmount) > 0 && updated.dpMethod) {
+          dpPayments.push({
+            method: updated.dpMethod,
+            amount: Number(updated.dpAmount),
+            reference: `DP - ${updated.ticketNo}`,
+          });
+        }
+
+        await prisma.transaction.create({
+          data: {
+            transactionNo: updated.ticketNo,
+            type: "B2B_INVOICE",
+            customerId: updated.customerId ?? null,
+            userId: session.user?.id as string,
+            subtotal: updated.totalPrice,
+            tax: 0,
+            discount: 0,
+            total: updated.totalPrice,
+            paymentMethod: payMethod as any,
+            paymentAmount: updated.totalPrice,
+            changeAmount: 0,
+            paymentStatus: "PAID",
+            status: "COMPLETED",
+            notes: `Pre-Order: ${updated.title} (${updated.ticketNo})`,
+            payments: {
+              create: [
+                ...dpPayments.map((p) => ({
+                  method: p.method as any,
+                  amount: p.amount,
+                  reference: p.reference,
+                })),
+                {
+                  method: payMethod as any,
+                  amount: Number(jobTicket.remainingAmount),
+                  reference: `Pelunasan - ${updated.ticketNo}`,
+                },
+              ],
+            },
+          },
+        });
+      } catch (txErr) {
+        console.error("[pay_remaining] Failed to create Transaction record:", txErr);
+        // non-blocking
+      }
+
+      // Auto-send WA invoice when marked as paid
+      try {
+        if (settings?.whatsappEnabled && updated.customerPhone) {
+          const fmt = (n: number) =>
+            new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
+          const fmtD = (d: Date) =>
+            new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeStyle: "short" }).format(new Date(d));
+
+          const itemLines = updated.items.length > 0
+            ? updated.items.map(it => `  - ${it.name} x${it.quantity} = ${fmt(Number(it.subtotal))}`).join("\n")
+            : `  - ${updated.title} x${updated.quantity} = ${fmt(Number(updated.totalPrice))}`;
+
+          const message = [
+            `🧾 *INVOICE PELUNASAN*`,
+            `━━━━━━━━━━━━━━━━━`,
+            ``,
+            `Halo ${updated.customerName}! 👋`,
+            `Pembayaran Anda telah kami terima. Terima kasih! 🙏`,
+            ``,
+            `*No. Order:* ${updated.ticketNo}`,
+            `*Produk:* ${updated.title}`,
+            ``,
+            `📋 *RINCIAN*`,
+            itemLines,
+            ``,
+            `💰 *PEMBAYARAN*`,
+            `Total: *${fmt(Number(updated.totalPrice))}*`,
+            Number(updated.dpAmount) > 0 ? `DP: ${fmt(Number(updated.dpAmount))} ✅` : null,
+            `Pelunasan: *${fmt(Number(jobTicket.remainingAmount))}* (${payMethod})`,
+            `Status: *LUNAS ✅*`,
+            ``,
+            updated.dueDate
+              ? (updated.deliveryType === "DELIVERY"
+                  ? `🚚 *Pengiriman* ke: ${updated.customerAddress ?? "-"}`
+                  : `🏪 *Ambil di toko:* ${fmtD(updated.dueDate)}`)
+              : null,
+            ``,
+            `~ ${settings?.businessName || "Toko"} ~`,
+          ].filter(Boolean).join("\n");
+
+          await sendWhatsAppNotification(updated.customerPhone, "preorder_paid", message);
+        }
+      } catch (waErr) {
+        console.error("[pay_remaining] WA send failed:", waErr);
+        // non-blocking
+      }
 
       return NextResponse.json(updated);
     }

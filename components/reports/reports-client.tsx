@@ -176,6 +176,22 @@ export function ReportsClient() {
                     Status: p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
                 }));
                 break;
+            case "preorders":
+                sheetName = "Laporan Pre-Order";
+                data = (reportData.tickets || []).map((t: any) => ({
+                    "No. Order": t.ticketNo,
+                    Pelanggan: t.customerName,
+                    "No. HP": t.customerPhone,
+                    Produk: t.title,
+                    Qty: t.quantity,
+                    Total: Number(t.totalPrice),
+                    DP: Number(t.dpAmount),
+                    "Metode DP": t.dpMethod ?? "-",
+                    "Metode Lunas": t.finalPayMethod ?? "-",
+                    "Tgl. Lunas": t.finalPaidAt ? format(new Date(t.finalPaidAt), "dd/MM/yyyy HH:mm") : "-",
+                    Status: t.status,
+                }));
+                break;
         }
 
         if (data.length === 0) {
@@ -427,7 +443,7 @@ export function ReportsClient() {
             </div>
 
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="sales" className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" /> Penjualan
                     </TabsTrigger>
@@ -439,6 +455,9 @@ export function ReportsClient() {
                     </TabsTrigger>
                     <TabsTrigger value="stock" className="flex items-center gap-2">
                         <Warehouse className="h-4 w-4" /> Stok
+                    </TabsTrigger>
+                    <TabsTrigger value="preorders" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" /> Pre-Order
                     </TabsTrigger>
                 </TabsList>
 
@@ -661,6 +680,75 @@ export function ReportsClient() {
                         </>
                     ) : (
                         <EmptyState message="Klik 'Tampilkan' untuk memuat laporan stok" />
+                    )}
+                </TabsContent>
+
+                {/* Pre-Orders Report */}
+                <TabsContent value="preorders" className="space-y-4">
+                    {reportData?.type === "preorders" ? (
+                        <>
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <SummaryCard title="Total Pre-Order Lunas" value={reportData.summary.totalOrders.toString()} icon={<FileText className="h-4 w-4 text-muted-foreground" />} />
+                                <SummaryCard title="Total Pendapatan" value={formatCurrency(reportData.summary.totalRevenue)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                                <SummaryCard title="Total DP Diterima" value={formatCurrency(reportData.summary.totalDP)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
+                            </div>
+                            {reportData.summary.paymentBreakdown?.length > 0 && (
+                                <Card>
+                                    <CardHeader><CardTitle>Breakdown Metode Pembayaran</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Metode</TableHead>
+                                                    <TableHead className="text-right">Total</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {reportData.summary.paymentBreakdown.map((p: any) => (
+                                                    <TableRow key={p.method}>
+                                                        <TableCell><Badge variant="outline">{p.method}</Badge></TableCell>
+                                                        <TableCell className="text-right">{formatCurrency(p.amount)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            )}
+                            <Card>
+                                <CardHeader><CardTitle>Daftar Pre-Order Lunas</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>No. Order</TableHead>
+                                                <TableHead>Pelanggan</TableHead>
+                                                <TableHead>HP</TableHead>
+                                                <TableHead>Produk</TableHead>
+                                                <TableHead>Tgl. Lunas</TableHead>
+                                                <TableHead>Metode</TableHead>
+                                                <TableHead className="text-right">Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {reportData.tickets.map((t: any) => (
+                                                <TableRow key={t.id}>
+                                                    <TableCell className="font-mono text-sm">{t.ticketNo}</TableCell>
+                                                    <TableCell className="font-medium">{t.customerName}</TableCell>
+                                                    <TableCell>{t.customerPhone}</TableCell>
+                                                    <TableCell>{t.title}</TableCell>
+                                                    <TableCell>{t.finalPaidAt ? format(new Date(t.finalPaidAt), "dd MMM yyyy HH:mm", { locale: localeId }) : "-"}</TableCell>
+                                                    <TableCell><Badge variant="outline">{t.finalPayMethod ?? t.dpMethod ?? "-"}</Badge></TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(Number(t.totalPrice))}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </>
+                    ) : (
+                        <EmptyState message="Klik 'Tampilkan' untuk memuat laporan pre-order" />
                     )}
                 </TabsContent>
             </Tabs>
