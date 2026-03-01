@@ -14,160 +14,173 @@ import {
   Warehouse,
   Receipt,
   UserCog,
-  Percent,
-  Truck,
   Bell,
   TrendingDown,
   Factory,
-  Clock,
-  Undo2,
-  ClipboardList,
-  Store,
   CalendarClock,
-  FileText,
-  ListPlus,
-  UtensilsCrossed,
-  ChefHat,
-  CalendarCheck,
-  Tag,
-  Layers,
-  Hash,
-  BookOpen,
-  Landmark,
-  BadgePercent,
-  UserCheck,
-  Wallet,
-  Megaphone,
-  Star,
-  TrendingUp,
-  Webhook,
-  ShoppingBag,
+  Cake,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 
-// ─── Menu katalog lengkap ──────────────────────────────────────────────────
+// ─── Grouped menu ─────────────────────────────────────────────────────────────
 
-const MENU_CATALOG = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Kasir (POS)", href: "/pos", icon: ShoppingCart },
-//   { name: "Shift Kasir", href: "/shifts", icon: Clock },
-  { name: "Produk", href: "/products", icon: Package },
-//   { name: "Modifier", href: "/modifiers", icon: ListPlus },
-  { name: "Inventory", href: "/inventory", icon: Warehouse },
-//   {
-//     name: "Stock Opname",
-//     href: "/inventory/stock-opname",
-//     icon: ClipboardList,
-//   },
-  { name: "Laporan", href: "/reports", icon: BarChart3 },
-  { name: "Diskon", href: "/discounts", icon: Percent },
-//   { name: "Retur", href: "/returns", icon: Undo2 },
-  { name: "Transaksi", href: "/transactions", icon: Receipt },
-  { name: "Pre-Order / Servis", href: "/pre-orders", icon: CalendarClock },
-  { name: "Resep & Produksi", href: "/production", icon: Factory },
-//   {
-//     name: "Faktur & Piutang",
-//     href: "/transactions?type=B2B_INVOICE",
-//     icon: FileText,
-//   },
-//   { name: "Supplier", href: "/suppliers", icon: Truck },
-//   { name: "Multi-Store", href: "/stores", icon: Store },
-//   { name: "Manajemen Meja", href: "/tables", icon: UtensilsCrossed },
-//   { name: "Dapur (KDS)", href: "/kitchen", icon: ChefHat },
-//   { name: "Booking / Jadwal", href: "/bookings", icon: CalendarCheck },
-//   { name: "Tier Harga", href: "/price-lists", icon: Tag },
-//   { name: "Konsinyasi", href: "/consignments", icon: Layers },
-//   { name: "Serial Number", href: "/serial-numbers", icon: Hash },
-//   { name: "Akuntansi", href: "/accounting", icon: BookOpen },
-//   { name: "Rekonsiliasi Bank", href: "/bank-recon", icon: Landmark },
-//   { name: "Tarif Pajak", href: "/tax-rates", icon: BadgePercent },
-//   { name: "Karyawan", href: "/employees", icon: UserCheck },
-//   { name: "Penggajian", href: "/payroll", icon: Wallet },
-//   { name: "Marketing", href: "/marketing", icon: Megaphone },
-//   { name: "Feedback / NPS", href: "/feedback", icon: Star },
-//   { name: "Analitik Lanjutan", href: "/analytics", icon: TrendingUp },
-//   { name: "Webhook / API", href: "/webhooks", icon: Webhook },
-//   { name: "Marketplace", href: "/marketplace", icon: ShoppingBag },
-  { name: "Pelanggan", href: "/customers", icon: Users },
-  { name: "Pengeluaran", href: "/expenses", icon: TrendingDown },
-  { name: "Notifikasi", href: "/notifications", icon: Bell },
-  { name: "Pengguna", href: "/users", icon: UserCog },
-  { name: "Pengaturan", href: "/settings", icon: Settings },
+const MENU_GROUPS = [
+  {
+    label: "Operasional",
+    items: [
+      { name: "Dashboard",        href: "/dashboard",    icon: LayoutDashboard },
+      { name: "Kasir (POS)",      href: "/pos",          icon: ShoppingCart },
+      { name: "Transaksi",        href: "/transactions", icon: Receipt },
+      { name: "Pre-Order",        href: "/pre-orders",   icon: CalendarClock },
+    ],
+  },
+  {
+    label: "Produk & Stok",
+    items: [
+      { name: "Produk",           href: "/products",     icon: Package },
+      { name: "Inventory",        href: "/inventory",    icon: Warehouse },
+      { name: "Resep & Produksi", href: "/production",   icon: Factory },
+    ],
+  },
+  {
+    label: "Keuangan",
+    items: [
+      { name: "Laporan",          href: "/reports",      icon: BarChart3 },
+      { name: "Pengeluaran",      href: "/expenses",     icon: TrendingDown },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { name: "Pelanggan",        href: "/customers",    icon: Users },
+      { name: "Notifikasi",       href: "/notifications",icon: Bell },
+    ],
+  },
+  {
+    label: "Sistem",
+    items: [
+      { name: "Pengguna",         href: "/users",        icon: UserCog },
+      { name: "Pengaturan",       href: "/settings",     icon: Settings },
+    ],
+  },
 ] as const;
 
-// ─── Sidebar Component ────────────────────────────────────────────────────────
+
+// ─── Sidebar props ────────────────────────────────────────────────────────────
 
 interface SidebarProps {
-  /** Nama bisnis yang ditampilkan di header sidebar */
   businessName?: string;
 }
+
+// ─── Nav links ────────────────────────────────────────────────────────────────
 
 function NavLinks({ onNavClick }: { onNavClick?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <>
-      {MENU_CATALOG.map((item) => {
-        const Icon = item.icon;
-        const isActive =
-          pathname === item.href ||
-          pathname.startsWith(`${item.href.split("?")[0]}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavClick}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
-              isActive
-                ? "bg-slate-100 text-primary font-semibold dark:bg-slate-800"
-                : "text-muted-foreground"
-            }`}
-          >
-            <Icon className="h-4 w-4" />
-            {item.name}
-          </Link>
-        );
-      })}
-    </>
-  );
-}
-
-export function Sidebar({ businessName = "POS System" }: SidebarProps) {
-  return (
-    <div className="hidden border-r bg-slate-100/40 lg:block dark:bg-slate-800/40">
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-[60px] items-center border-b px-6">
-          <Link
-            className="flex items-center gap-2 font-semibold"
-            href="/dashboard"
-          >
-            <span className="text-xl font-bold text-primary">
-              {businessName}
-            </span>
-          </Link>
+    <div className="flex flex-col gap-5">
+      {MENU_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest select-none"
+             style={{ color: "color-mix(in oklch, var(--sidebar-foreground) 40%, transparent)" }}>
+            {group.label}
+          </p>
+          <div className="flex flex-col gap-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.href ||
+                pathname.startsWith(`${item.href.split("?")[0]}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavClick}
+                  className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "font-semibold"
+                      : ""
+                  }`}
+                  style={
+                    isActive
+                      ? {
+                          background: "var(--sidebar-accent)",
+                          color: "var(--sidebar-primary)",
+                        }
+                      : {
+                          color: "color-mix(in oklch, var(--sidebar-foreground) 70%, transparent)",
+                        }
+                  }
+                >
+                  {isActive && (
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full"
+                      style={{ background: "var(--sidebar-primary)" }}
+                    />
+                  )}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-4 text-sm font-medium">
-            <NavLinks />
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full gap-2 justify-start"
-            onClick={() => signOut()}
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
+
+// ─── Desktop Sidebar ──────────────────────────────────────────────────────────
+
+export function Sidebar({ businessName = "POS System" }: SidebarProps) {
+  return (
+    <aside
+      className="hidden lg:flex flex-col sticky top-0 h-screen w-[280px] shrink-0"
+      style={{ background: "var(--sidebar)", borderRight: "1px solid var(--sidebar-border)" }}
+    >
+      {/* Logo */}
+      <div
+        className="flex h-[60px] items-center gap-3 px-5 shrink-0"
+        style={{ borderBottom: "1px solid var(--sidebar-border)" }}
+      >
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          style={{ background: "var(--sidebar-primary)" }}
+        >
+          <Cake className="h-4 w-4 text-white" />
+        </div>
+        <span
+          className="text-base font-bold leading-tight truncate"
+          style={{ color: "var(--sidebar-accent-foreground)" }}
+        >
+          {businessName}
+        </span>
+      </div>
+
+      {/* Nav */}
+      <div className="flex-1 overflow-y-auto py-4 px-3">
+        <NavLinks />
+      </div>
+
+      {/* Logout */}
+      <div className="p-4 shrink-0" style={{ borderTop: "1px solid var(--sidebar-border)" }}>
+        <button
+          onClick={() => signOut()}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-[--sidebar-accent]"
+          style={{ color: "color-mix(in oklch, var(--sidebar-foreground) 60%, transparent)" }}
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ─── Mobile Sidebar ───────────────────────────────────────────────────────────
 
 export function MobileSidebar({ businessName = "Menu" }: SidebarProps) {
   const [open, setOpen] = useState(false);
@@ -176,29 +189,50 @@ export function MobileSidebar({ businessName = "Menu" }: SidebarProps) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="lg:hidden">
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle Menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[240px] sm:w-[300px] p-0">
+      <SheetContent
+        side="left"
+        className="w-[280px] p-0"
+        style={{ background: "var(--sidebar)", borderRight: "1px solid var(--sidebar-border)" }}
+      >
         <div className="flex flex-col h-full">
-          <div className="flex h-[60px] items-center border-b px-6">
-            <span className="text-xl font-bold">{businessName}</span>
-          </div>
-          <div className="flex-1 overflow-auto py-2">
-            <nav className="grid items-start px-4 text-sm font-medium">
-              <NavLinks onNavClick={() => setOpen(false)} />
-            </nav>
-          </div>
-          <div className="mt-auto p-4">
-            <Button
-              variant="outline"
-              className="w-full gap-2 justify-start"
-              onClick={() => signOut()}
+          {/* Logo */}
+          <div
+            className="flex h-[60px] items-center gap-3 px-5 shrink-0"
+            style={{ borderBottom: "1px solid var(--sidebar-border)" }}
+          >
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ background: "var(--sidebar-primary)" }}
             >
-              <LogOut className="h-4 w-4" />
+              <Cake className="h-4 w-4 text-white" />
+            </div>
+            <span
+              className="text-base font-bold truncate"
+              style={{ color: "var(--sidebar-accent-foreground)" }}
+            >
+              {businessName}
+            </span>
+          </div>
+
+          {/* Nav */}
+          <div className="flex-1 overflow-y-auto py-4 px-3">
+            <NavLinks onNavClick={() => setOpen(false)} />
+          </div>
+
+          {/* Logout */}
+          <div className="p-4 shrink-0" style={{ borderTop: "1px solid var(--sidebar-border)" }}>
+            <button
+              onClick={() => signOut()}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
+              style={{ color: "color-mix(in oklch, var(--sidebar-foreground) 60%, transparent)" }}
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
               Logout
-            </Button>
+            </button>
           </div>
         </div>
       </SheetContent>
