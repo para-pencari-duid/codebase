@@ -46,6 +46,9 @@ export async function GET(req: NextRequest) {
           createdByUser: {
             select: { id: true, name: true },
           },
+          items: {
+            select: { id: true, name: true, quantity: true, unitPrice: true, subtotal: true, notes: true },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -54,8 +57,16 @@ export async function GET(req: NextRequest) {
       prisma.jobTicket.count({ where }),
     ]);
 
+    // Map DB field names to frontend interface names
+    const mappedOrders = orders.map((o) => ({
+      ...o,
+      orderNo: o.ticketNo,
+      productName: o.items.length > 0 ? o.items.map((i) => i.name).join(", ") : o.title,
+      pickupDate: o.dueDate,
+    }));
+
     return NextResponse.json({
-      orders,
+      orders: mappedOrders,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -80,10 +91,7 @@ export async function POST(req: NextRequest) {
       customerPhone,
       customerAddress,
       customerId,
-      productName,
-      description,
-      quantity,
-      unitPrice,
+      items,          // Array<{name,quantity,unitPrice,notes?}>
       notes,
       referenceImages,
       dpAmount,
@@ -93,18 +101,34 @@ export async function POST(req: NextRequest) {
     } = data;
 
     // Validasi wajib
-    if (!customerName || !customerPhone || !productName || !unitPrice || !pickupDate) {
+    if (!customerName || !customerPhone || !pickupDate) {
       return NextResponse.json(
-        { error: "customerName, customerPhone, productName, unitPrice, pickupDate wajib diisi" },
+        { error: "customerName, customerPhone, pickupDate wajib diisi" },
         { status: 400 }
       );
     }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Minimal 1 item pesanan wajib diisi" }, { status: 400 });
+    }
 
-    const qty = parseInt(quantity) || 1;
-    const price = parseFloat(unitPrice);
-    const total = price * qty;
+    type RawItem = { name: string; quantity?: number | string; unitPrice: number | string; notes?: string };
+    const parsedItems = (items as RawItem[]).map((it) => ({
+      name: String(it.name || "").trim(),
+      quantity: parseInt(String(it.quantity)) || 1,
+      unitPrice: parseFloat(String(it.unitPrice)) || 0,
+      notes: it.notes?.trim() || null,
+    }));
+
+    if (parsedItems.some((it) => !it.name || it.unitPrice <= 0)) {
+      return NextResponse.json({ error: "Setiap item harus ada nama dan harga satuan" }, { status: 400 });
+    }
+
+    const total = parsedItems.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0);
     const dp = parseFloat(dpAmount) || 0;
     const remaining = total - dp;
+
+    // Use first item as primary label for backward-compat legacy fields
+    const firstItem = parsedItems[0];
 
     // Generate nomor tiket
     let ticketNo = generateTicketNo();
@@ -119,10 +143,10 @@ export async function POST(req: NextRequest) {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerAddress: customerAddress?.trim() || null,
-        title: productName.trim(),
-        description: description?.trim() || null,
-        quantity: qty,
-        unitPrice: price,
+        title: firstItem.name,
+        description: null,
+        quantity: firstItem.quantity,
+        unitPrice: firstItem.unitPrice,
         totalPrice: total,
         notes: notes?.trim() || null,
         referenceImages: referenceImages || [],
@@ -135,11 +159,19 @@ export async function POST(req: NextRequest) {
         status: "CONFIRMED",
         createdBy: session.user.id,
         customerId: customerId || null,
+        items: {
+          create: parsedItems.map((it) => ({
+            name: it.name,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            subtotal: it.quantity * it.unitPrice,
+            notes: it.notes,
+          })),
+        },
       },
       include: {
-        createdByUser: {
-          select: { id: true, name: true },
-        },
+        createdByUser: { select: { id: true, name: true } },
+        items: true,
       },
     });
 
@@ -186,9 +218,11 @@ export async function POST(req: NextRequest) {
           createPreOrderConfirmMessage({
             orderNo: jobTicket.ticketNo,
             customerName: jobTicket.customerName,
-            productName: jobTicket.title,
-            description: jobTicket.description || "",
-            quantity: jobTicket.quantity,
+            items: jobTicket.items.map((it) => ({
+              name: it.name,
+              quantity: it.quantity,
+              unitPrice: Number(it.unitPrice),
+            })),
             totalPrice: Number(jobTicket.totalPrice),
             dpAmount: Number(jobTicket.dpAmount),
             remainingAmount: Number(jobTicket.remainingAmount),
@@ -213,9 +247,7 @@ export async function POST(req: NextRequest) {
 function createPreOrderConfirmMessage(data: {
   orderNo: string;
   customerName: string;
-  productName: string;
-  description: string;
-  quantity: number;
+  items: Array<{ name: string; quantity: number; unitPrice: number }>;
   totalPrice: number;
   dpAmount: number;
   remainingAmount: number;
@@ -228,6 +260,8 @@ function createPreOrderConfirmMessage(data: {
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
   const fmtDate = (d: Date) =>
     new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short" }).format(new Date(d));
+
+  const itemLines = data.items.map((it) => `  - ${it.name} x${it.quantity}`).join("\n");
 
   return `
 ╔═══════════════════════════════════╗
@@ -244,8 +278,8 @@ Pesanan Anda telah diterima.
 📋 DETAIL PESANAN
 
 No. Order  : ${data.orderNo}
-Produk     : ${data.productName}${data.description ? "\nDetail     : " + data.description : ""}
-Jumlah     : ${data.quantity} pcs
+Produk     :
+${itemLines}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💰 PEMBAYARAN

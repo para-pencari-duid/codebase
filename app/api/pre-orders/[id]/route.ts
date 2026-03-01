@@ -285,7 +285,7 @@ lebih lanjut.
     if (action === "edit") {
       const {
         customerName, customerPhone, customerAddress,
-        productName, description, quantity, unitPrice,
+        items,          // Array<{name,quantity,unitPrice,notes?}>
         notes, pickupDate, deliveryType,
       } = data;
 
@@ -293,11 +293,29 @@ lebih lanjut.
         return NextResponse.json({ error: "Pesanan selesai/batal tidak bisa diedit" }, { status: 400 });
       }
 
-      const qty = parseInt(quantity) || Number(jobTicket.quantity);
-      const price = parseFloat(unitPrice) || Number(jobTicket.unitPrice);
-      const total = price * qty;
+      type RawItem = { name: string; quantity?: number | string; unitPrice: number | string; notes?: string };
+      const parsedItems: Array<{ name: string; quantity: number; unitPrice: number; subtotal: number; notes: string | null }> | null =
+        items && Array.isArray(items) && items.length > 0
+          ? (items as RawItem[]).map((it) => {
+              const qty = parseInt(String(it.quantity)) || 1;
+              const price = parseFloat(String(it.unitPrice)) || 0;
+              return {
+                name: String(it.name || "").trim(),
+                quantity: qty,
+                unitPrice: price,
+                subtotal: qty * price,
+                notes: it.notes?.trim() || null,
+              };
+            })
+          : null;
+
+      const total = parsedItems
+        ? parsedItems.reduce((sum, it) => sum + it.subtotal, 0)
+        : Number(jobTicket.totalPrice);
       const dp = Number(jobTicket.dpAmount);
       const remaining = Math.max(0, total - dp);
+
+      const firstItem = parsedItems?.[0];
 
       const updated = await prisma.jobTicket.update({
         where: { id },
@@ -305,16 +323,30 @@ lebih lanjut.
           customerName: customerName?.trim() || jobTicket.customerName,
           customerPhone: customerPhone?.trim() || jobTicket.customerPhone,
           customerAddress: customerAddress?.trim() || jobTicket.customerAddress,
-          title: productName?.trim() || jobTicket.title,
-          description: description?.trim() || jobTicket.description,
-          quantity: qty,
-          unitPrice: price,
+          ...(firstItem && {
+            title: firstItem.name,
+            quantity: firstItem.quantity,
+            unitPrice: firstItem.unitPrice,
+          }),
           totalPrice: total,
-          notes: notes?.trim() || jobTicket.notes,
+          notes: notes?.trim() ?? jobTicket.notes,
           dueDate: pickupDate ? new Date(pickupDate) : jobTicket.dueDate,
           deliveryType: deliveryType || jobTicket.deliveryType,
           remainingAmount: remaining,
+          ...(parsedItems && {
+            items: {
+              deleteMany: {},
+              create: parsedItems.map((it) => ({
+                name: it.name,
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+                subtotal: it.subtotal,
+                notes: it.notes,
+              })),
+            },
+          }),
         },
+        include: { items: true },
       });
 
       return NextResponse.json(updated);

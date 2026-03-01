@@ -41,7 +41,15 @@ export async function GET(req: NextRequest) {
       orderBy: { dueDate: "asc" },
     });
 
-    return NextResponse.json({ orders, date: start.toISOString(), total: orders.length });
+    // Map DB field names to frontend interface names
+    const mappedOrders = orders.map((o) => ({
+      ...o,
+      orderNo: o.ticketNo,
+      productName: o.items.length > 0 ? o.items.map((i) => i.name).join(", ") : o.title,
+      pickupDate: o.dueDate,
+    }));
+
+    return NextResponse.json({ orders: mappedOrders, date: start.toISOString(), total: orders.length });
   } catch (error) {
     console.error("[RECAP]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

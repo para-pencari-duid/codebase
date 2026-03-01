@@ -60,6 +60,22 @@ interface Customer {
   address?: string | null;
 }
 
+interface FormItem {
+  name: string;
+  quantity: string;
+  unitPrice: string;
+  notes: string;
+}
+
+interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  notes?: string | null;
+}
+
 type PreOrderStatus =
   | "PENDING"
   | "CONFIRMED"
@@ -79,6 +95,7 @@ interface PreOrder {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  items?: OrderItem[];
   notes?: string;
   dpAmount: number;
   dpMethod?: string;
@@ -163,10 +180,6 @@ const EMPTY_FORM = {
   customerName: "",
   customerPhone: "",
   customerAddress: "",
-  productName: "",
-  description: "",
-  quantity: "1",
-  unitPrice: "",
   notes: "",
   dpAmount: "",
   dpMethod: "CASH",
@@ -174,6 +187,8 @@ const EMPTY_FORM = {
   pickupTime: "10:00",
   deliveryType: "PICKUP",
 };
+
+const EMPTY_ITEM: FormItem = { name: "", quantity: "1", unitPrice: "", notes: "" };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -193,6 +208,7 @@ export default function PreOrdersPage() {
 
   // Form state
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [formItems, setFormItems] = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
   const [cancelReason, setCancelReason] = useState("");
   const [payMethod, setPayMethod] = useState("CASH");
   const [saving, setSaving] = useState(false);
@@ -254,8 +270,13 @@ export default function PreOrdersPage() {
 
   // ── Create ────────────────────────────────────────────────────────────────
   const handleCreate = async () => {
-    if (!form.customerName || !form.customerPhone || !form.productName || !form.unitPrice || !form.pickupDate) {
-      toast.error("Nama customer, HP, produk, harga, dan tanggal ambil wajib diisi");
+    if (!form.customerName || !form.customerPhone || !form.pickupDate) {
+      toast.error("Nama customer, HP, dan tanggal ambil wajib diisi");
+      return;
+    }
+    const validItems = formItems.filter((it) => it.name.trim() && it.unitPrice);
+    if (validItems.length === 0) {
+      toast.error("Minimal 1 item pesanan wajib diisi (nama & harga)");
       return;
     }
     setSaving(true);
@@ -267,7 +288,12 @@ export default function PreOrdersPage() {
         body: JSON.stringify({
           ...form,
           customerId: selectedCustomer?.id ?? null,
-          unitPrice: parseFloat(form.unitPrice),
+          items: validItems.map((it) => ({
+            name: it.name.trim(),
+            quantity: parseInt(it.quantity) || 1,
+            unitPrice: parseFloat(it.unitPrice),
+            notes: it.notes.trim() || undefined,
+          })),
           dpAmount: parseFloat(form.dpAmount) || 0,
           pickupDate: pickupDateTime.toISOString(),
         }),
@@ -291,6 +317,7 @@ export default function PreOrdersPage() {
       toast.success("Pre-order berhasil dibuat & konfirmasi WA dikirim!");
       setCreateOpen(false);
       setForm({ ...EMPTY_FORM });
+      setFormItems([{ ...EMPTY_ITEM }]);
       resetCustomerSearch();
       fetchOrders();
     } catch (e: any) {
@@ -364,6 +391,11 @@ export default function PreOrdersPage() {
   // ── Edit save ─────────────────────────────────────────────────────────────
   const handleEditSave = async () => {
     if (!editOrder) return;
+    const validItems = formItems.filter((it) => it.name.trim() && it.unitPrice);
+    if (validItems.length === 0) {
+      toast.error("Minimal 1 item pesanan wajib diisi");
+      return;
+    }
     setSaving(true);
     try {
       const pickupDateTime = form.pickupDate
@@ -374,9 +406,18 @@ export default function PreOrdersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "edit",
-          ...form,
-          unitPrice: form.unitPrice ? parseFloat(form.unitPrice) : undefined,
+          customerName: form.customerName,
+          customerPhone: form.customerPhone,
+          customerAddress: form.customerAddress,
+          notes: form.notes,
           pickupDate: pickupDateTime?.toISOString(),
+          deliveryType: form.deliveryType,
+          items: validItems.map((it) => ({
+            name: it.name.trim(),
+            quantity: parseInt(it.quantity) || 1,
+            unitPrice: parseFloat(it.unitPrice),
+            notes: it.notes.trim() || undefined,
+          })),
         }),
       });
       if (!res.ok) throw new Error();
@@ -402,10 +443,6 @@ export default function PreOrdersPage() {
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       customerAddress: order.customerAddress || "",
-      productName: order.productName,
-      description: order.description || "",
-      quantity: String(order.quantity),
-      unitPrice: String(order.unitPrice),
       notes: order.notes || "",
       dpAmount: String(order.dpAmount),
       dpMethod: order.dpMethod || "CASH",
@@ -413,6 +450,22 @@ export default function PreOrdersPage() {
       pickupTime: timeStr,
       deliveryType: order.deliveryType,
     });
+    // Populate formItems from existing items or fallback to single product fields
+    if (order.items && order.items.length > 0) {
+      setFormItems(order.items.map((it) => ({
+        name: it.name,
+        quantity: String(it.quantity),
+        unitPrice: String(it.unitPrice),
+        notes: it.notes || "",
+      })));
+    } else {
+      setFormItems([{
+        name: order.productName || "",
+        quantity: String(order.quantity),
+        unitPrice: String(order.unitPrice),
+        notes: "",
+      }]);
+    }
     setEditOrder(order);
   };
 
@@ -980,7 +1033,7 @@ export default function PreOrdersPage() {
       )}
 
       {/* ── CREATE DIALOG ─────────────────────────────────────────────────────── */}
-      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) { setForm({ ...EMPTY_FORM }); resetCustomerSearch(); } }}>
+      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) { setForm({ ...EMPTY_FORM }); setFormItems([{ ...EMPTY_ITEM }]); resetCustomerSearch(); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -990,14 +1043,14 @@ export default function PreOrdersPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+
+            {/* ── Row 1: Customer (left) | Jadwal & Pembayaran (right) ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Customer */}
               <div className="space-y-3">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
                   Data Customer
                 </h4>
-
-                {/* ── Customer search combobox ── */}
                 <div className="space-y-1.5" ref={customerSearchRef}>
                   <Label className="flex items-center gap-1.5">
                     <UserSearch className="h-3.5 w-3.5" />
@@ -1051,7 +1104,7 @@ export default function PreOrdersPage() {
                   </div>
                   {selectedCustomer && (
                     <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                      <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                       <span>Terpilih: <b>{selectedCustomer.name}</b></span>
                       <button type="button" onClick={clearCustomerSelection} className="ml-auto">
                         <X className="h-3.5 w-3.5" />
@@ -1059,8 +1112,6 @@ export default function PreOrdersPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Manual fields (always editable) */}
                 <div className="space-y-1.5">
                   <Label>Nama Customer *</Label>
                   <Input
@@ -1086,8 +1137,6 @@ export default function PreOrdersPage() {
                     onChange={(e) => setForm((f) => ({ ...f, customerAddress: e.target.value }))}
                   />
                 </div>
-
-                {/* Save as new customer option */}
                 {!selectedCustomer && form.customerName && (
                   <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                     <input
@@ -1102,101 +1151,7 @@ export default function PreOrdersPage() {
                 )}
               </div>
 
-              {/* Produk */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                  Detail Pesanan
-                </h4>
-                <div className="space-y-1.5">
-                  <Label>Nama Produk / Jenis Kue *</Label>
-                  <Input
-                    placeholder="cth: Black Forest 22cm, Kue Ulang Tahun"
-                    value={form.productName}
-                    onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Deskripsi Custom</Label>
-                  <Textarea
-                    placeholder="Rasa, ukuran, dekorasi, tulisan di kue, dll"
-                    rows={3}
-                    value={form.description}
-                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
-                    <Label>Jumlah *</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={form.quantity}
-                      onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Harga Satuan (Rp) *</Label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={form.unitPrice}
-                      onChange={(e) => setForm((f) => ({ ...f, unitPrice: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                {form.unitPrice && form.quantity && (
-                  <div className="text-sm font-semibold text-green-700">
-                    Total: {formatCurrency(parseFloat(form.unitPrice || "0") * parseInt(form.quantity || "1"))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Pembayaran */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                  Pembayaran
-                </h4>
-                <div className="space-y-1.5">
-                  <Label>DP (Rp) — isi 0 jika belum bayar</Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={form.dpAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, dpAmount: e.target.value }))}
-                  />
-                </div>
-                {parseFloat(form.dpAmount) > 0 && (
-                  <div className="space-y-1.5">
-                    <Label>Metode Bayar DP</Label>
-                    <Select
-                      value={form.dpMethod}
-                      onValueChange={(v) => setForm((f) => ({ ...f, dpMethod: v }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_METHODS.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {form.unitPrice && form.quantity && (
-                  <p className="text-xs text-muted-foreground">
-                    Sisa: {formatCurrency(
-                      Math.max(0, parseFloat(form.unitPrice || "0") * parseInt(form.quantity || "1") - parseFloat(form.dpAmount || "0"))
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {/* Jadwal */}
+              {/* Jadwal & Pembayaran */}
               <div className="space-y-3">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
                   Jadwal & Pengambilan
@@ -1223,15 +1178,141 @@ export default function PreOrdersPage() {
                     value={form.deliveryType}
                     onValueChange={(v) => setForm((f) => ({ ...f, deliveryType: v }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="PICKUP">🏪 Ambil di Toko</SelectItem>
                       <SelectItem value="DELIVERY">🚚 Delivery ke Alamat</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <Separator />
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Pembayaran
+                </h4>
+                <div className="space-y-1.5">
+                  <Label>DP (Rp) — isi 0 jika belum bayar</Label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={form.dpAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, dpAmount: e.target.value }))}
+                  />
+                </div>
+                {parseFloat(form.dpAmount) > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Metode Bayar DP</Label>
+                    <Select
+                      value={form.dpMethod}
+                      onValueChange={(v) => setForm((f) => ({ ...f, dpMethod: v }))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {formItems.some((it) => it.unitPrice) && (
+                  <p className="text-xs text-muted-foreground">
+                    Sisa: {formatCurrency(
+                      Math.max(0,
+                        formItems.reduce((sum, it) => sum + (parseFloat(it.unitPrice) || 0) * (parseInt(it.quantity) || 1), 0)
+                        - parseFloat(form.dpAmount || "0")
+                      )
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* ── Row 2: Detail Pesanan — full width ── */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Detail Pesanan
+              </h4>
+              {/* Column labels */}
+              <div className="flex gap-2 text-xs text-muted-foreground">
+                <span className="flex-1 min-w-0">Nama Produk / Kue</span>
+                <span className="w-14 shrink-0 text-center">Qty</span>
+                <span className="w-28 shrink-0">Harga Satuan</span>
+                <span className="w-8 shrink-0" />
+              </div>
+              {/* Item rows */}
+              <div className="space-y-2">
+                {formItems.map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        className="flex-1 min-w-0"
+                        placeholder="cth: Black Forest 22cm"
+                        value={item.name}
+                        onChange={(e) =>
+                          setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))
+                        }
+                      />
+                      <Input
+                        type="number"
+                        min="1"
+                        className="w-14 shrink-0 text-center"
+                        placeholder="1"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, quantity: e.target.value } : it))
+                        }
+                      />
+                      <Input
+                        type="number"
+                        className="w-28 shrink-0"
+                        placeholder="Harga"
+                        value={item.unitPrice}
+                        onChange={(e) =>
+                          setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, unitPrice: e.target.value } : it))
+                        }
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-8 shrink-0 text-red-400 hover:text-red-600"
+                        disabled={formItems.length === 1}
+                        onClick={() => setFormItems((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Input
+                      placeholder="Catatan item (opsional): rasa, dekorasi, tulisan kue…"
+                      className="text-xs h-7"
+                      value={item.notes}
+                      onChange={(e) =>
+                        setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, notes: e.target.value } : it))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormItems((prev) => [...prev, { ...EMPTY_ITEM }])}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Tambah Item
+                </Button>
+                {formItems.some((it) => it.unitPrice) && (
+                  <span className="text-sm font-semibold text-green-700">
+                    Total: {formatCurrency(
+                      formItems.reduce((sum, it) =>
+                        sum + (parseFloat(it.unitPrice) || 0) * (parseInt(it.quantity) || 1), 0)
+                    )}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1274,9 +1355,31 @@ export default function PreOrdersPage() {
               </div>
               <Separator />
               <div className="space-y-1.5">
-                <p className="font-semibold text-base">{detailOrder.productName}</p>
-                {detailOrder.description && (
-                  <p className="text-muted-foreground">{detailOrder.description}</p>
+                {/* Items list or fallback to single product */}
+                {detailOrder.items && detailOrder.items.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Pesanan</p>
+                    {detailOrder.items.map((it) => (
+                      <div key={it.id} className="flex justify-between text-sm">
+                        <span className="font-medium">{it.name} <span className="text-muted-foreground">×{it.quantity}</span></span>
+                        <span className="text-green-700">{formatCurrency(Number(it.subtotal))}</span>
+                      </div>
+                    ))}
+                    {detailOrder.items.some((it) => it.notes) && (
+                      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                        {detailOrder.items.filter((it) => it.notes).map((it) => (
+                          <p key={it.id}><span className="font-medium">{it.name}:</span> {it.notes}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <p className="font-semibold text-base">{detailOrder.productName}</p>
+                    {detailOrder.description && (
+                      <p className="text-muted-foreground">{detailOrder.description}</p>
+                    )}
+                  </>
                 )}
               </div>
               <Separator />
@@ -1295,14 +1398,18 @@ export default function PreOrdersPage() {
                     <p className="font-medium">{detailOrder.customerAddress}</p>
                   </div>
                 )}
-                <div>
-                  <p className="text-muted-foreground">Jumlah</p>
-                  <p className="font-medium">{detailOrder.quantity} pcs</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Harga Satuan</p>
-                  <p className="font-medium">{formatCurrency(Number(detailOrder.unitPrice))}</p>
-                </div>
+                {(!detailOrder.items || detailOrder.items.length === 0) && (
+                  <>
+                    <div>
+                      <p className="text-muted-foreground">Jumlah</p>
+                      <p className="font-medium">{detailOrder.quantity} pcs</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Harga Satuan</p>
+                      <p className="font-medium">{formatCurrency(Number(detailOrder.unitPrice))}</p>
+                    </div>
+                  </>
+                )}
                 <div>
                   <p className="text-muted-foreground">Total</p>
                   <p className="font-semibold text-green-700">{formatCurrency(Number(detailOrder.totalPrice))}</p>
@@ -1370,24 +1477,65 @@ export default function PreOrdersPage() {
               <Label>Alamat</Label>
               <Input value={form.customerAddress} onChange={(e) => setForm((f) => ({ ...f, customerAddress: e.target.value }))} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Nama Produk</Label>
-              <Input value={form.productName} onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Deskripsi</Label>
-              <Textarea rows={2} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label>Jumlah</Label>
-                <Input type="number" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))} />
+
+            <Separator />
+
+            {/* Items table */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Item Pesanan</Label>
+              <div className="grid grid-cols-[1fr_56px_96px_32px] gap-1 text-xs text-muted-foreground px-0.5">
+                <span>Nama Produk</span><span>Qty</span><span>Harga Satuan</span><span />
               </div>
-              <div className="space-y-1.5">
-                <Label>Harga Satuan</Label>
-                <Input type="number" value={form.unitPrice} onChange={(e) => setForm((f) => ({ ...f, unitPrice: e.target.value }))} />
+              {formItems.map((item, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="grid grid-cols-[1fr_56px_96px_32px] gap-1 items-start">
+                    <Input
+                      placeholder="Nama produk"
+                      value={item.name}
+                      onChange={(e) => setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))}
+                    />
+                    <Input
+                      type="number" min="1" placeholder="1"
+                      value={item.quantity}
+                      onChange={(e) => setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, quantity: e.target.value } : it))}
+                    />
+                    <Input
+                      type="number" placeholder="0"
+                      value={item.unitPrice}
+                      onChange={(e) => setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, unitPrice: e.target.value } : it))}
+                    />
+                    <Button
+                      type="button" size="icon" variant="ghost"
+                      className="h-9 w-9 text-red-400 hover:text-red-600"
+                      disabled={formItems.length === 1}
+                      onClick={() => setFormItems((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Catatan item (opsional)"
+                    className="text-xs h-7"
+                    value={item.notes}
+                    onChange={(e) => setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, notes: e.target.value } : it))}
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-between pt-1">
+                <Button type="button" variant="outline" size="sm"
+                  onClick={() => setFormItems((prev) => [...prev, { ...EMPTY_ITEM }])}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />Tambah Item
+                </Button>
+                {formItems.some((it) => it.unitPrice) && (
+                  <span className="text-sm font-semibold text-green-700">
+                    Total: {formatCurrency(formItems.reduce((sum, it) => sum + (parseFloat(it.unitPrice) || 0) * (parseInt(it.quantity) || 1), 0))}
+                  </span>
+                )}
               </div>
             </div>
+
+            <Separator />
+
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label>Tanggal Ambil</Label>
@@ -1463,7 +1611,11 @@ export default function PreOrdersPage() {
           {payOrder && (
             <div className="space-y-3 py-2">
               <div className="bg-slate-50 p-3 rounded-lg space-y-1 text-sm">
-                <p className="font-medium">{payOrder.productName}</p>
+                <p className="font-medium">
+                  {payOrder.items && payOrder.items.length > 0
+                    ? payOrder.items.map((it) => `${it.name} ×${it.quantity}`).join(", ")
+                    : payOrder.productName}
+                </p>
                 <p className="text-muted-foreground">{payOrder.customerName}</p>
                 <p className="text-lg font-bold text-green-700">
                   {formatCurrency(Number(payOrder.remainingAmount))}
