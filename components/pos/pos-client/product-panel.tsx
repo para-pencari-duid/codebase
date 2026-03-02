@@ -1,7 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -34,20 +32,21 @@ export function PosProductPanel({
   onAddToCart,
 }: PosProductPanelProps) {
   return (
-    <div className="flex-1 min-h-0 flex flex-col py-4 px-10 gap-4 overflow-hidden">
-      <div className="flex flex-col md:flex-row gap-4">
+    <div className="flex-1 min-h-0 flex flex-col py-3 px-4 lg:px-6 gap-3 overflow-hidden">
+      {/* Search + category filter */}
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Cari produk (Nama / SKU)..."
-            className="pl-8"
+            className="pl-9 h-9 bg-white border-gray-200 text-sm"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
           />
         </div>
 
         <Select value={selectedCategory} onValueChange={onCategoryChange}>
-          <SelectTrigger className="w-full md:w-[180px]">
+          <SelectTrigger className="h-9 w-full sm:w-45 text-sm border-gray-200 bg-white">
             <SelectValue placeholder="Kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -61,71 +60,84 @@ export function PosProductPanel({
         </Select>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-4">
           {products.map((product) => {
               const isPreOrder = product.category?.name === "Pre-Order";
               const thumbUrl =
                 product.images && product.images.length > 0
                   ? product.images[0]
                   : null;
+              const stockOk = product.stock > 10;
+              const stockLow = product.stock > 0 && product.stock <= 10;
 
               return (
-            <Card
+            <div
               key={product.id}
-              className={`cursor-pointer hover:border-primary transition-colors flex flex-col justify-between ${isPreOrder ? "border-pink-300/60" : ""}`}
               onClick={() => onAddToCart(product)}
+              className="group cursor-pointer rounded-xl border bg-white overflow-hidden transition-all duration-150 hover:shadow-md active:scale-[0.98]"
+              style={{
+                borderColor: isPreOrder ? "oklch(0.85 0.08 340)" : "var(--border)",
+                boxShadow: "0 1px 3px oklch(0 0 0 / 6%)",
+              }}
             >
-              <CardContent className="p-4 flex flex-col gap-2 h-full">
-                <div className="relative aspect-square bg-slate-100 rounded-md flex items-center justify-center mb-2 overflow-hidden">
-                  {thumbUrl ? (
-                    <Image
-                      src={thumbUrl}
-                      alt={product.name}
-                      fill
-                      className="object-cover rounded-md"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted/60">
-                      <span className="text-2xl font-bold text-muted-foreground/40 select-none">
-                        {product.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  {isPreOrder && (
-                    <span className="absolute top-1 left-1 rounded-sm bg-pink-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide leading-none">
-                      Pre-Order
+              {/* Thumbnail */}
+              <div className="relative aspect-square overflow-hidden" style={{ background: "oklch(0.97 0.002 80)" }}>
+                {thumbUrl ? (
+                  <Image
+                    src={thumbUrl}
+                    alt={product.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <span className="text-3xl font-bold select-none" style={{ color: "oklch(0.80 0.002 80)" }}>
+                      {product.name.charAt(0).toUpperCase()}
                     </span>
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm line-clamp-2">
-                    {product.name}
-                  </h3>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-sm font-bold">
-                      {formatCurrency(Number(product.price))}
-                    </span>
-                    <Badge
-                      variant={
-                        product.stock > 10
-                          ? "outline"
-                          : product.stock > 0
-                            ? "secondary"
-                            : "destructive"
-                      }
-                      className="text-[10px] px-1"
-                    >
-                      {product.stock > 0 ? `Stok: ${product.stock}` : "Habis"}
-                    </Badge>
                   </div>
+                )}
+                {isPreOrder && (
+                  <span className="absolute top-1.5 left-1.5 rounded-md px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide leading-none"
+                        style={{ background: "oklch(0.65 0.22 340)" }}>
+                    Pre-Order
+                  </span>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="p-2.5">
+                <p className="text-xs font-semibold leading-tight line-clamp-2 text-gray-800 mb-1.5">
+                  {product.name}
+                </p>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-sm font-bold" style={{ color: "var(--brand, oklch(0.68 0.16 55))" }}>
+                    {formatCurrency(Number(product.price))}
+                  </span>
+                  <span
+                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none"
+                    style={{
+                      background: stockOk
+                        ? "oklch(0.94 0.06 145)"
+                        : stockLow
+                        ? "oklch(0.96 0.08 70)"
+                        : "oklch(0.95 0.05 25)",
+                      color: stockOk
+                        ? "oklch(0.4 0.1 145)"
+                        : stockLow
+                        ? "oklch(0.5 0.12 70)"
+                        : "oklch(0.5 0.15 25)",
+                    }}
+                  >
+                    {product.stock > 0 ? `${product.stock}` : "Habis"}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
               );
             })}
           {products.length === 0 && (
-            <div className="col-span-full text-center py-10 text-muted-foreground">
+            <div className="col-span-full text-center py-16 text-gray-400 text-sm">
               Tidak ada produk ditemukan.
             </div>
           )}

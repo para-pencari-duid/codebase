@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -106,88 +105,109 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
 
     return (
         <>
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Transaksi</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Riwayat transaksi ({filtered.length} transaksi) - Total: {formatCurrency(totalRevenue)}
-                    </p>
+            {/* ── Page header ── */}
+            <div className="p-5 lg:p-7">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Transaksi</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                            {filtered.length} transaksi &middot; Total:{" "}
+                            <span className="font-semibold" style={{ color: "var(--brand, oklch(0.68 0.16 55))" }}>{formatCurrency(totalRevenue)}</span>
+                        </p>
+                    </div>
+                </div>
+
+                {/* ── Filter bar ── */}
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                            placeholder="Cari nomor transaksi / pelanggan..."
+                            className="pl-9 h-9 bg-white border-gray-200 text-sm"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <Select value={filterPayment} onValueChange={setFilterPayment}>
+                        <SelectTrigger className="h-9 w-full sm:w-37.5 text-sm border-gray-200 bg-white">
+                            <SelectValue placeholder="Metode Bayar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Metode</SelectItem>
+                            {Object.entries(paymentMethodLabels).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="h-9 w-full sm:w-32.5 text-sm border-gray-200 bg-white">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Status</SelectItem>
+                            <SelectItem value="COMPLETED">Selesai</SelectItem>
+                            <SelectItem value="VOID">Void</SelectItem>
+                            <SelectItem value="REFUNDED">Refund</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
-            <Separator />
 
-            <div className="flex gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Cari nomor transaksi / pelanggan..."
-                        className="pl-8"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <Select value={filterPayment} onValueChange={setFilterPayment}>
-                    <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder="Payment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua</SelectItem>
-                        {Object.entries(paymentMethodLabels).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[130px]">
-                        <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua</SelectItem>
-                        <SelectItem value="COMPLETED">Selesai</SelectItem>
-                        <SelectItem value="VOID">Void</SelectItem>
-                        <SelectItem value="REFUNDED">Refund</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-
-            <div className="border rounded-lg">
+            {/* ── Table ── */}
+            <div className="px-5 lg:px-7 pb-8">
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>No. Transaksi</TableHead>
-                            <TableHead>Tanggal</TableHead>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Kasir</TableHead>
-                            <TableHead>Item</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead>Bayar</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Aksi</TableHead>
+                        <TableRow style={{ background: "oklch(0.97 0.002 80)" }}>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Transaksi</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tanggal</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kasir</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Item</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Total</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bayar</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filtered.map((t) => (
-                            <TableRow key={t.id}>
-                                <TableCell className="font-mono text-sm">{t.transactionNo}</TableCell>
-                                <TableCell className="text-sm">{formatDateTime(t.createdAt)}</TableCell>
-                                <TableCell>{t.customerName}</TableCell>
-                                <TableCell>{t.cashierName}</TableCell>
-                                <TableCell>{t.itemCount} item</TableCell>
-                                <TableCell className="text-right font-bold">{formatCurrency(t.total)}</TableCell>
+                            <TableRow key={t.id} className="hover:bg-gray-50/60 transition-colors">
+                                <TableCell className="font-mono text-xs text-gray-600">{t.transactionNo}</TableCell>
+                                <TableCell className="text-sm text-gray-600">{formatDateTime(t.createdAt)}</TableCell>
+                                <TableCell className="text-sm font-medium text-gray-800">{t.customerName}</TableCell>
+                                <TableCell className="text-sm text-gray-600">{t.cashierName}</TableCell>
+                                <TableCell className="text-sm text-gray-600">{t.itemCount} item</TableCell>
+                                <TableCell className="text-right font-bold text-gray-900">{formatCurrency(t.total)}</TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">{paymentMethodLabels[t.paymentMethod] || t.paymentMethod}</Badge>
+                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                          style={{ background: "oklch(0.96 0.002 80)", color: "oklch(0.4 0 0)" }}>
+                                        {paymentMethodLabels[t.paymentMethod] || t.paymentMethod}
+                                    </span>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant={statusLabels[t.status]?.variant || "default"}>
+                                    <span
+                                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                      style={{
+                                        background:
+                                          t.status === "COMPLETED" ? "oklch(0.94 0.06 145)" :
+                                          t.status === "VOID"      ? "oklch(0.94 0.05 25)"  :
+                                                                      "oklch(0.96 0.002 80)",
+                                        color:
+                                          t.status === "COMPLETED" ? "oklch(0.38 0.1 145)"  :
+                                          t.status === "VOID"      ? "oklch(0.48 0.15 25)"  :
+                                                                      "oklch(0.45 0 0)",
+                                      }}
+                                    >
                                         {statusLabels[t.status]?.label || t.status}
-                                    </Badge>
+                                    </span>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex gap-1">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDetail(t)}>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-800" onClick={() => openDetail(t)}>
                                             <Eye className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openReceipt(t)}>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-800" onClick={() => openReceipt(t)}>
                                             <Printer className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -196,7 +216,7 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
                         ))}
                         {filtered.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-14 text-gray-400 text-sm">
                                     Tidak ada transaksi ditemukan
                                 </TableCell>
                             </TableRow>
@@ -204,20 +224,21 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
                     </TableBody>
                 </Table>
             </div>
+            </div>
 
             {/* Detail Dialog */}
             <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Detail Transaksi</DialogTitle>
+                        <DialogTitle className="text-base font-bold">Detail Transaksi</DialogTitle>
                     </DialogHeader>
                     {selectedTransaction && (
                         <div className="space-y-4 text-sm">
-                            <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-lg p-3">
-                                <div><span className="text-muted-foreground">No:</span> {selectedTransaction.transactionNo}</div>
-                                <div><span className="text-muted-foreground">Tanggal:</span> {formatDateTime(selectedTransaction.createdAt)}</div>
-                                <div><span className="text-muted-foreground">Kasir:</span> {selectedTransaction.cashierName}</div>
-                                <div><span className="text-muted-foreground">Customer:</span> {selectedTransaction.customerName}</div>
+                            <div className="grid grid-cols-2 gap-2 rounded-lg p-3" style={{ background: "oklch(0.97 0.002 80)" }}>
+                                <div><span className="text-gray-500">No:</span> <span className="font-mono font-semibold text-gray-800">{selectedTransaction.transactionNo}</span></div>
+                                <div><span className="text-gray-500">Tanggal:</span> <span className="text-gray-700">{formatDateTime(selectedTransaction.createdAt)}</span></div>
+                                <div><span className="text-gray-500">Kasir:</span> <span className="text-gray-700">{selectedTransaction.cashierName}</span></div>
+                                <div><span className="text-gray-500">Customer:</span> <span className="text-gray-700">{selectedTransaction.customerName}</span></div>
                             </div>
 
                             <div className="space-y-2">

@@ -24,10 +24,16 @@ function getTodayLabel(): string {
 
 // ─── User Avatar ──────────────────────────────────────────────────────────────
 
-const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  ADMIN:    { bg: "bg-rose-100",   text: "text-rose-700" },
-  MANAGER:  { bg: "bg-amber-100",  text: "text-amber-700" },
-  CASHIER:  { bg: "bg-sky-100",    text: "text-sky-700" },
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN:    "Admin",
+  MANAGER:  "Manajer",
+  CASHIER:  "Kasir",
+};
+
+const ROLE_STYLES: Record<string, { bg: string; text: string }> = {
+  ADMIN:    { bg: "bg-rose-50",   text: "text-rose-600" },
+  MANAGER:  { bg: "bg-amber-50",  text: "text-amber-600" },
+  CASHIER:  { bg: "bg-sky-50",    text: "text-sky-600" },
 };
 
 function UserAvatar({ name, role }: { name: string; role: string }) {
@@ -37,16 +43,17 @@ function UserAvatar({ name, role }: { name: string; role: string }) {
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 
-  const colors = ROLE_COLORS[role] ?? { bg: "bg-slate-100", text: "text-slate-700" };
+  const styles = ROLE_STYLES[role] ?? { bg: "bg-slate-50", text: "text-slate-600" };
+  const label = ROLE_LABELS[role] ?? role;
 
   return (
     <div className="flex items-center gap-2.5">
-      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${colors.bg} ${colors.text}`}>
+      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${styles.bg} ${styles.text}`}>
         {initials || "?"}
       </div>
       <div className="hidden sm:flex flex-col leading-tight">
-        <span className="text-sm font-semibold text-foreground">{name}</span>
-        <span className={`text-[10px] font-medium ${colors.text}`}>{role}</span>
+        <span className="text-sm font-semibold text-gray-800 leading-tight">{name}</span>
+        <span className={`text-[10px] font-semibold uppercase tracking-wide ${styles.text} leading-tight`}>{label}</span>
       </div>
     </div>
   );
@@ -79,33 +86,35 @@ export default async function DashboardLayout({
   const userRole = session.user.role ?? "USER";
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar businessName={businessName} />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* Header */}
-        <header className="flex h-[60px] shrink-0 items-center gap-3 border-b bg-background px-4 lg:px-6">
+        {/* ── Header ── */}
+        <header className="flex h-15 shrink-0 items-center gap-3 px-4 lg:px-5"
+          style={{ borderBottom: "1px solid var(--border)", background: "oklch(1 0 0)" }}>
           <MobileSidebar businessName={businessName} />
 
           {/* Greeting */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {getGreeting()},{" "}
-              <span className="text-primary font-semibold">{userName}</span>
+            <p className="text-sm font-medium text-gray-500 truncate">
+              {getGreeting()},&nbsp;
+              <span className="font-semibold text-gray-800">{userName}</span>
             </p>
           </div>
 
-          {/* Date pill — hidden on small screens */}
-          <div className="hidden md:flex items-center gap-1.5 rounded-full border bg-muted/60 px-3 py-1 text-xs text-muted-foreground select-none">
-            <span>{getTodayLabel()}</span>
+          {/* Date pill */}
+          <div className="hidden md:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-gray-500 select-none"
+               style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
+            {getTodayLabel()}
           </div>
 
           {/* Avatar */}
           <UserAvatar name={userName} role={userRole} />
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        {/* ── Page content ── */}
+        <main className="flex-1 overflow-y-auto">
           {children}
         </main>
       </div>

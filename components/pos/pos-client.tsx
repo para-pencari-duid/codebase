@@ -11,7 +11,7 @@ import {
   Wallet,
   ShoppingCart,
 } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import useCart from "@/hooks/use-cart";
 import type { CartItem, CartItemModifier } from "@/hooks/use-cart";
 import { usePosCustomer } from "@/hooks/pos/use-pos-customer";
@@ -197,7 +197,7 @@ export const POSClient: React.FC<POSClientProps> = ({
 
       const existing = cart.items.find((item) => item.id === product.id);
       if (existing && existing.quantity >= product.stock) {
-        toast.error(`Stok ${product.name} tidak mencukupi`);
+        alertError(`Stok ${product.name} tidak mencukupi.`, "Stok Habis");
         return;
       }
 
@@ -303,7 +303,7 @@ export const POSClient: React.FC<POSClientProps> = ({
 
       if (!response.ok) {
         const error = await response.text();
-        toast.error(`Transaksi Gagal: ${error}`);
+        alertError(`Transaksi gagal: ${error}`);
         return;
       }
 
@@ -351,14 +351,14 @@ export const POSClient: React.FC<POSClientProps> = ({
         businessLogo: settings.logo ?? null,
       });
 
-      toast.success("Transaksi Berhasil!");
       cart.removeAll();
       setMode("cart");
       setIsMobileCartOpen(false);
       resetCheckout();
       setIsReceiptOpen(true);
+      alertSuccess("Pembayaran berhasil diproses.", "Transaksi Berhasil!");
     } catch {
-      toast.error("Terjadi kesalahan.");
+      alertError("Terjadi kesalahan saat memproses pembayaran.");
     } finally {
       setLoading(false);
     }
@@ -456,15 +456,16 @@ export const POSClient: React.FC<POSClientProps> = ({
 
   return (
     <>
-      <div className="flex h-[calc(100vh-80px)] min-h-0 overflow-hidden">
+      <div className="flex h-[calc(100svh-60px)] min-h-0 overflow-hidden">
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
           {/* Pre-Order shortcut bar */}
-          <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b bg-amber-50/60">
-            <span className="text-xs text-muted-foreground">Pintasan:</span>
+          <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b" style={{ background: "var(--brand-muted, oklch(0.96 0.04 60))" }}>
+            <span className="text-xs font-medium" style={{ color: "oklch(0.5 0 0)" }}>Pintasan:</span>
             <button
               type="button"
               onClick={() => setPreOrderOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+              style={{ background: "var(--brand, oklch(0.68 0.16 55))", color: "#fff" }}
             >
               <CalendarDays className="h-3.5 w-3.5" />
               Pre-Order Baru
@@ -483,14 +484,16 @@ export const POSClient: React.FC<POSClientProps> = ({
 
         {cart.items.length > 0 && (
           <div
-            className={`relative hidden lg:flex border-l bg-slate-50/50 flex-col h-full min-h-0 transition-all duration-200 ${
-              isCartExpanded ? "w-[360px] xl:w-[420px]" : "w-14"
+            className={`relative hidden lg:flex flex-col h-full min-h-0 transition-all duration-200 ${
+              isCartExpanded ? "w-90 xl:w-100" : "w-14"
             }`}
+            style={{ borderLeft: "1px solid var(--border)", background: "oklch(0.99 0.002 80)" }}
           >
             <button
               type="button"
               onClick={() => setIsCartExpanded((prev) => !prev)}
-              className="absolute top-3 right-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white text-slate-700 hover:bg-slate-100"
+              className="absolute top-3 right-3 z-10 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+              style={{ border: "1px solid var(--border)", background: "white", color: "oklch(0.5 0 0)" }}
               aria-label={
                 isCartExpanded ? "Kecilkan keranjang" : "Perbesar keranjang"
               }
@@ -520,7 +523,8 @@ export const POSClient: React.FC<POSClientProps> = ({
         <button
           type="button"
           onClick={() => setIsMobileCartOpen(true)}
-          className="fixed right-4 bottom-4 z-40 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-full bg-primary px-4 text-primary-foreground shadow-lg lg:hidden"
+          className="fixed right-4 bottom-4 z-40 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-full px-4 shadow-lg lg:hidden"
+          style={{ background: "var(--brand, oklch(0.68 0.16 55))", color: "#fff" }}
           aria-label="Buka keranjang"
         >
           <ShoppingCart className="h-5 w-5" />
@@ -531,9 +535,9 @@ export const POSClient: React.FC<POSClientProps> = ({
       <Sheet open={isMobileCartOpen} onOpenChange={setIsMobileCartOpen}>
         <SheetContent
           side="right"
-          className="h-[100dvh] w-screen max-w-none gap-0 p-0 sm:max-w-none lg:hidden"
+          className="h-dvh w-screen max-w-none gap-0 p-0 sm:max-w-none lg:hidden"
         >
-          <div className="flex h-full min-h-0 flex-col bg-slate-50/50">
+          <div className="flex h-full min-h-0 flex-col" style={{ background: "oklch(0.99 0.002 80)" }}>
             {cartCheckoutContent}
           </div>
         </SheetContent>

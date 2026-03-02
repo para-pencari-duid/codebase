@@ -44,10 +44,8 @@ export default async function TransactionsPage() {
     }));
 
     return (
-        <div className="flex-col">
-            <div className="flex-1 space-y-4">
-                <TransactionClient data={formattedTransactions} />
-            </div>
+        <div>
+            <TransactionClient data={formattedTransactions} />
         </div>
     );
 }

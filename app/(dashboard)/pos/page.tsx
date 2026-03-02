@@ -9,7 +9,7 @@ export default async function POSPage() {
   const posPageData = await getPOSPageData();
 
   return (
-    <div className="flex-1 -m-4 lg:-m-6">
+    <div className="flex-1 overflow-hidden">
       <POSClient
         products={posPageData.products}
         categories={posPageData.categories}
