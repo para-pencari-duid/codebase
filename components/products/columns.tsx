@@ -63,10 +63,10 @@ export const columns: ColumnDef<CategoryColumn>[] = [
             const onDelete = async () => {
                 try {
                     await axios.delete(`/api/categories/${category.id}`);
-                    toast.success("Kategori dihapus");
+                    await alertSuccess("Kategori dihapus");
                     router.refresh();
                 } catch (error) {
-                    toast.error("Gagal menghapus kategori");
+                    await alertError("Gagal menghapus kategori");
                 }
             }
 
