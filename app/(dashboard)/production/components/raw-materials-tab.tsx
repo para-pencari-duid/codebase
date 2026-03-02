@@ -114,7 +114,7 @@ export function RawMaterialsTab() {
   };
 
   const handleDelete = async (id: string) => {
-    const ok = await confirmDestroy({ title: "Hapus bahan baku?", text: "Bahan baku akan dihapus permanen." });
+    const ok = await confirmDestroy({ title: "Hapus bahan baku?", description: "Bahan baku akan dihapus permanen." });
     if (!ok) return;
 
     try {

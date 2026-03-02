@@ -152,7 +152,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   };
 
   const onDelete = async () => {
-    const ok = await confirmDestroy({ title: "Hapus produk?", text: "Produk akan dihapus permanen dan tidak bisa dikembalikan." });
+    const ok = await confirmDestroy({ title: "Hapus produk?", description: "Produk akan dihapus permanen dan tidak bisa dikembalikan." });
     if (!ok) return;
     try {
       setLoading(true);

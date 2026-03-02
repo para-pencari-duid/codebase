@@ -76,7 +76,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     };
 
     const onDelete = async () => {
-        const ok = await confirmDestroy({ title: "Hapus kategori?", text: "Kategori akan dihapus permanen." });
+        const ok = await confirmDestroy({ title: "Hapus kategori?", description: "Kategori akan dihapus permanen." });
         if (!ok) return;
         try {
             setLoading(true);

@@ -71,7 +71,7 @@ export const columns: ColumnDef<ProductColumn>[] = [
             const product = row.original;
 
             const onDelete = async () => {
-                const ok = await confirmDestroy({ title: "Hapus produk?", text: `"${product.name}" akan dihapus permanen.` });
+                const ok = await confirmDestroy({ title: "Hapus produk?", description: `"${product.name}" akan dihapus permanen.` });
                 if (!ok) return;
                 try {
                     await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
