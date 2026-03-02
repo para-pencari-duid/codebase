@@ -76,6 +76,13 @@ export function ReceiptDialog({
           className="font-mono text-xs space-y-2 bg-white p-4 rounded border"
         >
           <div className="text-center space-y-1">
+            {data.businessLogo && (
+              <img
+                src={data.businessLogo}
+                alt="logo"
+                className="h-10 w-auto mx-auto object-contain"
+              />
+            )}
             {data.receiptHeader && (
               <p className="text-xs text-muted-foreground">
                 {data.receiptHeader}

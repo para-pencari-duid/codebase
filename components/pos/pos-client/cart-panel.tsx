@@ -14,6 +14,7 @@ interface PosCartPanelProps {
   taxIncluded: boolean;
   onDecreaseQuantity: (item: CartItem) => void;
   onIncreaseQuantity: (item: CartItem) => void;
+  onUpdateNotes: (item: CartItem, notes: string) => void;
   onClearCart: () => void;
   onGoToCheckout: () => void;
 }
@@ -27,6 +28,7 @@ export function PosCartPanel({
   taxIncluded,
   onDecreaseQuantity,
   onIncreaseQuantity,
+  onUpdateNotes,
   onClearCart,
   onGoToCheckout,
 }: PosCartPanelProps) {
@@ -71,6 +73,13 @@ export function PosCartPanel({
                       ),
                   )}
                 </p>
+                <input
+                  type="text"
+                  placeholder="Catatan item..."
+                  value={item.notes || ""}
+                  onChange={(e) => onUpdateNotes(item, e.target.value)}
+                  className="mt-1 w-full text-xs border rounded px-2 py-1 text-gray-600 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <div className="flex items-center gap-1">

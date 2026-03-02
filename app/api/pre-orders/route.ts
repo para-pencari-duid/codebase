@@ -3,7 +3,6 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { sendWhatsAppNotification } from "@/lib/whatsapp";
 
 function generateTicketNo(): string {
   const now = new Date();
@@ -25,11 +24,19 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const date = searchParams.get("date"); // YYYY-MM-DD — filter by dueDate
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
 
     const where: any = {};
     if (status && status !== "ALL") where.status = status;
+    if (date) {
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+      where.dueDate = { gte: start, lte: end };
+    }
     if (search) {
       where.OR = [
         { ticketNo: { contains: search, mode: "insensitive" } },
@@ -156,7 +163,7 @@ export async function POST(req: NextRequest) {
         remainingAmount: remaining,
         dueDate: new Date(pickupDate),
         deliveryType: deliveryType || "PICKUP",
-        status: "CONFIRMED",
+        status: "PENDING",
         createdBy: session.user.id,
         customerId: customerId || null,
         items: {
@@ -208,97 +215,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Kirim WhatsApp konfirmasi ke customer
-    try {
-      const settings = await prisma.settings.findFirst({ where: {} });
-      if (settings?.whatsappEnabled && customerPhone) {
-        await sendWhatsAppNotification(
-          customerPhone,
-          "preorder_confirm",
-          createPreOrderConfirmMessage({
-            orderNo: jobTicket.ticketNo,
-            customerName: jobTicket.customerName,
-            items: jobTicket.items.map((it) => ({
-              name: it.name,
-              quantity: it.quantity,
-              unitPrice: Number(it.unitPrice),
-            })),
-            totalPrice: Number(jobTicket.totalPrice),
-            dpAmount: Number(jobTicket.dpAmount),
-            remainingAmount: Number(jobTicket.remainingAmount),
-            pickupDate: jobTicket.dueDate,
-            deliveryType: jobTicket.deliveryType,
-            businessName: settings.businessName || "Toko",
-            businessPhone: settings.businessPhone || "",
-          }),
-        );
-      }
-    } catch (waError) {
-      console.error("[JobTicket] WA notification failed (non-blocking):", waError);
-    }
-
     return NextResponse.json(jobTicket, { status: 201 });
   } catch (error) {
     console.error("Error creating job ticket:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
-
-function createPreOrderConfirmMessage(data: {
-  orderNo: string;
-  customerName: string;
-  items: Array<{ name: string; quantity: number; unitPrice: number }>;
-  totalPrice: number;
-  dpAmount: number;
-  remainingAmount: number;
-  pickupDate: Date;
-  deliveryType: string;
-  businessName: string;
-  businessPhone: string;
-}): string {
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
-  const fmtDate = (d: Date) =>
-    new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short" }).format(new Date(d));
-
-  const itemLines = data.items.map((it) => `  - ${it.name} x${it.quantity}`).join("\n");
-
-  return `
-╔═══════════════════════════════════╗
-  ${data.businessName.toUpperCase()}
-  ${data.businessPhone}
-╚═══════════════════════════════════╝
-
-✅ PRE-ORDER DIKONFIRMASI!
-
-Halo ${data.customerName}! 👋
-Pesanan Anda telah diterima.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 DETAIL PESANAN
-
-No. Order  : ${data.orderNo}
-Produk     :
-${itemLines}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💰 PEMBAYARAN
-
-Total      : ${fmt(data.totalPrice)}
-DP Dibayar : ${fmt(data.dpAmount)}
-Sisa Bayar : ${fmt(data.remainingAmount)}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 JADWAL
-
-Waktu      : ${fmtDate(data.pickupDate)}
-Tipe       : ${data.deliveryType === "PICKUP" ? "Ambil di toko" : "Delivery ke alamat"}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Kami akan menghubungi Anda ketika
-pesanan sudah siap. Terima kasih! 🎂
-
-~ ${data.businessName} ~
-`.trim();
 }

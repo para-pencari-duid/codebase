@@ -58,4 +58,5 @@ export interface PosReceiptData {
   businessPhone?: string | null;
   receiptHeader?: string | null;
   receiptFooter?: string | null;
+  businessLogo?: string | null;
 }

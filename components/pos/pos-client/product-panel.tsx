@@ -12,6 +12,7 @@ import {
 import { Search } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { PosCategory, PosProduct } from "@/lib/types/pos";
+import Image from "next/image";
 
 interface PosProductPanelProps {
   search: string;
@@ -62,15 +63,40 @@ export function PosProductPanel({
 
       <ScrollArea className="flex-1 min-h-0 p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
-          {products.map((product) => (
+          {products.map((product) => {
+              const isPreOrder = product.category?.name === "Pre-Order";
+              const thumbUrl =
+                product.images && product.images.length > 0
+                  ? product.images[0]
+                  : null;
+
+              return (
             <Card
               key={product.id}
-              className="cursor-pointer hover:border-primary transition-colors flex flex-col justify-between"
+              className={`cursor-pointer hover:border-primary transition-colors flex flex-col justify-between ${isPreOrder ? "border-pink-300/60" : ""}`}
               onClick={() => onAddToCart(product)}
             >
               <CardContent className="p-4 flex flex-col gap-2 h-full">
-                <div className="aspect-square bg-slate-100 rounded-md flex items-center justify-center text-4xl mb-2">
-                  {product.category?.icon || "📦"}
+                <div className="relative aspect-square bg-slate-100 rounded-md flex items-center justify-center mb-2 overflow-hidden">
+                  {thumbUrl ? (
+                    <Image
+                      src={thumbUrl}
+                      alt={product.name}
+                      fill
+                      className="object-cover rounded-md"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted/60">
+                      <span className="text-2xl font-bold text-muted-foreground/40 select-none">
+                        {product.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  {isPreOrder && (
+                    <span className="absolute top-1 left-1 rounded-sm bg-pink-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide leading-none">
+                      Pre-Order
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm line-clamp-2">
@@ -96,7 +122,8 @@ export function PosProductPanel({
                 </div>
               </CardContent>
             </Card>
-          ))}
+              );
+            })}
           {products.length === 0 && (
             <div className="col-span-full text-center py-10 text-muted-foreground">
               Tidak ada produk ditemukan.

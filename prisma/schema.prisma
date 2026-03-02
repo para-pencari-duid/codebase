@@ -399,6 +399,7 @@ model TransactionItem {
   price         Decimal @db.Decimal(10, 2)
   discount      Decimal @db.Decimal(10, 2) @default(0)
   subtotal      Decimal @db.Decimal(10, 2)
+  notes         String?
 
   transaction Transaction              @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   variant     ItemVariant              @relation(fields: [variantId], references: [id])

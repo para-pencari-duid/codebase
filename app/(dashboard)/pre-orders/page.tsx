@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -23,7 +23,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Plus,
   Search,
   Clock,
   ChefHat,
@@ -37,16 +36,13 @@ import {
   Ban,
   CreditCard,
   Phone,
-  MapPin,
   Calendar,
   StickyNote,
   Printer,
   FileSpreadsheet,
-  Send,
   TableProperties,
-  UserSearch,
-  UserPlus,
   X,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
@@ -117,24 +113,25 @@ const STATUS_CONFIG: Record<
   PreOrderStatus,
   { label: string; color: string; icon: React.ElementType }
 > = {
-  PENDING: { label: "Pending", color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  CONFIRMED: { label: "Dikonfirmasi", color: "bg-blue-100 text-blue-800", icon: CheckCircle2 },
-  IN_PRODUCTION: { label: "Produksi", color: "bg-purple-100 text-purple-800", icon: ChefHat },
-  READY: { label: "Siap", color: "bg-green-100 text-green-800", icon: PackageCheck },
-  COMPLETED: { label: "Selesai", color: "bg-gray-100 text-gray-700", icon: CheckCircle2 },
-  CANCELLED: { label: "Dibatalkan", color: "bg-red-100 text-red-800", icon: XCircle },
+  PENDING:       { label: "Pending",      color: "bg-yellow-100 text-yellow-800", icon: Clock },
+  CONFIRMED:     { label: "Dibuat",        color: "bg-blue-100 text-blue-800",    icon: CheckCircle2 },
+  IN_PRODUCTION: { label: "Diproses",     color: "bg-purple-100 text-purple-800", icon: ChefHat },
+  READY:         { label: "Siap Diantar", color: "bg-green-100 text-green-800",  icon: PackageCheck },
+  COMPLETED:     { label: "Selesai",      color: "bg-gray-100 text-gray-700",    icon: CheckCircle2 },
+  CANCELLED:     { label: "Dibatalkan",   color: "bg-red-100 text-red-800",      icon: XCircle },
 };
 
+// Status progression: Pending → Dibuat → Siap Diantar → Selesai
 const NEXT_STATUS: Partial<Record<PreOrderStatus, PreOrderStatus>> = {
-  CONFIRMED: "IN_PRODUCTION",
-  IN_PRODUCTION: "READY",
-  READY: "COMPLETED",
+  PENDING:   "CONFIRMED",
+  CONFIRMED: "READY",
+  READY:     "COMPLETED",
 };
 
 const NEXT_STATUS_LABEL: Partial<Record<PreOrderStatus, string>> = {
-  CONFIRMED: "Mulai Produksi",
-  IN_PRODUCTION: "Tandai Siap",
-  READY: "Selesaikan",
+  PENDING:   "Tandai Dibuat",
+  CONFIRMED: "Siap Diantar",
+  READY:     "Selesai",
 };
 
 const PAYMENT_METHODS = [
@@ -190,6 +187,87 @@ const EMPTY_FORM = {
 
 const EMPTY_ITEM: FormItem = { name: "", quantity: "1", unitPrice: "", notes: "" };
 
+// ─── Available product type for dropdown ─────────────────────────────────────
+interface AvailableProduct {
+  id: string;
+  name: string;
+  price: number;
+  images: string[];
+}
+
+function EditItemCombobox({
+  value,
+  onChange,
+  onSelectProduct,
+  products,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelectProduct: (p: AvailableProduct) => void;
+  products: AvailableProduct[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered =
+    value.trim().length === 0
+      ? products
+      : products.filter((p) => p.name.toLowerCase().includes(value.toLowerCase()));
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <Input
+        placeholder="Nama produk"
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+      />
+      {open && products.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-40 overflow-y-auto">
+          {filtered.length > 0 ? (
+            filtered.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelectProduct(p);
+                  onChange(p.name);
+                  setOpen(false);
+                }}
+              >
+                {p.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.images[0]} alt="" className="h-6 w-6 rounded object-cover shrink-0" />
+                ) : (
+                  <div className="h-6 w-6 rounded bg-muted shrink-0 flex items-center justify-center text-xs font-bold text-muted-foreground">
+                    {p.name.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="truncate font-medium">{p.name}</div>
+                  <div className="text-xs text-muted-foreground">{formatCurrency(p.price)}</div>
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground italic">Tidak ada produk cocok</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function PreOrdersPage() {
@@ -198,20 +276,21 @@ export default function PreOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterDate, setFilterDate] = useState("");
 
   // Dialogs
-  const [createOpen, setCreateOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<PreOrder | null>(null);
   const [editOrder, setEditOrder] = useState<PreOrder | null>(null);
   const [cancelOrder, setCancelOrder] = useState<PreOrder | null>(null);
-  const [payOrder, setPayOrder] = useState<PreOrder | null>(null);
+  const [completeOrder, setCompleteOrder] = useState<PreOrder | null>(null);
+  const [completePayMethod, setCompletePayMethod] = useState("CASH");
 
-  // Form state
+  // Form state (edit only)
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [formItems, setFormItems] = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
   const [cancelReason, setCancelReason] = useState("");
-  const [payMethod, setPayMethod] = useState("CASH");
   const [saving, setSaving] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState<AvailableProduct[]>([]);
 
   // MVP extras
   const [activeTab, setActiveTab] = useState<"orders" | "recap">("orders");
@@ -222,19 +301,7 @@ export default function PreOrdersPage() {
     return d.toISOString().split("T")[0];
   });
   const [loadingRecap, setLoadingRecap] = useState(false);
-  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [importLoading, setImportLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Customer search in form
-  const [customerQuery, setCustomerQuery] = useState("");
-  const [customerSuggestions, setCustomerSuggestions] = useState<Customer[]>([]);
-  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [saveAsNewCustomer, setSaveAsNewCustomer] = useState(false);
-  const customerSearchRef = useRef<HTMLDivElement>(null);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
@@ -243,6 +310,7 @@ export default function PreOrdersPage() {
       const params = new URLSearchParams();
       if (filterStatus !== "ALL") params.set("status", filterStatus);
       if (search) params.set("search", search);
+      if (filterDate) params.set("date", filterDate);
       const res = await fetch(`/api/pre-orders?${params}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -253,84 +321,52 @@ export default function PreOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, search]);
+  }, [filterStatus, search, filterDate]);
 
   useEffect(() => {
     const t = setTimeout(fetchOrders, 300);
     return () => clearTimeout(t);
   }, [fetchOrders]);
 
+  useEffect(() => {
+    fetch("/api/products")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: unknown) => {
+        const items = Array.isArray(data) ? data : [];
+        setAvailableProducts(
+          (items as Array<{ id: string; name: string; basePrice?: number; price?: number; images?: string[]; isActive?: boolean; category?: { name?: string } }>)
+            .filter((p) => p.isActive && p.category?.name === "Pre-Order")
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              price: Number(p.basePrice ?? p.price ?? 0),
+              images: p.images ?? [],
+            }))
+        );
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Computed totals ───────────────────────────────────────────────────────
   const stats = {
-    pending: orders.filter((o) => o.status === "PENDING").length,
-    confirmed: orders.filter((o) => o.status === "CONFIRMED").length,
-    inProduction: orders.filter((o) => o.status === "IN_PRODUCTION").length,
-    ready: orders.filter((o) => o.status === "READY").length,
+    pending:    orders.filter((o) => o.status === "PENDING").length,
+    dibuat:     orders.filter((o) => o.status === "CONFIRMED").length,
+    siapDiantar:orders.filter((o) => o.status === "READY").length,
+    selesai:    orders.filter((o) => o.status === "COMPLETED").length,
   };
 
-  // ── Create ────────────────────────────────────────────────────────────────
-  const handleCreate = async () => {
-    if (!form.customerName || !form.customerPhone || !form.pickupDate) {
-      toast.error("Nama customer, HP, dan tanggal ambil wajib diisi");
-      return;
-    }
-    const validItems = formItems.filter((it) => it.name.trim() && it.unitPrice);
-    if (validItems.length === 0) {
-      toast.error("Minimal 1 item pesanan wajib diisi (nama & harga)");
-      return;
-    }
-    setSaving(true);
-    try {
-      const pickupDateTime = new Date(`${form.pickupDate}T${form.pickupTime}:00`);
-      const res = await fetch("/api/pre-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          customerId: selectedCustomer?.id ?? null,
-          items: validItems.map((it) => ({
-            name: it.name.trim(),
-            quantity: parseInt(it.quantity) || 1,
-            unitPrice: parseFloat(it.unitPrice),
-            notes: it.notes.trim() || undefined,
-          })),
-          dpAmount: parseFloat(form.dpAmount) || 0,
-          pickupDate: pickupDateTime.toISOString(),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Gagal");
-      }
-      // Optionally save as new customer
-      if (saveAsNewCustomer && !selectedCustomer) {
-        await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: form.customerName,
-            phone: form.customerPhone || null,
-            address: form.customerAddress || null,
-          }),
-        });
-      }
-      toast.success("Pre-order berhasil dibuat & konfirmasi WA dikirim!");
-      setCreateOpen(false);
-      setForm({ ...EMPTY_FORM });
-      setFormItems([{ ...EMPTY_ITEM }]);
-      resetCustomerSearch();
-      fetchOrders();
-    } catch (e: any) {
-      toast.error(e.message || "Gagal membuat pre-order");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // ── Create ──  (moved to POS — no create on this page)
 
   // ── Update status ─────────────────────────────────────────────────────────
   const handleNextStatus = async (order: PreOrder) => {
     const nextStatus = NEXT_STATUS[order.status];
     if (!nextStatus) return;
+    // Selesai always goes through confirmation dialog
+    if (nextStatus === "COMPLETED") {
+      setCompleteOrder(order);
+      setCompletePayMethod("CASH");
+      return;
+    }
     try {
       const res = await fetch(`/api/pre-orders/${order.id}`, {
         method: "PUT",
@@ -342,6 +378,38 @@ export default function PreOrdersPage() {
       fetchOrders();
     } catch {
       toast.error("Gagal update status");
+    }
+  };
+
+  // ── Complete (Selesai + Lunas) ────────────────────────────────────────────
+  const handleComplete = async () => {
+    if (!completeOrder) return;
+    setSaving(true);
+    try {
+      let res: Response;
+      if (Number(completeOrder.remainingAmount) > 0) {
+        // Pay remaining + auto-set COMPLETED
+        res = await fetch(`/api/pre-orders/${completeOrder.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "pay_remaining", payMethod: completePayMethod }),
+        });
+      } else {
+        // Already fully paid, just mark completed
+        res = await fetch(`/api/pre-orders/${completeOrder.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "update_status", status: "COMPLETED" }),
+        });
+      }
+      if (!res.ok) throw new Error();
+      toast.success("Pesanan selesai!");
+      setCompleteOrder(null);
+      fetchOrders();
+    } catch {
+      toast.error("Gagal menyelesaikan pesanan");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -367,26 +435,7 @@ export default function PreOrdersPage() {
     }
   };
 
-  // ── Pay remaining ─────────────────────────────────────────────────────────
-  const handlePayRemaining = async () => {
-    if (!payOrder) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/pre-orders/${payOrder.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "pay_remaining", payMethod }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Pelunasan berhasil!");
-      setPayOrder(null);
-      fetchOrders();
-    } catch {
-      toast.error("Gagal proses pelunasan");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // handlePayRemaining removed — payment now handled via Selesai confirmation
 
   // ── Edit save ─────────────────────────────────────────────────────────────
   const handleEditSave = async () => {
@@ -469,62 +518,7 @@ export default function PreOrdersPage() {
     setEditOrder(order);
   };
 
-  // ─── Customer search ──────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const q = customerQuery.trim();
-    if (!q) { setCustomerSuggestions([]); return; }
-    const timer = setTimeout(async () => {
-      setCustomerSearchLoading(true);
-      try {
-        const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}`);
-        if (res.ok) setCustomerSuggestions(await res.json());
-      } finally {
-        setCustomerSearchLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [customerQuery]);
-
-  // close dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (customerSearchRef.current && !customerSearchRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const selectCustomer = (c: Customer) => {
-    setSelectedCustomer(c);
-    setForm((f) => ({
-      ...f,
-      customerName: c.name,
-      customerPhone: c.phone ?? "",
-      customerAddress: c.address ?? "",
-    }));
-    setCustomerQuery(c.name);
-    setShowSuggestions(false);
-    setSaveAsNewCustomer(false);
-  };
-
-  const clearCustomerSelection = () => {
-    setSelectedCustomer(null);
-    setCustomerQuery("");
-    setCustomerSuggestions([]);
-    setForm((f) => ({ ...f, customerName: "", customerPhone: "", customerAddress: "" }));
-  };
-
-  const resetCustomerSearch = () => {
-    setSelectedCustomer(null);
-    setCustomerQuery("");
-    setCustomerSuggestions([]);
-    setSaveAsNewCustomer(false);
-  };
-
-  // ─── MVP: Recap / Print / WA Invoice / Excel Import ──────────────────────────
+  // ─── MVP: Recap / Print ──────────────────────────────────────────────────────
 
   const fetchRecap = useCallback(async () => {
     setLoadingRecap(true);
@@ -540,18 +534,8 @@ export default function PreOrdersPage() {
     }
   }, [recapDate]);
 
-  const handleSendInvoice = async (orderId: string) => {
-    setSendingInvoice(orderId);
-    try {
-      const res = await fetch(`/api/pre-orders/${orderId}/send-invoice`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal kirim");
-      toast.success("Invoice WA terkirim!");
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Gagal kirim invoice WA");
-    } finally {
-      setSendingInvoice(null);
-    }
+  const handleSendInvoice = async (_orderId: string) => {
+    // WA notifications removed — only sent on completion via API
   };
 
   const handlePrintLabels = (ids: string[]) => {
@@ -574,64 +558,6 @@ export default function PreOrdersPage() {
     });
   };
 
-  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportLoading(true);
-    try {
-      const xlsx = await import("xlsx");
-      const buf = await file.arrayBuffer();
-      const wb = xlsx.read(buf, { type: "array", cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = xlsx.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-
-      const created: string[] = [];
-      for (const row of rows) {
-        const pickupRaw = row["Tanggal Ambil"];
-        let pickupDate = "";
-        if (pickupRaw instanceof Date) {
-          pickupDate = pickupRaw.toISOString().split("T")[0];
-        } else if (typeof pickupRaw === "string" && pickupRaw) {
-          pickupDate = pickupRaw.split("T")[0];
-        }
-        const payload = {
-          customerName: String(row["Nama Pelanggan"] || ""),
-          customerPhone: String(row["No HP"] || ""),
-          productName: String(row["Produk"] || ""),
-          quantity: parseInt(String(row["Qty"] || "1")),
-          unitPrice: parseFloat(String(row["Harga"] || "0")),
-          dpAmount: parseFloat(String(row["DP"] || "0")),
-          dpMethod: "CASH",
-          notes: String(row["Catatan"] || ""),
-          pickupDate,
-          pickupTime: String(row["Jam"] || "10:00"),
-          deliveryType: String(row["Tipe"] || "PICKUP").toUpperCase(),
-        };
-        if (!payload.customerName || !payload.productName || !payload.pickupDate) continue;
-        const res = await fetch("/api/pre-orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const d = await res.json();
-          created.push(d.id);
-        }
-      }
-      toast.success(`${created.length} pre-order berhasil diimport`);
-      if (created.length > 0) {
-        window.open(`/print/orders?mode=labels&ids=${created.join(",")}`, "_blank");
-        fetchOrders();
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Gagal import Excel");
-    } finally {
-      setImportLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 space-y-4 p-6">
@@ -639,39 +565,17 @@ export default function PreOrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Pre-Order</h2>
-          <p className="text-muted-foreground text-sm">Kelola pesanan custom cake & kue</p>
-        </div>
-        <div className="flex gap-2">
-          {/* hidden file input for excel import */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={handleExcelImport}
-          />
-          <Button
-            variant="outline"
-            disabled={importLoading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            {importLoading ? "Importing..." : "Import Excel"}
-          </Button>
-          <Button onClick={() => { setForm({ ...EMPTY_FORM }); resetCustomerSearch(); setCreateOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Pre-Order Baru
-          </Button>
+          <p className="text-muted-foreground text-sm">Kelola & pantau status pesanan</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Pending", value: stats.pending, color: "text-yellow-600", icon: Clock },
-          { label: "Dikonfirmasi", value: stats.confirmed, color: "text-blue-600", icon: CheckCircle2 },
-          { label: "Produksi", value: stats.inProduction, color: "text-purple-600", icon: ChefHat },
-          { label: "Siap Ambil", value: stats.ready, color: "text-green-600", icon: PackageCheck },
+          { label: "Pending",       value: stats.pending,     color: "text-yellow-600", icon: Clock },
+          { label: "Dibuat",        value: stats.dibuat,      color: "text-blue-600",   icon: CheckCircle2 },
+          { label: "Siap Diantar",  value: stats.siapDiantar, color: "text-green-600",  icon: Truck },
+          { label: "Selesai",       value: stats.selesai,     color: "text-gray-600",   icon: PackageCheck },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-3">
@@ -755,6 +659,19 @@ export default function PreOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-1">
+              <Input
+                type="date"
+                className="w-[160px]"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+              {filterDate && (
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setFilterDate("")}>
+                  <span className="text-sm">✕</span>
+                </Button>
+              )}
+            </div>
             <Button variant="outline" size="icon" onClick={fetchOrders}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -823,7 +740,7 @@ export default function PreOrdersPage() {
                         </span>
                       ) : (
                         order.status !== "CANCELLED" && (
-                          <span className="text-green-600">✓ Lunas</span>
+                          <span className="text-green-600">Lunas</span>
                         )
                       )}
                     </div>
@@ -840,19 +757,6 @@ export default function PreOrdersPage() {
                         {NEXT_STATUS_LABEL[order.status]}
                       </Button>
                     )}
-
-                    {/* Lunas button — any non-cancelled order with remaining > 0 */}
-                    {Number(order.remainingAmount) > 0 && order.status !== "CANCELLED" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600 border-green-300"
-                          onClick={() => { setPayOrder(order); setPayMethod("CASH"); }}
-                        >
-                          <CreditCard className="h-3.5 w-3.5 mr-1" />
-                          Lunaskan
-                        </Button>
-                      )}
 
                     {/* Detail / Edit / Cancel */}
                     <div className="flex gap-1">
@@ -872,17 +776,6 @@ export default function PreOrdersPage() {
                       >
                         <FileSpreadsheet className="h-4 w-4" />
                       </Button>
-                      {order.customerPhone && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Kirim Invoice WA"
-                          disabled={sendingInvoice === order.id}
-                          onClick={() => handleSendInvoice(order.id)}
-                        >
-                          <Send className={`h-4 w-4 ${sendingInvoice === order.id ? "animate-pulse text-green-500" : ""}`} />
-                        </Button>
-                      )}
                       <Button size="icon" variant="ghost" onClick={() => setDetailOrder(order)}>
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -995,18 +888,6 @@ export default function PreOrdersPage() {
                           <Button size="icon" variant="ghost" className="h-7 w-7" title="Cetak Invoice" onClick={() => handlePrintInvoice(order.id)}>
                             <FileSpreadsheet className="h-3.5 w-3.5" />
                           </Button>
-                          {order.customerPhone && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              title="Kirim Invoice WA"
-                              disabled={sendingInvoice === order.id}
-                              onClick={() => handleSendInvoice(order.id)}
-                            >
-                              <Send className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1031,315 +912,6 @@ export default function PreOrdersPage() {
           )}
         </div>
       )}
-
-      {/* ── CREATE DIALOG ─────────────────────────────────────────────────────── */}
-      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) { setForm({ ...EMPTY_FORM }); setFormItems([{ ...EMPTY_ITEM }]); resetCustomerSearch(); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Pre-Order Baru
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-
-            {/* ── Row 1: Customer (left) | Jadwal & Pembayaran (right) ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Customer */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                  Data Customer
-                </h4>
-                <div className="space-y-1.5" ref={customerSearchRef}>
-                  <Label className="flex items-center gap-1.5">
-                    <UserSearch className="h-3.5 w-3.5" />
-                    Cari Pelanggan
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="Ketik nama / nomor HP..."
-                      value={customerQuery}
-                      onChange={(e) => {
-                        setCustomerQuery(e.target.value);
-                        setShowSuggestions(true);
-                        if (selectedCustomer) setSelectedCustomer(null);
-                      }}
-                      onFocus={() => { if (customerQuery) setShowSuggestions(true); }}
-                      className="pr-8"
-                    />
-                    {customerQuery && (
-                      <button
-                        type="button"
-                        onClick={clearCustomerSelection}
-                        className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    {showSuggestions && customerQuery.trim() && (
-                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {customerSearchLoading ? (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">Mencari...</div>
-                        ) : customerSuggestions.length > 0 ? (
-                          customerSuggestions.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onMouseDown={() => selectCustomer(c)}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex flex-col border-b last:border-0"
-                            >
-                              <span className="font-medium">{c.name}</span>
-                              {c.phone && <span className="text-xs text-muted-foreground">{c.phone}</span>}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
-                            <UserPlus className="h-3.5 w-3.5" />
-                            Pelanggan belum terdaftar — isi manual di bawah
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {selectedCustomer && (
-                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                      <span>Terpilih: <b>{selectedCustomer.name}</b></span>
-                      <button type="button" onClick={clearCustomerSelection} className="ml-auto">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nama Customer *</Label>
-                  <Input
-                    placeholder="Nama lengkap"
-                    value={form.customerName}
-                    onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nomor HP *</Label>
-                  <Input
-                    placeholder="0812xxxx (untuk notif WA)"
-                    value={form.customerPhone}
-                    onChange={(e) => setForm((f) => ({ ...f, customerPhone: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Alamat (jika delivery)</Label>
-                  <Textarea
-                    placeholder="Alamat pengiriman"
-                    rows={2}
-                    value={form.customerAddress}
-                    onChange={(e) => setForm((f) => ({ ...f, customerAddress: e.target.value }))}
-                  />
-                </div>
-                {!selectedCustomer && form.customerName && (
-                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={saveAsNewCustomer}
-                      onChange={(e) => setSaveAsNewCustomer(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-primary"
-                    />
-                    <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-muted-foreground">Daftarkan sebagai pelanggan baru</span>
-                  </label>
-                )}
-              </div>
-
-              {/* Jadwal & Pembayaran */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                  Jadwal & Pengambilan
-                </h4>
-                <div className="space-y-1.5">
-                  <Label>Tanggal Ambil *</Label>
-                  <Input
-                    type="date"
-                    value={form.pickupDate}
-                    onChange={(e) => setForm((f) => ({ ...f, pickupDate: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Jam Ambil</Label>
-                  <Input
-                    type="time"
-                    value={form.pickupTime}
-                    onChange={(e) => setForm((f) => ({ ...f, pickupTime: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Tipe Pengiriman</Label>
-                  <Select
-                    value={form.deliveryType}
-                    onValueChange={(v) => setForm((f) => ({ ...f, deliveryType: v }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PICKUP">🏪 Ambil di Toko</SelectItem>
-                      <SelectItem value="DELIVERY">🚚 Delivery ke Alamat</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Separator />
-                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                  Pembayaran
-                </h4>
-                <div className="space-y-1.5">
-                  <Label>DP (Rp) — isi 0 jika belum bayar</Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={form.dpAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, dpAmount: e.target.value }))}
-                  />
-                </div>
-                {parseFloat(form.dpAmount) > 0 && (
-                  <div className="space-y-1.5">
-                    <Label>Metode Bayar DP</Label>
-                    <Select
-                      value={form.dpMethod}
-                      onValueChange={(v) => setForm((f) => ({ ...f, dpMethod: v }))}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_METHODS.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {formItems.some((it) => it.unitPrice) && (
-                  <p className="text-xs text-muted-foreground">
-                    Sisa: {formatCurrency(
-                      Math.max(0,
-                        formItems.reduce((sum, it) => sum + (parseFloat(it.unitPrice) || 0) * (parseInt(it.quantity) || 1), 0)
-                        - parseFloat(form.dpAmount || "0")
-                      )
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* ── Row 2: Detail Pesanan — full width ── */}
-            <div className="space-y-3">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Detail Pesanan
-              </h4>
-              {/* Column labels */}
-              <div className="flex gap-2 text-xs text-muted-foreground">
-                <span className="flex-1 min-w-0">Nama Produk / Kue</span>
-                <span className="w-14 shrink-0 text-center">Qty</span>
-                <span className="w-28 shrink-0">Harga Satuan</span>
-                <span className="w-8 shrink-0" />
-              </div>
-              {/* Item rows */}
-              <div className="space-y-2">
-                {formItems.map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        className="flex-1 min-w-0"
-                        placeholder="cth: Black Forest 22cm"
-                        value={item.name}
-                        onChange={(e) =>
-                          setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))
-                        }
-                      />
-                      <Input
-                        type="number"
-                        min="1"
-                        className="w-14 shrink-0 text-center"
-                        placeholder="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, quantity: e.target.value } : it))
-                        }
-                      />
-                      <Input
-                        type="number"
-                        className="w-28 shrink-0"
-                        placeholder="Harga"
-                        value={item.unitPrice}
-                        onChange={(e) =>
-                          setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, unitPrice: e.target.value } : it))
-                        }
-                      />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-9 w-8 shrink-0 text-red-400 hover:text-red-600"
-                        disabled={formItems.length === 1}
-                        onClick={() => setFormItems((prev) => prev.filter((_, i) => i !== idx))}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Input
-                      placeholder="Catatan item (opsional): rasa, dekorasi, tulisan kue…"
-                      className="text-xs h-7"
-                      value={item.notes}
-                      onChange={(e) =>
-                        setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, notes: e.target.value } : it))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFormItems((prev) => [...prev, { ...EMPTY_ITEM }])}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Tambah Item
-                </Button>
-                {formItems.some((it) => it.unitPrice) && (
-                  <span className="text-sm font-semibold text-green-700">
-                    Total: {formatCurrency(
-                      formItems.reduce((sum, it) =>
-                        sum + (parseFloat(it.unitPrice) || 0) * (parseInt(it.quantity) || 1), 0)
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Catatan */}
-            <div className="space-y-1.5">
-              <Label>Catatan Tambahan</Label>
-              <Textarea
-                placeholder="Alergi bahan, instruksi khusus, dll"
-                rows={2}
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
-              Batal
-            </Button>
-            <Button onClick={handleCreate} disabled={saving}>
-              {saving ? "Menyimpan..." : "Buat Pre-Order"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ── DETAIL DIALOG ─────────────────────────────────────────────────────── */}
       <Dialog open={!!detailOrder} onOpenChange={() => setDetailOrder(null)}>
@@ -1489,10 +1061,13 @@ export default function PreOrdersPage() {
               {formItems.map((item, idx) => (
                 <div key={idx} className="space-y-1">
                   <div className="grid grid-cols-[1fr_56px_96px_32px] gap-1 items-start">
-                    <Input
-                      placeholder="Nama produk"
+                    <EditItemCombobox
                       value={item.name}
-                      onChange={(e) => setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))}
+                      onChange={(v) => setFormItems((prev) => prev.map((it, i) => i === idx ? { ...it, name: v } : it))}
+                      onSelectProduct={(p) => setFormItems((prev) => prev.map((it, i) =>
+                        i === idx ? { ...it, name: p.name, unitPrice: String(p.price) } : it
+                      ))}
+                      products={availableProducts}
                     />
                     <Input
                       type="number" min="1" placeholder="1"
@@ -1551,8 +1126,8 @@ export default function PreOrdersPage() {
               <Select value={form.deliveryType} onValueChange={(v) => setForm((f) => ({ ...f, deliveryType: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PICKUP">🏪 Ambil di Toko</SelectItem>
-                  <SelectItem value="DELIVERY">🚚 Delivery</SelectItem>
+                  <SelectItem value="PICKUP">Ambil di Toko</SelectItem>
+                  <SelectItem value="DELIVERY">Diantar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1602,42 +1177,47 @@ export default function PreOrdersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── PAY REMAINING DIALOG ──────────────────────────────────────────────── */}
-      <Dialog open={!!payOrder} onOpenChange={() => setPayOrder(null)}>
+      {/* ── SELESAI CONFIRMATION DIALOG ──────────────────────────────────────── */}
+      <Dialog open={!!completeOrder} onOpenChange={() => setCompleteOrder(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Pelunasan Pre-Order</DialogTitle>
+            <DialogTitle>Tandai Selesai?</DialogTitle>
           </DialogHeader>
-          {payOrder && (
+          {completeOrder && (
             <div className="space-y-3 py-2">
-              <div className="bg-slate-50 p-3 rounded-lg space-y-1 text-sm">
-                <p className="font-medium">
-                  {payOrder.items && payOrder.items.length > 0
-                    ? payOrder.items.map((it) => `${it.name} ×${it.quantity}`).join(", ")
-                    : payOrder.productName}
+              <p className="text-sm text-muted-foreground">
+                Pre-order <b>{completeOrder.orderNo}</b> akan ditandai selesai.
+              </p>
+              {Number(completeOrder.remainingAmount) > 0 ? (
+                <>
+                  <div className="rounded border border-orange-200 bg-orange-50 p-2 text-sm text-orange-700">
+                    Masih ada sisa pembayaran{" "}
+                    <b>{formatCurrency(Number(completeOrder.remainingAmount))}</b>.
+                    Konfirmasi ini akan mencatat pelunasan sekaligus.
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Metode Pelunasan</Label>
+                    <Select value={completePayMethod} onValueChange={setCompletePayMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-green-600">
+                  Pesanan ini sudah lunas. Tandai sebagai selesai?
                 </p>
-                <p className="text-muted-foreground">{payOrder.customerName}</p>
-                <p className="text-lg font-bold text-green-700">
-                  {formatCurrency(Number(payOrder.remainingAmount))}
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Metode Bayar</Label>
-                <Select value={payMethod} onValueChange={setPayMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPayOrder(null)} disabled={saving}>Batal</Button>
-            <Button onClick={handlePayRemaining} disabled={saving}>
-              {saving ? "Memproses..." : "Konfirmasi Lunas"}
+            <Button variant="outline" onClick={() => setCompleteOrder(null)} disabled={saving}>Batal</Button>
+            <Button onClick={handleComplete} disabled={saving}>
+              {saving ? "Memproses..." : "Ya, Selesai"}
             </Button>
           </DialogFooter>
         </DialogContent>

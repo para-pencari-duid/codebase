@@ -83,16 +83,16 @@ function fmtCurrency(n: number) {
 // ─── Label Component ──────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: "⏳ Pending",
-  CONFIRMED: "✅ Dikonfirmasi",
-  PROCESSING: "🔧 Produksi",
-  IN_PRODUCTION: "🔧 Produksi",
-  READY: "📦 Siap Ambil",
-  COMPLETED: "✓ Selesai",
-  CANCELLED: "✗ Dibatal",
+  PENDING: "Pending",
+  CONFIRMED: "Dikonfirmasi",
+  PROCESSING: "Produksi",
+  IN_PRODUCTION: "Produksi",
+  READY: "Siap Ambil",
+  COMPLETED: "Selesai",
+  CANCELLED: "Dibatalkan",
 };
 
-// Label produksi: dicetak lalu ditempel di rak/baskom adonan
+// Label produksi: thermal-receipt style
 function OrderLabel({ order, store }: { order: Order; store: StoreInfo }) {
   const dueDateObj = order.dueDate ? new Date(order.dueDate) : null;
   const dueDateValid = dueDateObj && !isNaN(dueDateObj.getTime());
@@ -104,48 +104,42 @@ function OrderLabel({ order, store }: { order: Order; store: StoreInfo }) {
 
   return (
     <div className="label-card">
-      {/* Logo + order no */}
-      <div className="label-header-row">
-        {store.logo ? (
-          <img src={store.logo} alt="logo" className="label-logo" />
-        ) : (
-          <span className="label-store-name">{store.name}</span>
-        )}
-        <span className="label-no">{order.ticketNo}</span>
+      {/* Header toko */}
+      <div className="rc-header">
+        {store.logo && <img src={store.logo} alt="logo" className="rc-logo" />}
+        <div className="rc-store-name">{store.name.toUpperCase()}</div>
+        {store.phone && <div className="rc-store-sub">{store.phone}</div>}
       </div>
 
-      <div className="label-divider" />
+      <div className="rc-divider" />
 
-      {/* Nama customer */}
-      <div className="label-customer">{order.customerName}</div>
+      {/* No order + customer */}
+      <div className="rc-row-between">
+        <span className="rc-label">No. Order</span>
+        <span className="rc-mono">{order.ticketNo}</span>
+      </div>
+      <div className="rc-customer">{order.customerName}</div>
 
-      <div className="label-divider" />
+      <div className="rc-divider" />
 
-      {/* Produk */}
-      <div className="label-section-title">PRODUKSI</div>
+      {/* Items */}
+      <div className="rc-section-title">PRODUKSI</div>
       {itemLines.map((it, i) => (
-        <div key={i} className="label-item-row">
-          <span className="label-item-name">{it.name}</span>
-          <span className="label-item-qty">×{it.quantity}</span>
+        <div key={i}>
+          <div className="rc-row-between">
+            <span className="rc-item-name">{it.quantity}x {it.name}</span>
+          </div>
+          {it.notes && <div className="rc-item-note">{it.notes}</div>}
         </div>
       ))}
+      {order.notes && <div className="rc-item-note">Ket: {order.notes}</div>}
 
-      {/* Catatan produksi */}
-      {order.description && (
-        <div className="label-notes">✏️ {order.description}</div>
-      )}
-      {order.notes && (
-        <div className="label-notes">📝 {order.notes}</div>
-      )}
+      <div className="rc-divider" />
 
-      <div className="label-divider" />
-
-      {/* Tanggal ambil */}
-      <div className="label-date-row">
-        <span className="label-delivery-tag">
-          {order.deliveryType === "DELIVERY" ? "🚚 ANTAR" : "🏪 AMBIL"}
-        </span>
-        <span className="label-date-val">
+      {/* Jadwal */}
+      <div className="rc-row-between">
+        <span className="rc-badge">{order.deliveryType === "DELIVERY" ? "ANTAR" : "AMBIL"}</span>
+        <span className="rc-date">
           {dueDateValid
             ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(dueDateObj!)
             : "-"}
@@ -210,7 +204,7 @@ function RecapSheet({ orders, date, storeName }: { orders: Order[]; date: string
                   {Number(o.remainingAmount) > 0 ? fmtCurrency(Number(o.remainingAmount)) : "LUNAS"}
                 </td>
                 <td className="center">{time}</td>
-                <td className="center">{o.deliveryType === "DELIVERY" ? "🚚" : "🏪"}</td>
+                <td className="center">{o.deliveryType === "DELIVERY" ? "Antar" : "Ambil"}</td>
                 <td className="notes-cell">{o.notes ?? ""}</td>
               </tr>
             );
@@ -234,7 +228,7 @@ function RecapSheet({ orders, date, storeName }: { orders: Order[]; date: string
   );
 }
 
-// Invoice kurir: compact, beberapa per lembar HVS
+// Invoice: thermal-receipt style
 function InvoiceDoc({ order, store }: { order: Order; store: StoreInfo }) {
   const isPaid = Number(order.remainingAmount) === 0;
   const dueDt = order.dueDate ? new Date(order.dueDate) : null;
@@ -247,64 +241,80 @@ function InvoiceDoc({ order, store }: { order: Order; store: StoreInfo }) {
 
   return (
     <div className="invoice-card">
-      {/* Header: logo + nama toko */}
-      <div className="inv-card-header">
-        {store.logo ? (
-          <img src={store.logo} alt="logo" className="inv-logo" />
-        ) : null}
-        <div className="inv-header-text">
-          <div className="inv-store-name">{store.name}</div>
-          {store.phone && <div className="inv-store-phone">{store.phone}</div>}
-        </div>
-        <div className="inv-card-no">{order.ticketNo}</div>
+      {/* Header toko */}
+      <div className="rc-header">
+        {store.logo && <img src={store.logo} alt="logo" className="rc-logo" />}
+        <div className="rc-store-name">{store.name.toUpperCase()}</div>
+        {store.phone && <div className="rc-store-sub">{store.phone}</div>}
+        {store.address && <div className="rc-store-sub">{store.address}</div>}
       </div>
 
-      <div className="inv-divider" />
+      <div className="rc-divider" />
+
+      {/* No order */}
+      <div className="rc-row-between">
+        <span className="rc-label">No. Order</span>
+        <span className="rc-mono">{order.ticketNo}</span>
+      </div>
+      {dueDateValid && (
+        <div className="rc-row-between">
+          <span className="rc-label">Jadwal</span>
+          <span className="rc-val">
+            {new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(dueDt!)}
+          </span>
+        </div>
+      )}
+
+      <div className="rc-divider" />
 
       {/* Penerima */}
-      <div className="inv-section-title">PENERIMA</div>
-      <div className="inv-recipient-name">{order.customerName}</div>
-      <div className="inv-recipient-detail">📞 {order.customerPhone || "-"}</div>
-      {order.customerAddress && (
-        <div className="inv-recipient-detail">📍 {order.customerAddress}</div>
-      )}
+      <div className="rc-section-title">PENERIMA</div>
+      <div className="rc-customer">{order.customerName}</div>
+      <div className="rc-val-sm">{order.customerPhone || "-"}</div>
+      {order.customerAddress && <div className="rc-val-sm">{order.customerAddress}</div>}
 
-      <div className="inv-divider" />
+      <div className="rc-divider" />
 
-      {/* Pesanan */}
-      <div className="inv-section-title">PESANAN</div>
+      {/* Items */}
+      <div className="rc-section-title">PESANAN</div>
       {itemLines.map((it, i) => (
-        <div key={i} className="inv-item-row">
-          <span className="inv-item-name">{it.name}</span>
-          <span className="inv-item-qty">×{it.quantity}</span>
+        <div key={i}>
+          <div className="rc-row-between">
+            <span className="rc-item-name">{it.quantity}x {it.name}</span>
+            <span className="rc-item-price">{fmtCurrency(it.subtotal)}</span>
+          </div>
+          {it.notes && <div className="rc-item-note">{it.notes}</div>}
         </div>
       ))}
-      {order.notes && (
-        <div className="inv-item-note">📝 {order.notes}</div>
+      {order.notes && <div className="rc-item-note">Ket: {order.notes}</div>}
+
+      <div className="rc-divider" />
+
+      {/* Totals */}
+      <div className="rc-row-between">
+        <span className="rc-label">Total</span>
+        <span className="rc-val-bold">{fmtCurrency(Number(order.totalPrice))}</span>
+      </div>
+      {Number(order.dpAmount) > 0 && (
+        <div className="rc-row-between">
+          <span className="rc-label">DP {order.dpMethod ? `(${order.dpMethod})` : ""}</span>
+          <span className="rc-val">{fmtCurrency(Number(order.dpAmount))}</span>
+        </div>
       )}
-
-      <div className="inv-divider" />
-
-      {/* Total + status */}
-      <div className="inv-footer-row">
-        <div>
-          <span className="inv-total-label">Total </span>
-          <span className="inv-total-val">{fmtCurrency(Number(order.totalPrice))}</span>
-        </div>
-        <div className={`inv-status-badge ${isPaid ? "paid" : "unpaid"}`}>
-          {isPaid ? "PAID ✅" : "BELUM LUNAS"}
-        </div>
+      <div className="rc-row-between">
+        <span className="rc-label">Sisa tagihan</span>
+        <span className={`rc-val ${isPaid ? "rc-paid" : "rc-unpaid"}`}>
+          {isPaid ? "LUNAS" : fmtCurrency(Number(order.remainingAmount))}
+        </span>
       </div>
 
-      {/* Tanggal */}
-      <div className="inv-date-row">
-        <span className={`inv-delivery-tag ${order.deliveryType === "DELIVERY" ? "delivery" : "pickup"}`}>
-          {order.deliveryType === "DELIVERY" ? "🚚 ANTAR" : "🏪 AMBIL"}
-        </span>
-        <span className="inv-date-val">
-          {dueDateValid
-            ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(dueDt!)
-            : "-"}
+      <div className="rc-divider" />
+
+      {/* Delivery */}
+      <div className="rc-row-between">
+        <span className="rc-badge">{order.deliveryType === "DELIVERY" ? "ANTAR" : "AMBIL"}</span>
+        <span className={`rc-status-badge ${isPaid ? "paid" : "unpaid"}`}>
+          {isPaid ? "LUNAS" : "BELUM LUNAS"}
         </span>
       </div>
     </div>
@@ -396,10 +406,10 @@ function PrintContent() {
       <div className="print-controls no-print">
         <strong>{orders.length} pesanan</strong> siap cetak
         <button onClick={() => window.print()} className="btn-print">
-          🖨️ Cetak
+          Cetak
         </button>
         <button onClick={() => window.close()} className="btn-close">
-          ✕ Tutup
+          Tutup
         </button>
       </div>
 
@@ -457,103 +467,104 @@ function PrintContent() {
           margin: 0 auto;
         }
 
-        /* ── Single label (produksi) ── */
-        .label-card {
-          border: 2px solid #1e293b;
-          border-radius: 8px;
-          padding: 10px 12px;
+        /* ── Shared receipt card ── */
+        .label-card, .invoice-card {
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          padding: 12px;
           background: white;
           page-break-inside: avoid;
           break-inside: avoid;
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          font-family: Arial, sans-serif;
+          gap: 0;
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 11px;
         }
 
-        /* Header: logo + order no */
-        .label-header-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 6px;
+        /* ── Receipt header ── */
+        .rc-header {
+          text-align: center;
+          padding-bottom: 6px;
         }
-        .label-logo {
-          height: 28px;
+        .rc-logo {
+          height: 36px;
           width: auto;
           object-fit: contain;
+          display: block;
+          margin: 0 auto 4px;
         }
-        .label-store-name {
-          font-size: 10px;
-          font-weight: 800;
-          color: #0f172a;
-          letter-spacing: 0.3px;
-        }
-        .label-no {
-          font-size: 9px;
-          font-family: monospace;
-          font-weight: bold;
-          color: #94a3b8;
-          letter-spacing: 0.5px;
-        }
-
-        /* Customer */
-        .label-customer {
-          font-size: 14px;
-          font-weight: 800;
-          color: #0f172a;
-          line-height: 1.2;
-        }
-
-        /* Divider */
-        .label-divider { border-top: 1px dashed #cbd5e1; margin: 3px 0; }
-
-        /* Section title */
-        .label-section-title {
-          font-size: 8px;
+        .rc-store-name {
+          font-size: 13px;
           font-weight: 700;
           letter-spacing: 1px;
-          color: #94a3b8;
+          color: #111;
+        }
+        .rc-store-sub { font-size: 10px; color: #555; }
+
+        /* ── Divider ── */
+        .rc-divider { border-top: 1px dashed #999; margin: 6px 0; }
+
+        /* ── Section title ── */
+        .rc-section-title {
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 1px;
+          color: #888;
           text-transform: uppercase;
-          margin-bottom: 1px;
+          margin-bottom: 2px;
         }
 
-        /* Item rows */
-        .label-item-row {
+        /* ── Row helpers ── */
+        .rc-row-between {
           display: flex;
+          justify-content: space-between;
           align-items: baseline;
           gap: 4px;
-          font-size: 13px;
+          margin-bottom: 2px;
         }
-        .label-item-name { font-weight: 700; color: #1e40af; flex: 1; }
-        .label-item-qty { color: #0f172a; font-size: 12px; font-weight: 600; white-space: nowrap; }
+        .rc-label { color: #555; font-size: 10px; }
+        .rc-mono { font-family: monospace; font-size: 10px; color: #777; }
+        .rc-val { font-size: 10px; color: #111; }
+        .rc-val-sm { font-size: 10px; color: #555; }
+        .rc-val-bold { font-size: 11px; font-weight: 700; color: #111; }
+        .rc-paid { color: #15803d; font-weight: 700; }
+        .rc-unpaid { color: #b91c1c; font-weight: 700; }
 
-        /* Notes */
-        .label-notes { font-size: 10px; color: #64748b; font-style: italic; margin-top: 1px; }
-
-        /* Date row */
-        .label-date-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 6px;
-          margin-top: 1px;
-        }
-        .label-delivery-tag {
-          font-size: 10px;
-          font-weight: bold;
-          padding: 2px 7px;
-          border-radius: 4px;
-          background: #f1f5f9;
-          color: #1e293b;
-          white-space: nowrap;
-        }
-        .label-date-val {
-          font-size: 11px;
+        /* ── Customer name ── */
+        .rc-customer {
+          font-size: 14px;
           font-weight: 700;
-          color: #dc2626;
-          text-align: right;
+          color: #111;
+          line-height: 1.2;
+          margin-bottom: 2px;
         }
+
+        /* ── Item rows ── */
+        .rc-item-name { font-weight: 600; color: #111; flex: 1; }
+        .rc-item-price { white-space: nowrap; font-size: 10px; color: #111; }
+        .rc-item-note { font-size: 9px; color: #777; font-style: italic; padding-left: 8px; margin-bottom: 2px; }
+
+        /* ── Badge + status ── */
+        .rc-badge {
+          font-size: 9px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border: 1px solid #555;
+          border-radius: 3px;
+          letter-spacing: 0.5px;
+        }
+        .rc-status-badge {
+          font-size: 9px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 3px;
+          border: 1px solid;
+          letter-spacing: 0.5px;
+        }
+        .rc-status-badge.paid { color: #15803d; border-color: #15803d; background: #f0fdf4; }
+        .rc-status-badge.unpaid { color: #b91c1c; border-color: #b91c1c; background: #fef2f2; }
+        .rc-date { font-size: 10px; font-weight: 700; color: #dc2626; }
 
         /* ── Recap sheet ── */
         .recap-sheet {
@@ -602,7 +613,7 @@ function PrintContent() {
           text-align: right;
         }
 
-        /* ── Invoice grid (kurir, beberapa per HVS) ── */
+        /* ── Invoice grid ── */
         .invoice-grid {
           padding: 48px 16px 16px;
           display: grid;
@@ -610,129 +621,6 @@ function PrintContent() {
           gap: 12px;
           max-width: 860px;
           margin: 0 auto;
-        }
-
-        /* ── Invoice card (compact kurir) ── */
-        .invoice-card {
-          border: 2px solid #1e293b;
-          border-radius: 8px;
-          padding: 12px 14px;
-          background: white;
-          page-break-inside: avoid;
-          break-inside: avoid;
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-          font-family: Arial, sans-serif;
-        }
-
-        /* Header: logo + nama toko + no order */
-        .inv-card-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .inv-logo {
-          height: 36px;
-          width: auto;
-          object-fit: contain;
-          flex-shrink: 0;
-        }
-        .inv-header-text { flex: 1; }
-        .inv-store-name {
-          font-size: 11px;
-          font-weight: 800;
-          color: #0f172a;
-          line-height: 1.2;
-        }
-        .inv-store-phone { font-size: 9px; color: #64748b; }
-        .inv-card-no {
-          font-size: 9px;
-          font-family: monospace;
-          font-weight: bold;
-          color: #94a3b8;
-          letter-spacing: 0.5px;
-          align-self: flex-start;
-          white-space: nowrap;
-        }
-
-        .inv-divider { border-top: 1px dashed #cbd5e1; margin: 2px 0; }
-
-        .inv-section-title {
-          font-size: 8px;
-          font-weight: 700;
-          letter-spacing: 1px;
-          color: #94a3b8;
-          text-transform: uppercase;
-          margin-bottom: 1px;
-        }
-
-        /* Penerima */
-        .inv-recipient-name {
-          font-size: 15px;
-          font-weight: 800;
-          color: #0f172a;
-          line-height: 1.2;
-        }
-        .inv-recipient-detail {
-          font-size: 11px;
-          color: #475569;
-          line-height: 1.4;
-        }
-
-        /* Items */
-        .inv-item-row {
-          display: flex;
-          align-items: baseline;
-          gap: 6px;
-          font-size: 13px;
-        }
-        .inv-item-name { font-weight: 700; color: #1e40af; flex: 1; }
-        .inv-item-qty { font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; }
-        .inv-item-note { font-size: 10px; color: #64748b; font-style: italic; }
-
-        /* Footer row: total + status */
-        .inv-footer-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 6px;
-          padding-top: 2px;
-        }
-        .inv-total-label { font-size: 11px; color: #64748b; }
-        .inv-total-val { font-size: 14px; font-weight: 800; color: #0f172a; }
-        .inv-status-badge {
-          font-size: 10px;
-          font-weight: 800;
-          padding: 3px 10px;
-          border-radius: 4px;
-          border: 1.5px solid;
-          letter-spacing: 0.5px;
-          white-space: nowrap;
-        }
-        .inv-status-badge.paid { color: #15803d; border-color: #15803d; background: #f0fdf4; }
-        .inv-status-badge.unpaid { color: #b91c1c; border-color: #b91c1c; background: #fef2f2; }
-
-        /* Date row */
-        .inv-date-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 6px;
-        }
-        .inv-delivery-tag {
-          font-size: 10px;
-          font-weight: bold;
-          padding: 2px 7px;
-          border-radius: 4px;
-          white-space: nowrap;
-        }
-        .inv-delivery-tag.delivery { background: #dbeafe; color: #1d4ed8; }
-        .inv-delivery-tag.pickup { background: #f0fdf4; color: #166534; }
-        .inv-date-val {
-          font-size: 11px;
-          font-weight: 700;
-          color: #dc2626;
         }
 
         /* ── Print media ── */
@@ -745,7 +633,6 @@ function PrintContent() {
             grid-template-columns: repeat(3, 1fr);
             gap: 6px;
           }
-          .label-card { border: 1.5px solid #000; border-radius: 4px; }
           .recap-sheet { padding: 0; }
           .recap-header { padding-bottom: 8px; margin-bottom: 8px; }
           .invoice-grid {
@@ -753,7 +640,6 @@ function PrintContent() {
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
           }
-          .invoice-card { border: 1.5px solid #000; border-radius: 4px; }
         }
       `}</style>
     </>

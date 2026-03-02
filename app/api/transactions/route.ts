@@ -18,6 +18,7 @@ const transactionSchema = z.object({
         quantity: z.number().min(1),
         price: z.number().min(0),
         discount: z.number().default(0),
+        notes: z.string().optional().nullable(),
         modifiers: z.array(z.object({
             groupName: z.string(),
             optionName: z.string(),
@@ -230,6 +231,7 @@ export async function POST(req: Request) {
                     price: item.price,
                     discount: item.discount,
                     subtotal: (item.price * item.quantity) - item.discount,
+                    notes: item.notes ?? null,
                 };
             });
 

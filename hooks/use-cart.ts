@@ -21,6 +21,7 @@ export interface CartItem {
         icon: string | null;
     };
     modifiers?: CartItemModifier[];
+    notes?: string;
 }
 
 interface CartStore {
@@ -28,6 +29,7 @@ interface CartStore {
     addItem: (data: CartItem) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
+    updateNotes: (id: string, notes: string) => void;
     removeAll: () => void;
 }
 
@@ -76,6 +78,13 @@ const useCart = create(
                         item.id === id ? { ...item, quantity } : item
                     )
                 })
+            },
+            updateNotes: (id: string, notes: string) => {
+                set({
+                    items: get().items.map((item) =>
+                        item.id === id ? { ...item, notes } : item
+                    )
+                });
             },
             removeAll: () => set({ items: [] }),
         }),

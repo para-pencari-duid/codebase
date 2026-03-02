@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { sendWhatsAppNotification } from "@/lib/whatsapp";
-
 // GET /api/pre-orders/[id]
 export async function GET(
   req: NextRequest,
@@ -70,51 +69,6 @@ export async function PUT(
         where: { id },
         data: { status },
       });
-
-      // Kirim WA kalau status jadi READY
-      if (status === "READY" && jobTicket.customerPhone) {
-        try {
-          if (settings?.whatsappEnabled) {
-            const fmt = (n: number) =>
-              new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
-            const fmtDate = (d: Date) =>
-              new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short" }).format(new Date(d));
-
-            const message = `
-╔═══════════════════════════════════╗
-  ${settings.businessName?.toUpperCase() || "TOKO"}
-╚═══════════════════════════════════╝
-
-🎉 PESANAN ANDA SUDAH SIAP!
-
-Halo ${jobTicket.customerName}! 👋
-
-Pre-order Anda sudah selesai dibuat
-dan siap untuk diambil/dikirim.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-No. Order  : ${jobTicket.ticketNo}
-Produk     : ${jobTicket.title}
-Jumlah     : ${jobTicket.quantity} pcs
-
-Jadwal     : ${fmtDate(jobTicket.dueDate)}
-Tipe       : ${jobTicket.deliveryType === "PICKUP" ? "Ambil di toko" : "Delivery"}
-${Number(jobTicket.remainingAmount) > 0 ? `\nSisa Bayar : ${fmt(Number(jobTicket.remainingAmount))}\n(Mohon siapkan pembayaran)` : "\nStatus    : LUNAS ✅"}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Terima kasih sudah memesan! 🎂
-Sampai jumpa di toko ya!
-
-~ ${settings.businessName || "Toko"} ~
-`.trim();
-
-            await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_ready", message);
-          }
-        } catch (waError) {
-          console.error("[JobTicket] WA ready notification failed:", waError);
-        }
-      }
 
       return NextResponse.json(updated);
     }
@@ -198,35 +152,35 @@ Sampai jumpa di toko ya!
             new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeStyle: "short" }).format(new Date(d));
 
           const itemLines = updated.items.length > 0
-            ? updated.items.map(it => `  - ${it.name} x${it.quantity} = ${fmt(Number(it.subtotal))}`).join("\n")
-            : `  - ${updated.title} x${updated.quantity} = ${fmt(Number(updated.totalPrice))}`;
+            ? updated.items.map(it => `  ${it.name} x${it.quantity}  ${fmt(Number(it.subtotal))}`).join("\n")
+            : `  ${updated.title} x${updated.quantity}  ${fmt(Number(updated.totalPrice))}`;
+
+          const pickupLine = updated.dueDate
+            ? (updated.deliveryType === "DELIVERY"
+                ? `Pengiriman ke: ${updated.customerAddress ?? "-"}`
+                : `Jadwal ambil: ${fmtD(updated.dueDate)}`)
+            : null;
 
           const message = [
-            `🧾 *INVOICE PELUNASAN*`,
-            `━━━━━━━━━━━━━━━━━`,
+            `*${settings?.businessName || "Toko"}*`,
             ``,
-            `Halo ${updated.customerName}! 👋`,
-            `Pembayaran Anda telah kami terima. Terima kasih! 🙏`,
+            `Kepada Yth. ${updated.customerName},`,
             ``,
-            `*No. Order:* ${updated.ticketNo}`,
-            `*Produk:* ${updated.title}`,
+            `Pembayaran Anda telah kami terima.`,
             ``,
-            `📋 *RINCIAN*`,
+            `No. Order : ${updated.ticketNo}`,
+            ``,
+            `Rincian pesanan:`,
             itemLines,
             ``,
-            `💰 *PEMBAYARAN*`,
-            `Total: *${fmt(Number(updated.totalPrice))}*`,
-            Number(updated.dpAmount) > 0 ? `DP: ${fmt(Number(updated.dpAmount))} ✅` : null,
-            `Pelunasan: *${fmt(Number(jobTicket.remainingAmount))}* (${payMethod})`,
-            `Status: *LUNAS ✅*`,
+            `Total          : ${fmt(Number(updated.totalPrice))}`,
+            Number(updated.dpAmount) > 0 ? `DP terbayar    : ${fmt(Number(updated.dpAmount))}` : null,
+            `Pelunasan      : ${fmt(Number(jobTicket.remainingAmount))} (${payMethod})`,
+            `Status         : Lunas`,
             ``,
-            updated.dueDate
-              ? (updated.deliveryType === "DELIVERY"
-                  ? `🚚 *Pengiriman* ke: ${updated.customerAddress ?? "-"}`
-                  : `🏪 *Ambil di toko:* ${fmtD(updated.dueDate)}`)
-              : null,
+            pickupLine,
             ``,
-            `~ ${settings?.businessName || "Toko"} ~`,
+            `Terima kasih.`,
           ].filter(Boolean).join("\n");
 
           await sendWhatsAppNotification(updated.customerPhone, "preorder_paid", message);
@@ -254,29 +208,6 @@ Sampai jumpa di toko ya!
           cancelReason: cancelReason || "Dibatalkan",
         },
       });
-
-      // Kirim WA notif cancel
-      try {
-        if (settings?.whatsappEnabled && jobTicket.customerPhone) {
-          const message = `
-Halo ${jobTicket.customerName},
-
-Mohon maaf, pre-order Anda dengan
-No. Order ${jobTicket.ticketNo} telah
-dibatalkan.
-
-${cancelReason ? "Alasan: " + cancelReason : ""}
-
-Silakan hubungi kami untuk informasi
-lebih lanjut.
-
-~ ${settings.businessName || "Toko"} ~
-`.trim();
-          await sendWhatsAppNotification(jobTicket.customerPhone, "preorder_cancel", message);
-        }
-      } catch {
-        // non-blocking
-      }
 
       return NextResponse.json(updated);
     }

@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS: PosBusinessSettings = {
   businessPhone: null,
   receiptHeader: null,
   receiptFooter: null,
+  logo: null,
 };
 
 function mapProduct(item: PosProductRecord): PosProduct {
@@ -121,6 +122,7 @@ function mapSettings(settings: PosSettingsRecord): PosBusinessSettings {
     businessPhone: settings.businessPhone ?? null,
     receiptHeader: settings.receiptHeader ?? null,
     receiptFooter: settings.receiptFooter ?? null,
+    logo: (settings as any).logo ?? null,
   };
 }
 

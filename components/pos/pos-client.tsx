@@ -34,6 +34,8 @@ import { PosCartPanel } from "./pos-client/cart-panel";
 import { PosCheckoutPanel } from "./pos-client/checkout-panel";
 import type { PosPaymentMethodUiOption } from "./pos-client/types";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { PosPreOrderDialog } from "./pos-preorder-dialog";
+import { CalendarDays } from "lucide-react";
 
 interface POSClientProps {
   products: PosProduct[];
@@ -136,6 +138,8 @@ export const POSClient: React.FC<POSClientProps> = ({
     null,
   );
 
+  const [preOrderOpen, setPreOrderOpen] = useState(false);
+
   const cartItemCount = useMemo(
     () => cart.items.reduce((sum, item) => sum + item.quantity, 0),
     [cart.items],
@@ -149,8 +153,11 @@ export const POSClient: React.FC<POSClientProps> = ({
           product.sku.toLowerCase().includes(search.toLowerCase());
         const matchCategory =
           selectedCategory === "all" || product.categoryId === selectedCategory;
+        // Pre-Order category products are shown regardless of stock
+        const isPreOrderProduct = product.category?.name === "Pre-Order";
         return (
-          matchSearch && matchCategory && product.isActive && product.stock > 0
+          matchSearch && matchCategory && product.isActive &&
+          (isPreOrderProduct || product.stock > 0)
         );
       }),
     [products, search, selectedCategory],
@@ -176,6 +183,12 @@ export const POSClient: React.FC<POSClientProps> = ({
 
   const onAddToCart = useCallback(
     (product: PosProduct) => {
+      // Pre-Order category products open the pre-order dialog
+      if (product.category?.name === "Pre-Order") {
+        setPreOrderOpen(true);
+        return;
+      }
+
       if (product.modifierGroups && product.modifierGroups.length > 0) {
         setModPickerProduct(product);
         setModPickerOpen(true);
@@ -273,6 +286,7 @@ export const POSClient: React.FC<POSClientProps> = ({
             quantity: item.quantity,
             price: Number(item.price),
             discount: 0,
+            notes: item.notes || undefined,
             modifiers: (item.modifiers || []).map((modifier) => ({
               groupName: modifier.groupName,
               optionName: modifier.optionName,
@@ -334,6 +348,7 @@ export const POSClient: React.FC<POSClientProps> = ({
         businessPhone: settings.businessPhone ?? "",
         receiptHeader: settings.receiptHeader ?? "",
         receiptFooter: settings.receiptFooter ?? "",
+        businessLogo: settings.logo ?? null,
       });
 
       toast.success("Transaksi Berhasil!");
@@ -379,6 +394,7 @@ export const POSClient: React.FC<POSClientProps> = ({
           taxIncluded={settings.taxIncluded}
           onDecreaseQuantity={handleDecreaseQuantity}
           onIncreaseQuantity={handleIncreaseQuantity}
+          onUpdateNotes={(item, notes) => cart.updateNotes(item.id, notes)}
           onClearCart={cart.removeAll}
           onGoToCheckout={handleGoToCheckout}
         />
@@ -441,15 +457,29 @@ export const POSClient: React.FC<POSClientProps> = ({
   return (
     <>
       <div className="flex h-[calc(100vh-80px)] min-h-0 overflow-hidden">
-        <PosProductPanel
-          search={search}
-          onSearchChange={setSearch}
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          categories={categories}
-          products={filteredProducts}
-          onAddToCart={onAddToCart}
-        />
+        <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+          {/* Pre-Order shortcut bar */}
+          <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b bg-amber-50/60">
+            <span className="text-xs text-muted-foreground">Pintasan:</span>
+            <button
+              type="button"
+              onClick={() => setPreOrderOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Pre-Order Baru
+            </button>
+          </div>
+          <PosProductPanel
+            search={search}
+            onSearchChange={setSearch}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            categories={categories}
+            products={filteredProducts}
+            onAddToCart={onAddToCart}
+          />
+        </div>
 
         {cart.items.length > 0 && (
           <div
@@ -522,6 +552,13 @@ export const POSClient: React.FC<POSClientProps> = ({
         }}
         product={modPickerProduct}
         onConfirm={onModifierConfirm}
+      />
+      <PosPreOrderDialog
+        open={preOrderOpen}
+        onOpenChange={setPreOrderOpen}
+        availableProducts={products
+          .filter((p) => p.category?.name === "Pre-Order" && p.isActive)
+          .map((p) => ({ id: p.id, name: p.name, price: p.price, images: p.images }))}
       />
     </>
   );

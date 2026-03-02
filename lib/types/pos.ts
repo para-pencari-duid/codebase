@@ -56,6 +56,7 @@ export interface PosBusinessSettings {
   businessPhone: string | null;
   receiptHeader: string | null;
   receiptFooter: string | null;
+  logo: string | null;
 }
 
 export interface PosPageData {
