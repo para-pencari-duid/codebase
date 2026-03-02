@@ -558,6 +558,17 @@ export default function PreOrdersPage() {
     });
   };
 
+  const isAllSelected = orders.length > 0 && orders.every((o) => selectedIds.has(o.id));
+  const isSomeSelected = orders.some((o) => selectedIds.has(o.id)) && !isAllSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.id)));
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 space-y-4 p-6">
@@ -639,6 +650,19 @@ export default function PreOrdersPage() {
 
           {/* Filters */}
           <div className="flex gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-primary cursor-pointer"
+                checked={isAllSelected}
+                ref={(el) => { if (el) el.indeterminate = isSomeSelected; }}
+                onChange={toggleSelectAll}
+                title={isAllSelected ? "Batal pilih semua" : "Pilih semua"}
+              />
+              {(isAllSelected || isSomeSelected) && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{selectedIds.size}/{orders.length}</span>
+              )}
+            </div>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
