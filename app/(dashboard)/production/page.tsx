@@ -8,15 +8,11 @@ import { ProductionOrdersTab } from "./components/production-orders-tab";
 
 export default function ProductionPage() {
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Produksi</h2>
-          <p className="text-muted-foreground">
-            Kelola bahan baku, resep, dan produksi
-          </p>
-        </div>
+    <div className="p-5 lg:p-7 space-y-5">
+      {/* ── Header ── */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Produksi</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Kelola bahan baku, resep, dan produksi</p>
       </div>
 
       {/* Tabs */}

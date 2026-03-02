@@ -32,10 +32,8 @@ export default async function CustomersPage() {
     }));
 
     return (
-        <div className="flex-col">
-            <div className="flex-1 space-y-4">
-                <CustomerClient data={formattedCustomers} />
-            </div>
+        <div className="p-5 lg:p-7">
+            <CustomerClient data={formattedCustomers} />
         </div>
     );
 }

@@ -11,7 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { alertSuccess, alertError, alertInfo, confirmDestroy } from "@/lib/swal";
 import axios from "axios";
 
 export type CategoryColumn = {
@@ -82,7 +82,7 @@ export const columns: ColumnDef<CategoryColumn>[] = [
                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                         <DropdownMenuItem
                             //   onClick={() => router.push(`/dashboard/categories/${category.id}`)}
-                            onClick={() => toast.info("Edit feature coming soon")}
+                            onClick={() => alertInfo("Edit feature coming soon")}
                         >
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit

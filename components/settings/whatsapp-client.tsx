@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { alertSuccess, alertError, alertInfo } from "@/lib/swal";
 import { QrCode, Smartphone, Wifi, WifiOff, AlertCircle, CheckCircle2, Settings2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +115,7 @@ export function WhatsAppClient() {
       const data = await res.json();
 
       if (data.connected) {
-        toast.success("WhatsApp sudah terhubung!");
+        alertSuccess("WhatsApp sudah terhubung!");
         await fetchStatus();
         return;
       }
@@ -123,12 +123,12 @@ export function WhatsAppClient() {
       if (data.qrCode) {
         // Fonnte returns base64 PNG directly
         setQrCode(`data:image/png;base64,${data.qrCode}`);
-        toast.info("Scan QR code dengan WhatsApp Anda");
+        alertInfo("Scan QR code dengan WhatsApp Anda");
 
         // Wait 5s then start polling
         setTimeout(() => {
           setPolling(true);
-          toast.info("Menunggu autentikasi WhatsApp...", { duration: 3000 });
+          alertInfo("Menunggu autentikasi WhatsApp...");
 
           let pollCount = 0;
           const maxPolls = 20; // 20 x 3s = 60s
@@ -142,20 +142,20 @@ export function WhatsAppClient() {
               clearInterval(pollInterval);
               setQrCode(null);
               setPolling(false);
-              toast.success("WhatsApp terhubung! ✅");
+              alertSuccess("WhatsApp terhubung! ✅");
               await fetchStatus();
             } else if (pollCount >= maxPolls) {
               clearInterval(pollInterval);
               setQrCode(null);
               setPolling(false);
-              toast.error("Timeout: QR code expired. Silakan coba lagi.");
+              alertError("Timeout: QR code expired. Silakan coba lagi.");
             }
           }, 3000);
         }, 5000);
       }
     } catch (error) {
       console.error("Connect error:", error);
-      toast.error(error instanceof Error ? error.message : "Gagal menghubungkan WhatsApp");
+      alertError(error instanceof Error ? error.message : "Gagal menghubungkan WhatsApp");
     } finally {
       setLoading(false);
     }
@@ -168,11 +168,11 @@ export function WhatsAppClient() {
       const res = await fetch("/api/whatsapp/disconnect", { method: "POST" });
       if (!res.ok) throw new Error("Failed to disconnect");
 
-      toast.success("WhatsApp dinonaktifkan.");
+      alertSuccess("WhatsApp dinonaktifkan.");
       await fetchStatus();
     } catch (error) {
       console.error("Disconnect error:", error);
-      toast.error("Gagal disconnect WhatsApp");
+      alertError("Gagal disconnect WhatsApp");
     } finally {
       setLoading(false);
     }
@@ -197,11 +197,11 @@ export function WhatsAppClient() {
 
       if (!res.ok) throw new Error("Failed to save settings");
 
-      toast.success("Pengaturan WhatsApp berhasil disimpan");
+      alertSuccess("Pengaturan WhatsApp berhasil disimpan");
       await fetchStatus();
     } catch (error) {
       console.error("Save error:", error);
-      toast.error("Gagal menyimpan pengaturan");
+      alertError("Gagal menyimpan pengaturan");
     } finally {
       setSaving(false);
     }

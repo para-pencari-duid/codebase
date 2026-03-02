@@ -27,7 +27,7 @@ type Product = {
   images?: string[];
   isActive?: boolean;
 };
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -143,15 +143,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       }
       router.refresh();
       router.push(`/products`);
-      toast.success(toastMessage);
+      alertSuccess(toastMessage);
     } catch (error) {
-      toast.error("Terjadi kesalahan.");
+      alertError("Terjadi kesalahan.");
     } finally {
       setLoading(false);
     }
   };
 
   const onDelete = async () => {
+    const ok = await confirmDestroy({ title: "Hapus produk?", text: "Produk akan dihapus permanen dan tidak bisa dikembalikan." });
+    if (!ok) return;
     try {
       setLoading(true);
       await fetch(`/api/products/${initialData?.id}`, {
@@ -159,9 +161,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       });
       router.refresh();
       router.push(`/products`);
-      toast.success("Produk berhasil dihapus.");
+      alertSuccess("Produk berhasil dihapus.");
     } catch (error) {
-      toast.error("Gagal menghapus produk.");
+      alertError("Gagal menghapus produk.");
     } finally {
       setLoading(false);
     }
@@ -170,9 +172,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   return (
     <>
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">{title}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{description}</p>
         </div>
         {initialData && (
           <Button

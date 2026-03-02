@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 // Local types replacing removed Prisma model exports
 type Product = { id: string; name: string; sku: string; };
 type RawMaterial = { id: string; name: string; unit: string; stock?: number; };
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import { Trash, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -122,9 +122,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
             }
             router.refresh();
             router.push(`/production`);
-            toast.success(toastMessage);
+            alertSuccess(toastMessage);
         } catch (error: any) {
-            toast.error(error.message || "Terjadi kesalahan.");
+            alertError(error.message || "Terjadi kesalahan.");
         } finally {
             setLoading(false);
         }

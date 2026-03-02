@@ -13,15 +13,12 @@ import {
   Trash2,
   RefreshCw,
 } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heading } from "@/components/ui/heading";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Notification {
@@ -70,10 +67,10 @@ export default function NotificationClient() {
         setNotifications(data.data);
         setUnreadCount(data.unreadCount);
       } else {
-        toast.error(data.error || "Gagal memuat notifikasi");
+        alertError(data.error || "Gagal memuat notifikasi");
       }
     } catch (error) {
-      toast.error("Terjadi kesalahan");
+      alertError("Terjadi kesalahan");
     } finally {
       setLoading(false);
     }
@@ -112,13 +109,13 @@ export default function NotificationClient() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success(data.message);
+        alertSuccess(data.message);
         fetchNotifications();
       } else {
-        toast.error(data.error);
+        alertError(data.error);
       }
     } catch (error) {
-      toast.error("Gagal memeriksa stok");
+      alertError("Gagal memeriksa stok");
     } finally {
       setCheckingStock(false);
     }
@@ -137,7 +134,7 @@ export default function NotificationClient() {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
     } catch (error) {
-      toast.error("Gagal menandai notifikasi");
+        alertError("Gagal menandai notifikasi");
     }
   };
 
@@ -152,10 +149,10 @@ export default function NotificationClient() {
       if (response.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
         setUnreadCount(0);
-        toast.success("Semua notifikasi ditandai sudah dibaca");
+        alertSuccess("Semua notifikasi ditandai sudah dibaca");
       }
     } catch (error) {
-      toast.error("Gagal menandai notifikasi");
+      alertError("Gagal menandai notifikasi");
     }
   };
 
@@ -167,10 +164,10 @@ export default function NotificationClient() {
 
       if (response.ok) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
-        toast.success("Notifikasi dihapus");
+        alertSuccess("Notifikasi dihapus");
       }
     } catch (error) {
-      toast.error("Gagal menghapus notifikasi");
+      alertError("Gagal menghapus notifikasi");
     }
   };
 
@@ -193,13 +190,13 @@ export default function NotificationClient() {
   };
 
   return (
-    <div className="space-y-4 p-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Heading
-            title="Notifikasi"
-            description="Kelola notifikasi dan peringatan stok"
-          />
+    <div className="p-5 lg:p-7 space-y-5">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Notifikasi</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Kelola notifikasi dan peringatan stok</p>
+          </div>
           {unreadCount > 0 && (
             <Badge variant="destructive">{unreadCount} belum dibaca</Badge>
           )}
@@ -222,8 +219,6 @@ export default function NotificationClient() {
         </div>
       </div>
 
-      <Separator />
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">Semua</TabsTrigger>
@@ -235,31 +230,27 @@ export default function NotificationClient() {
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 bg-muted rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-muted rounded w-1/3" />
-                        <div className="h-4 bg-muted rounded w-2/3" />
-                      </div>
+                <div key={i} className="rounded-xl border p-4 animate-pulse bg-white">
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-100 rounded w-1/3" />
+                      <div className="h-4 bg-gray-100 rounded w-2/3" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           ) : notifications.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-10">
-                <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Tidak ada notifikasi</h3>
-                <p className="text-muted-foreground text-sm">
-                  {activeTab === "unread"
-                    ? "Semua notifikasi sudah dibaca"
-                    : "Belum ada notifikasi yang perlu ditampilkan"}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl border bg-white flex flex-col items-center justify-center py-12" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+              <Bell className="h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900">Tidak ada notifikasi</h3>
+              <p className="text-sm text-gray-400 mt-1">
+                {activeTab === "unread"
+                  ? "Semua notifikasi sudah dibaca"
+                  : "Belum ada notifikasi yang perlu ditampilkan"}
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               {notifications.map((notification) => {
@@ -267,35 +258,35 @@ export default function NotificationClient() {
                 const colorClass = notificationColors[notification.type];
 
                 return (
-                  <Card
+                  <div
                     key={notification.id}
-                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${!notification.isRead ? "border-primary/50 bg-primary/5" : ""
-                      }`}
+                    className={`rounded-xl border bg-white cursor-pointer transition-colors hover:bg-gray-50/60 ${!notification.isRead ? "border-amber-200" : ""}`}
+                    style={!notification.isRead ? { background: "oklch(0.98 0.02 80)" } : {}}
                     onClick={() => handleNotificationClick(notification)}
                   >
-                    <CardContent className="p-4">
+                    <div className="p-4">
                       <div className="flex items-start gap-4">
-                        <div className={`p-2 rounded-full bg-muted ${colorClass}`}>
+                        <div className={`p-2 rounded-full bg-gray-100 ${colorClass} shrink-0`}>
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{notification.title}</h4>
+                            <h4 className="font-medium text-gray-900">{notification.title}</h4>
                             {!notification.isRead && (
-                              <span className="w-2 h-2 bg-primary rounded-full" />
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "oklch(0.68 0.16 55)" }} />
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-gray-500">
                             {notification.message}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-xs text-gray-400 mt-1">
                             {formatDistanceToNow(new Date(notification.createdAt), {
                               addSuffix: true,
                               locale: idLocale,
                             })}
                           </p>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 shrink-0">
                           {!notification.isRead && (
                             <Button
                               variant="ghost"
@@ -315,13 +306,14 @@ export default function NotificationClient() {
                               e.stopPropagation();
                               handleDelete(notification.id);
                             }}
+                            className="text-red-400 hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>

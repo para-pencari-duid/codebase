@@ -44,7 +44,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy, confirmAction } from "@/lib/swal";
 import { formatCurrency } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -317,7 +317,7 @@ export default function PreOrdersPage() {
       setOrders(data.orders);
       setTotal(data.total);
     } catch {
-      toast.error("Gagal load pre-order");
+      alertError("Gagal memuat data pre-order.");
     } finally {
       setLoading(false);
     }
@@ -374,10 +374,10 @@ export default function PreOrdersPage() {
         body: JSON.stringify({ action: "update_status", status: nextStatus }),
       });
       if (!res.ok) throw new Error();
-      toast.success(`Status diubah ke ${STATUS_CONFIG[nextStatus].label}`);
+      alertSuccess(`Status diubah ke ${STATUS_CONFIG[nextStatus].label}`);
       fetchOrders();
     } catch {
-      toast.error("Gagal update status");
+      alertError("Gagal update status.");
     }
   };
 
@@ -403,11 +403,11 @@ export default function PreOrdersPage() {
         });
       }
       if (!res.ok) throw new Error();
-      toast.success("Pesanan selesai!");
+      alertSuccess("Pesanan telah diselesaikan!", "Pesanan Selesai");
       setCompleteOrder(null);
       fetchOrders();
     } catch {
-      toast.error("Gagal menyelesaikan pesanan");
+      alertError("Gagal menyelesaikan pesanan.");
     } finally {
       setSaving(false);
     }
@@ -424,12 +424,12 @@ export default function PreOrdersPage() {
         body: JSON.stringify({ action: "cancel", cancelReason }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Pre-order dibatalkan");
+      alertSuccess("Pre-order dibatalkan.");
       setCancelOrder(null);
       setCancelReason("");
       fetchOrders();
     } catch {
-      toast.error("Gagal membatalkan");
+      alertError("Gagal membatalkan.");
     } finally {
       setSaving(false);
     }
@@ -442,7 +442,7 @@ export default function PreOrdersPage() {
     if (!editOrder) return;
     const validItems = formItems.filter((it) => it.name.trim() && it.unitPrice);
     if (validItems.length === 0) {
-      toast.error("Minimal 1 item pesanan wajib diisi");
+      alertError("Minimal 1 item pesanan wajib diisi.");
       return;
     }
     setSaving(true);
@@ -470,11 +470,11 @@ export default function PreOrdersPage() {
         }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Pre-order diperbarui");
+      alertSuccess("Pre-order berhasil diperbarui.");
       setEditOrder(null);
       fetchOrders();
     } catch {
-      toast.error("Gagal simpan perubahan");
+      alertError("Gagal menyimpan perubahan.");
     } finally {
       setSaving(false);
     }
@@ -528,7 +528,7 @@ export default function PreOrdersPage() {
       const data = await res.json();
       setRecapOrders(data.orders);
     } catch {
-      toast.error("Gagal load rekap");
+      alertError("Gagal memuat data rekap.");
     } finally {
       setLoadingRecap(false);
     }
@@ -571,56 +571,54 @@ export default function PreOrdersPage() {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 space-y-4 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Pre-Order</h2>
-          <p className="text-muted-foreground text-sm">Kelola & pantau status pesanan</p>
-        </div>
+    <div className="p-5 lg:p-7 space-y-5">
+      {/* ── Page header ── */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pre-Order</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Kelola &amp; pantau status pesanan</p>
       </div>
 
-      {/* Stats */}
+      {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Pending",       value: stats.pending,     color: "text-yellow-600", icon: Clock },
-          { label: "Dibuat",        value: stats.dibuat,      color: "text-blue-600",   icon: CheckCircle2 },
-          { label: "Siap Diantar",  value: stats.siapDiantar, color: "text-green-600",  icon: Truck },
-          { label: "Selesai",       value: stats.selesai,     color: "text-gray-600",   icon: PackageCheck },
+          { label: "Pending",       value: stats.pending,     bg: "oklch(0.97 0.06 80)",  text: "oklch(0.50 0.14 70)", icon: Clock },
+          { label: "Dibuat",        value: stats.dibuat,      bg: "oklch(0.95 0.05 240)", text: "oklch(0.45 0.14 240)", icon: CheckCircle2 },
+          { label: "Siap Diantar",  value: stats.siapDiantar, bg: "oklch(0.94 0.06 145)", text: "oklch(0.40 0.10 145)", icon: Truck },
+          { label: "Selesai",       value: stats.selesai,     bg: "oklch(0.97 0.002 80)", text: "oklch(0.50 0 0)",      icon: PackageCheck },
         ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                </div>
-                <s.icon className={`h-8 w-8 opacity-20 ${s.color}`} />
-              </div>
-            </CardContent>
-          </Card>
+          <div
+            key={s.label}
+            className="rounded-xl p-4 flex items-center justify-between"
+            style={{ background: "white", border: "1px solid var(--border)", boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}
+          >
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">{s.label}</p>
+              <p className="text-2xl font-bold" style={{ color: s.text }}>{s.value}</p>
+            </div>
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: s.bg }}>
+              <s.icon className="h-5 w-5" style={{ color: s.text }} />
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Tab Switcher */}
-      <div className="flex gap-2 border-b pb-0">
+      {/* ── Tab Switcher ── */}
+      <div className="flex gap-0 border-b" style={{ borderColor: "var(--border)" }}>
         <button
           onClick={() => setActiveTab("orders")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "orders"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
+          style={activeTab === "orders"
+            ? { borderColor: "var(--brand, oklch(0.68 0.16 55))", color: "var(--brand, oklch(0.68 0.16 55))" }
+            : { borderColor: "transparent", color: "oklch(0.5 0 0)" }}
         >
           Semua Order ({total})
         </button>
         <button
           onClick={() => { setActiveTab("recap"); fetchRecap(); }}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === "recap"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5"
+          style={activeTab === "recap"
+            ? { borderColor: "var(--brand, oklch(0.68 0.16 55))", color: "var(--brand, oklch(0.68 0.16 55))" }
+            : { borderColor: "transparent", color: "oklch(0.5 0 0)" }}
         >
           <TableProperties className="h-3.5 w-3.5" />
           Rekap Besok
@@ -630,50 +628,53 @@ export default function PreOrdersPage() {
       {/* ── ORDERS TAB ─── */}
       {activeTab === "orders" && (
         <>
-          {/* Batch actions */}
+          {/* ── Batch actions ── */}
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex-wrap">
-              <span className="text-sm text-blue-700 font-medium">{selectedIds.size} dipilih</span>
+            <div className="flex items-center gap-3 rounded-xl p-3 flex-wrap"
+                 style={{ background: "oklch(0.95 0.05 240)", border: "1px solid oklch(0.82 0.08 240)" }}>
+              <span className="text-sm font-semibold" style={{ color: "oklch(0.40 0.14 240)" }}>{selectedIds.size} dipilih</span>
               <Button size="sm" onClick={() => handlePrintLabels(Array.from(selectedIds))}>
                 <Printer className="h-3.5 w-3.5 mr-1.5" />
-                Cetak Label Pilihan
+                Cetak Label
               </Button>
               <Button size="sm" variant="outline" onClick={() => window.open(`/print/orders?mode=invoice&ids=${Array.from(selectedIds).join(",")}`, "_blank")}>
                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
-                Cetak Invoice Pilihan
+                Cetak Invoice
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                <X className="h-3.5 w-3.5 mr-1" />
                 Batal Pilih
               </Button>
             </div>
           )}
 
-          {/* Filters */}
-          <div className="flex gap-3 flex-wrap">
+          {/* ── Filters ── */}
+          <div className="flex gap-2 flex-wrap items-center">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                className="w-4 h-4 accent-primary cursor-pointer"
+                className="w-4 h-4 cursor-pointer rounded"
+                style={{ accentColor: "var(--brand, oklch(0.68 0.16 55))" }}
                 checked={isAllSelected}
                 ref={(el) => { if (el) el.indeterminate = isSomeSelected; }}
                 onChange={toggleSelectAll}
                 title={isAllSelected ? "Batal pilih semua" : "Pilih semua"}
               />
               {(isAllSelected || isSomeSelected) && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{selectedIds.size}/{orders.length}</span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">{selectedIds.size}/{orders.length}</span>
               )}
             </div>
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="relative flex-1 min-w-50">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Cari nama, HP, produk, nomor order..."
-                className="pl-8"
+                className="pl-9 h-9 bg-white border-gray-200 text-sm"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="h-9 w-full sm:w-44 text-sm border-gray-200 bg-white">
                 <SelectValue placeholder="Semua Status" />
               </SelectTrigger>
               <SelectContent>
@@ -686,17 +687,17 @@ export default function PreOrdersPage() {
             <div className="flex items-center gap-1">
               <Input
                 type="date"
-                className="w-[160px]"
+                className="h-9 w-44 text-sm border-gray-200 bg-white"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
               />
               {filterDate && (
-                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setFilterDate("")}>
-                  <span className="text-sm">✕</span>
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-400" onClick={() => setFilterDate("")}>
+                  <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
-            <Button variant="outline" size="icon" onClick={fetchOrders}>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={fetchOrders}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -711,28 +712,32 @@ export default function PreOrdersPage() {
       ) : (
         <div className="space-y-3">
           {orders.map((order) => (
-            <Card key={order.id} className="hover:shadow-sm transition-shadow">
-              <CardContent className="p-4">
+            <div
+              key={order.id}
+              className="rounded-xl bg-white p-4 transition-shadow hover:shadow-md"
+              style={{ border: "1px solid var(--border)", boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}
+            >
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                   {/* Checkbox */}
-                  <div className="flex-shrink-0 pt-0.5">
+                  <div className="shrink-0 pt-0.5">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
                       onChange={() => toggleSelect(order.id)}
-                      className="w-4 h-4 accent-primary cursor-pointer"
+                      className="w-4 h-4 cursor-pointer rounded"
+                      style={{ accentColor: "var(--brand, oklch(0.68 0.16 55))" }}
                     />
                   </div>
                   {/* Left info */}
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs text-muted-foreground">{order.orderNo}</span>
+                      <span className="font-mono text-xs text-gray-400">{order.orderNo}</span>
                       <StatusBadge status={order.status} />
-                      <span className="text-xs text-muted-foreground bg-slate-100 px-1.5 py-0.5 rounded">
+                      <span className="text-xs text-gray-500" style={{ background: "oklch(0.97 0.002 80)", borderRadius: "4px", padding: "1px 6px" }}>
                         {order.deliveryType === "PICKUP" ? "🏪 Pickup" : "🚚 Delivery"}
                       </span>
                     </div>
-                    <div className="font-semibold text-sm">{order.productName}</div>
+                    <div className="font-semibold text-sm text-gray-900">{order.productName}</div>
                     {order.description && (
                       <div className="text-xs text-muted-foreground">{order.description}</div>
                     )}
@@ -821,12 +826,11 @@ export default function PreOrdersPage() {
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
           ))}
         </div>
       )}
-        </> )}
+      </>)}
 
       {/* ── REKAP TAB ─────────────────────────────────────────────────────────── */}
       {activeTab === "recap" && (
@@ -838,7 +842,7 @@ export default function PreOrdersPage() {
               type="date"
               value={recapDate}
               onChange={(e) => setRecapDate(e.target.value)}
-              className="w-[160px]"
+              className="h-9 w-44 text-sm border-gray-200 bg-white"
             />
             <Button variant="outline" onClick={fetchRecap} disabled={loadingRecap}>
               <RefreshCw className={`h-4 w-4 mr-1.5 ${loadingRecap ? "animate-spin" : ""}`} />
@@ -866,24 +870,24 @@ export default function PreOrdersPage() {
               Tidak ada pesanan untuk tanggal ini
             </div>
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
+            <div className="rounded-xl border overflow-x-auto" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
+                <thead style={{ background: "oklch(0.97 0.002 80)", borderBottom: "1px solid var(--border)" }}>
                   <tr>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">No.Order</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Pelanggan</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">HP</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Produk</th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Total</th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Sisa</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Jam</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Status</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Aksi</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">No.Order</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Pelanggan</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">HP</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Produk</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Total</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Sisa</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Jam</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Status</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recapOrders.map((order, idx) => (
-                    <tr key={order.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                    <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{order.orderNo}</td>
                       <td className="px-3 py-2 font-medium">{order.customerName}</td>
                       <td className="px-3 py-2 text-muted-foreground">{order.customerPhone}</td>
@@ -917,7 +921,7 @@ export default function PreOrdersPage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="border-t bg-slate-100">
+                <tfoot style={{ borderTop: "1px solid var(--border)", background: "oklch(0.97 0.002 80)" }}>
                   <tr>
                     <td colSpan={4} className="px-3 py-2 font-semibold text-sm">
                       Total {recapOrders.length} pesanan
@@ -979,9 +983,9 @@ export default function PreOrdersPage() {
                 )}
               </div>
               <Separator />
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 text-xs rounded-lg p-3" style={{ background: "oklch(0.97 0.002 80)" }}>
                 <div>
-                  <p className="text-muted-foreground">Customer</p>
+                  <p className="text-gray-500">Customer</p>
                   <p className="font-medium">{detailOrder.customerName}</p>
                 </div>
                 <div>

@@ -39,15 +39,13 @@ export default async function InventoryPage() {
     const totalStockValue = formattedProducts.reduce((sum, p) => sum + p.stockValue, 0);
 
     return (
-        <div className="flex-col">
-            <div className="flex-1 space-y-4">
-                <InventoryClient
-                    data={formattedProducts}
-                    lowStockCount={lowStockCount}
-                    outOfStockCount={outOfStockCount}
-                    totalStockValue={totalStockValue}
-                />
-            </div>
+        <div className="p-5 lg:p-7">
+            <InventoryClient
+                data={formattedProducts}
+                lowStockCount={lowStockCount}
+                outOfStockCount={outOfStockCount}
+                totalStockValue={totalStockValue}
+            />
         </div>
     );
 }

@@ -5,8 +5,6 @@ import { SettingsForm } from "@/components/settings/settings-form";
 import BackupClient from "@/components/settings/backup-client";
 import { WhatsAppClient } from "@/components/settings/whatsapp-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heading } from "@/components/ui/heading";
-import { Separator } from "@/components/ui/separator";
 
 export default async function SettingsPage() {
     const session = await auth();
@@ -57,12 +55,11 @@ export default async function SettingsPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <Heading
-                title="Pengaturan"
-                description="Kelola pengaturan toko dan backup data"
-            />
-            <Separator />
+        <div className="p-5 lg:p-7 space-y-5">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pengaturan</h1>
+                <p className="text-sm text-gray-500 mt-0.5">Kelola pengaturan toko dan backup data</p>
+            </div>
             <Tabs defaultValue="general" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="general">Umum</TabsTrigger>

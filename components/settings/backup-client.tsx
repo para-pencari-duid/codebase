@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Download, Upload, AlertTriangle, Check, Database } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmAction } from "@/lib/swal";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,9 +61,9 @@ export default function BackupClient() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast.success("Backup berhasil diunduh");
+      alertSuccess("Backup berhasil diunduh");
     } catch (error) {
-      toast.error("Gagal membuat backup");
+      alertError("Gagal membuat backup");
     } finally {
       setDownloading(false);
     }
@@ -78,14 +78,14 @@ export default function BackupClient() {
       const data = JSON.parse(text);
 
       if (!data.version || !data.data) {
-        toast.error("Format file backup tidak valid");
+        alertError("Format file backup tidak valid");
         return;
       }
 
       setPendingRestore(data);
       setConfirmDialogOpen(true);
     } catch (error) {
-      toast.error("Gagal membaca file backup");
+      alertError("Gagal membaca file backup");
     }
 
     // Reset input
@@ -114,9 +114,9 @@ export default function BackupClient() {
         throw new Error(result.error);
       }
 
-      toast.success("Data berhasil di-restore");
+      alertSuccess("Data berhasil di-restore");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal restore data");
+      alertError(error instanceof Error ? error.message : "Gagal restore data");
     } finally {
       setRestoring(false);
       setConfirmDialogOpen(false);

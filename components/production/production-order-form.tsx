@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 // Local types replacing removed Prisma model exports
 type Recipe = { id: string };
 type Product = { id: string; name: string; sku?: string; recipe?: Recipe | null; };
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import { Trash, Plus, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -106,9 +106,9 @@ export const ProductionOrderForm: React.FC<ProductionOrderFormProps> = ({
 
             router.refresh();
             router.push(`/production`);
-            toast.success("Order produksi berhasil dibuat");
+            alertSuccess("Order produksi berhasil dibuat");
         } catch (error: any) {
-            toast.error(error.message || "Terjadi kesalahan.");
+            alertError(error.message || "Terjadi kesalahan.");
         } finally {
             setLoading(false);
         }

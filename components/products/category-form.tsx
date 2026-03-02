@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { ItemCategory } from "@prisma/client";
 
 type Category = ItemCategory;
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -67,15 +67,17 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
             }
             router.refresh();
             router.push(`/products/categories`);
-            toast.success(toastMessage);
+            alertSuccess(toastMessage);
         } catch (error) {
-            toast.error("Terjadi kesalahan.");
+            alertError("Terjadi kesalahan.");
         } finally {
             setLoading(false);
         }
     };
 
     const onDelete = async () => {
+        const ok = await confirmDestroy({ title: "Hapus kategori?", text: "Kategori akan dihapus permanen." });
+        if (!ok) return;
         try {
             setLoading(true);
             const res = await fetch(`/api/categories/${initialData?.id}`, {
@@ -88,9 +90,9 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
 
             router.refresh();
             router.push(`/products/categories`);
-            toast.success("Kategori berhasil dihapus.");
+            alertSuccess("Kategori berhasil dihapus.");
         } catch (error: any) {
-            toast.error(error.message || "Gagal menghapus kategori.");
+            alertError(error.message || "Gagal menghapus kategori.");
         } finally {
             setLoading(false);
         }

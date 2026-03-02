@@ -1,37 +1,39 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { Plus, List } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { ProductColumn, columns } from "./columns";
-import { Separator } from "@/components/ui/separator";
-import { Heading } from "@/components/ui/heading";
 
 interface ProductClientProps {
     data: ProductColumn[];
 }
 
-export const ProductClient: React.FC<ProductClientProps> = ({
-    data
-}) => {
+export const ProductClient: React.FC<ProductClientProps> = ({ data }) => {
     const router = useRouter();
-    const params = useParams();
 
     return (
-        <>
-            <div className="flex items-center justify-between">
-                <Heading
-                    title={`Produk (${data.length})`}
-                    description="Kelola produk toko Anda"
-                />
-                <Button onClick={() => router.push(`/products/new`)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Tambah Baru
-                </Button>
+        <div className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Produk</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">Kelola produk toko Anda</p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => router.push("/products/categories")}>
+                        <List className="mr-2 h-4 w-4" />
+                        Kategori
+                    </Button>
+                    <Button onClick={() => router.push("/products/new")}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Tambah Produk
+                    </Button>
+                </div>
             </div>
-            <Separator />
-            <DataTable searchKey="name" columns={columns} data={data} />
-        </>
+            <div className="rounded-xl border overflow-hidden" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+                <DataTable searchKey="name" columns={columns} data={data} />
+            </div>
+        </div>
     );
 };

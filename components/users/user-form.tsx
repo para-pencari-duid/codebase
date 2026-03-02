@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { Trash, ArrowLeft } from "lucide-react";
 
-import { Heading } from "@/components/ui/heading";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -98,11 +96,11 @@ export function UserForm({ initialData }: UserFormProps) {
                 throw new Error(msg);
             }
 
-            toast.success(isEditing ? "Pengguna berhasil diperbarui" : "Pengguna berhasil ditambahkan");
+            alertSuccess(isEditing ? "Pengguna berhasil diperbarui" : "Pengguna berhasil ditambahkan");
             router.push("/users");
             router.refresh();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
+            alertError(error instanceof Error ? error.message : "Terjadi kesalahan");
         } finally {
             setLoading(false);
         }
@@ -110,23 +108,24 @@ export function UserForm({ initialData }: UserFormProps) {
 
     const onDelete = async () => {
         if (!initialData) return;
-        if (!confirm("Yakin ingin menghapus pengguna ini?")) return;
+        const ok = await confirmDestroy({ title: "Hapus pengguna?", description: "Data pengguna akan dihapus permanen." });
+        if (!ok) return;
         try {
             setLoading(true);
             const res = await fetch(`/api/users/${initialData.id}`, { method: "DELETE" });
             if (!res.ok) throw new Error(await res.text());
-            toast.success("Pengguna berhasil dihapus");
+            alertSuccess("Pengguna berhasil dihapus");
             router.push("/users");
             router.refresh();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Gagal menghapus");
+            alertError(error instanceof Error ? error.message : "Gagal menghapus");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <>
+        <div className="space-y-5">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button
@@ -136,7 +135,7 @@ export function UserForm({ initialData }: UserFormProps) {
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <Heading title={title} description={description} />
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">{title}</h1>
                 </div>
                 {isEditing && (
                     <Button
@@ -149,7 +148,6 @@ export function UserForm({ initialData }: UserFormProps) {
                     </Button>
                 )}
             </div>
-            <Separator />
 
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
@@ -265,6 +263,6 @@ export function UserForm({ initialData }: UserFormProps) {
                     </Button>
                 </form>
             </Form>
-        </>
+        </div>
     );
 }

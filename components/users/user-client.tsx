@@ -3,9 +3,7 @@
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { DataTable } from "@/components/ui/data-table";
 import { columns, UserColumn } from "@/components/users/user-columns";
 
@@ -18,12 +16,12 @@ export function UserClient({ data, currentUserRole }: UserClientProps) {
     const router = useRouter();
 
     return (
-        <>
-            <div className="flex items-center justify-between">
-                <Heading
-                    title={`Pengguna (${data.length})`}
-                    description="Kelola akses pengguna sistem"
-                />
+        <div className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pengguna</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">Kelola akses pengguna sistem ({data.length} pengguna)</p>
+                </div>
                 {currentUserRole === "OWNER" && (
                     <Button onClick={() => router.push("/users/new")}>
                         <Plus className="mr-2 h-4 w-4" />
@@ -31,8 +29,9 @@ export function UserClient({ data, currentUserRole }: UserClientProps) {
                     </Button>
                 )}
             </div>
-            <Separator />
-            <DataTable columns={columns} data={data} searchKey="name" />
-        </>
+            <div className="rounded-xl border overflow-hidden" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+                <DataTable columns={columns} data={data} searchKey="name" />
+            </div>
+        </div>
     );
 }

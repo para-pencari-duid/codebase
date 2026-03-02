@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import {
   formatNumberInputValue,
   parseDigitsToNumber,
@@ -89,7 +89,7 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
       !formData.description ||
       !formData.paymentMethod
     ) {
-      toast.error("Harap isi semua field yang wajib");
+      alertError("Harap isi semua field yang wajib");
       return;
     }
 
@@ -113,11 +113,7 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
         throw new Error(error.error || "Failed to save expense");
       }
 
-      toast.success(
-        expense
-          ? "Pengeluaran berhasil diupdate"
-          : "Pengeluaran berhasil ditambahkan",
-      );
+      alertSuccess(expense ? "Pengeluaran berhasil diupdate" : "Pengeluaran berhasil ditambahkan");
 
       if (onSuccess) {
         onSuccess();
@@ -126,7 +122,7 @@ export function ExpenseForm({ expense, onSuccess }: ExpenseFormProps) {
         router.refresh();
       }
     } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+      alertError(error.message || "Terjadi kesalahan");
     } finally {
       setLoading(false);
     }

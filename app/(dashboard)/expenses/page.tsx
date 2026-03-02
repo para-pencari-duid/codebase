@@ -26,16 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpenseForm } from "@/components/expenses/expense-form";
@@ -50,7 +40,7 @@ import {
   TrendingDown,
   Filter,
 } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 
 interface Expense {
   id: string;
@@ -106,7 +96,6 @@ export default function ExpensesPage() {
   const [dateRange, setDateRange] = useState<string>("month");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -144,13 +133,15 @@ export default function ExpensesPage() {
       }
     } catch (error) {
       console.error("Failed to fetch expenses:", error);
-      toast.error("Gagal memuat data pengeluaran");
+      alertError("Gagal memuat data pengeluaran");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    const ok = await confirmDestroy({ title: "Hapus pengeluaran?", description: "Tindakan ini tidak dapat dibatalkan." });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/expenses/${id}`, {
         method: "DELETE",
@@ -160,11 +151,10 @@ export default function ExpensesPage() {
         throw new Error("Failed to delete expense");
       }
 
-      toast.success("Pengeluaran berhasil dihapus");
-      setDeletingId(null);
+      alertSuccess("Pengeluaran berhasil dihapus");
       fetchData();
     } catch (error) {
-      toast.error("Gagal menghapus pengeluaran");
+      alertError("Gagal menghapus pengeluaran");
     }
   };
 
@@ -202,14 +192,12 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="p-5 lg:p-7 space-y-5">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Pengeluaran</h2>
-          <p className="text-muted-foreground">
-            Kelola dan pantau pengeluaran toko
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pengeluaran</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Kelola dan pantau pengeluaran toko</p>
         </div>
         <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -226,90 +214,63 @@ export default function ExpensesPage() {
         </div>
       ) : (
         summary && (
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Pengeluaran
-                </CardTitle>
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(summary.totalExpenses)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  <span
-                    className={
-                      summary.changePercentage >= 0
-                        ? "text-red-600"
-                        : "text-green-600"
-                    }
-                  >
-                    {summary.changePercentage >= 0 ? "+" : ""}
-                    {summary.changePercentage.toFixed(1)}%
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl p-4 bg-white flex items-center justify-between" style={{ border: "1px solid var(--border)", boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Total Pengeluaran</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpenses)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  <span className={summary.changePercentage >= 0 ? "text-red-500" : "text-green-600"}>
+                    {summary.changePercentage >= 0 ? "+" : ""}{summary.changePercentage.toFixed(1)}%
                   </span>{" "}
                   dari periode sebelumnya
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "oklch(0.94 0.08 20)" }}>
+                <TrendingDown className="h-5 w-5" style={{ color: "oklch(0.45 0.16 20)" }} />
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Jumlah Transaksi
-                </CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatNumber(summary.totalCount)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  pengeluaran tercatat
-                </p>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl p-4 bg-white flex items-center justify-between" style={{ border: "1px solid var(--border)", boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Jumlah Transaksi</p>
+                <p className="text-2xl font-bold text-gray-900">{formatNumber(summary.totalCount)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">pengeluaran tercatat</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "oklch(0.95 0.05 240)" }}>
+                <FileText className="h-5 w-5" style={{ color: "oklch(0.45 0.14 240)" }} />
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Kategori Terbanyak
-                </CardTitle>
-                <Filter className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
+            <div className="rounded-xl p-4 bg-white flex items-center justify-between" style={{ border: "1px solid var(--border)", boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Kategori Terbanyak</p>
                 {summary.categoryBreakdown.length > 0 ? (
                   <>
-                    <div className="text-2xl font-bold">
-                      {CATEGORY_LABELS[summary.categoryBreakdown[0].category]}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(summary.categoryBreakdown[0].amount)} (
-                      {summary.categoryBreakdown[0].percentage.toFixed(1)}%)
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{CATEGORY_LABELS[summary.categoryBreakdown[0].category]}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatCurrency(summary.categoryBreakdown[0].amount)} ({summary.categoryBreakdown[0].percentage.toFixed(1)}%)</p>
                   </>
                 ) : (
-                  <div className="text-sm text-muted-foreground">
-                    Belum ada data
-                  </div>
+                  <p className="text-sm text-gray-400">Belum ada data</p>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+              <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "oklch(0.97 0.06 80)" }}>
+                <Filter className="h-5 w-5" style={{ color: "oklch(0.50 0.14 70)" }} />
+              </div>
+            </div>
           </div>
         )
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <CardTitle>Daftar Pengeluaran</CardTitle>
-            <div className="flex gap-2">
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
+      {/* ── Table section ── */}
+      <div className="rounded-xl border overflow-hidden" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+        <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <p className="text-sm font-semibold text-gray-700">Daftar Pengeluaran</p>
+          <div className="flex gap-2">
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="h-9 w-40 text-sm border-gray-200 bg-white">
+                <SelectValue />
+              </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Hari Ini</SelectItem>
                   <SelectItem value="week">7 Hari Terakhir</SelectItem>
@@ -319,10 +280,10 @@ export default function ExpensesPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="h-9 w-44 text-sm border-gray-200 bg-white">
+                <SelectValue />
+              </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Kategori</SelectItem>
                   {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -332,10 +293,9 @@ export default function ExpensesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {loading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -361,40 +321,36 @@ export default function ExpensesPage() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                <TableRow style={{ background: "oklch(0.97 0.002 80)" }}>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tanggal</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kategori</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Deskripsi</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Metode</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Jumlah</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>
+                  <TableRow key={expense.id} className="hover:bg-gray-50/60 transition-colors">
+                    <TableCell className="text-sm text-gray-600">
                       {format(new Date(expense.date), "dd MMM yyyy", {
                         locale: localeId,
                       })}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700">
                         {CATEGORY_LABELS[expense.category]}
-                      </Badge>
+                      </span>
                     </TableCell>
-                    <TableCell className="max-w-[300px]">
-                      <div className="font-medium">{expense.description}</div>
+                    <TableCell className="max-w-xs">
+                      <div className="font-medium text-sm text-gray-900">{expense.description}</div>
                       {expense.reference && (
-                        <div className="text-xs text-muted-foreground">
-                          Ref: {expense.reference}
-                        </div>
+                        <div className="text-xs text-gray-400">Ref: {expense.reference}</div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {PAYMENT_METHOD_LABELS[expense.paymentMethod]}
-                      </span>
+                      <span className="text-xs text-gray-500">{PAYMENT_METHOD_LABELS[expense.paymentMethod]}</span>
                     </TableCell>
                     <TableCell className="text-right font-medium text-red-600">
                       {formatCurrency(expense.amount)}
@@ -411,7 +367,8 @@ export default function ExpensesPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => setDeletingId(expense.id)}
+                          onClick={() => handleDelete(expense.id)}
+                          className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -422,8 +379,8 @@ export default function ExpensesPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -469,31 +426,6 @@ export default function ExpensesPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation */}
-      <AlertDialog
-        open={!!deletingId}
-        onOpenChange={(open) => !open && setDeletingId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Pengeluaran?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Pengeluaran akan dihapus
-              secara permanen dari sistem.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deletingId && handleDelete(deletingId)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

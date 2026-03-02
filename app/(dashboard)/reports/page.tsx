@@ -8,7 +8,7 @@ export default async function ReportsPage() {
     if (session.user.role === "KASIR") redirect("/dashboard");
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="p-5 lg:p-7">
             <ReportsClient />
         </div>
     );

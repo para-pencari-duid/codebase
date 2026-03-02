@@ -11,7 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 
 export type ProductColumn = {
     id: string;
@@ -71,14 +71,14 @@ export const columns: ColumnDef<ProductColumn>[] = [
             const product = row.original;
 
             const onDelete = async () => {
-                // Implement delete logic or call API
-                // For now just toast and refresh
+                const ok = await confirmDestroy({ title: "Hapus produk?", text: `"${product.name}" akan dihapus permanen.` });
+                if (!ok) return;
                 try {
                     await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
-                    toast.success("Produk dihapus");
+                    alertSuccess("Produk berhasil dihapus.");
                     router.refresh();
                 } catch (e) {
-                    toast.error("Gagal menghapus");
+                    alertError("Gagal menghapus produk.");
                 }
             }
 

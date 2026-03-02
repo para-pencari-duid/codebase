@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,11 +104,11 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
 
     const handleAdjust = async () => {
         if (!selectedProduct || !adjustReason) {
-            toast.error("Pilih alasan koreksi");
-            return;
-        }
-        if (adjustType !== "ADJUSTMENT" && adjustQty <= 0) {
-            toast.error("Jumlah harus lebih dari 0");
+            alertError("Pilih alasan koreksi");
+                return;
+            }
+            if (adjustType !== "ADJUSTMENT" && adjustQty <= 0) {
+                alertError("Jumlah harus lebih dari 0");
             return;
         }
 
@@ -128,32 +128,33 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
 
             if (!response.ok) {
                 const err = await response.text();
-                toast.error(err);
+                alertError(err);
                 return;
             }
 
-            toast.success("Stok berhasil diupdate");
+            alertSuccess("Stok berhasil diupdate");
             setAdjustOpen(false);
             router.refresh();
         } catch {
-            toast.error("Gagal mengupdate stok");
+            alertError("Gagal mengupdate stok");
         } finally {
             setLoading(false);
         }
     };
 
     const getStockBadge = (product: InventoryProduct) => {
-        if (product.stock === 0) return <Badge variant="destructive">Habis</Badge>;
-        if (product.stock <= product.minStock) return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Menipis</Badge>;
-        return <Badge variant="outline" className="text-green-600">Aman</Badge>;
+        if (product.stock === 0) return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "oklch(0.94 0.08 20)", color: "oklch(0.45 0.16 20)" }}>Habis</span>;
+        if (product.stock <= product.minStock) return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "oklch(0.96 0.06 80)", color: "oklch(0.50 0.14 70)" }}>Menipis</span>;
+        return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "oklch(0.94 0.06 145)", color: "oklch(0.40 0.10 145)" }}>Aman</span>;
     };
 
     return (
-        <>
-            <div className="flex items-center justify-between">
+        <div className="space-y-5">
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
-                    <p className="text-sm text-muted-foreground">Kelola stok produk</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Inventory</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">Kelola stok produk</p>
                 </div>
                 <Link href="/inventory/batches">
                     <Button variant="outline">
@@ -163,57 +164,39 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
                 </Link>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Produk</CardTitle>
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{data.length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Stok Menipis</CardTitle>
-                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-yellow-600">{lowStockCount}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Stok Habis</CardTitle>
-                        <XCircle className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">{outOfStockCount}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Nilai Stok</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(totalStockValue)}</div>
-                    </CardContent>
-                </Card>
+            {/* ── Stats ── */}
+            <div className="grid gap-3 md:grid-cols-4">
+                {[
+                    { label: "Total Produk",  value: data.length,             icon: Package,       text: "oklch(0.40 0.14 240)", bg: "oklch(0.95 0.05 240)" },
+                    { label: "Stok Menipis",  value: lowStockCount,           icon: AlertTriangle,  text: "oklch(0.50 0.14 70)",  bg: "oklch(0.97 0.06 80)" },
+                    { label: "Stok Habis",    value: outOfStockCount,         icon: XCircle,       text: "oklch(0.45 0.16 20)",  bg: "oklch(0.94 0.08 20)" },
+                    { label: "Nilai Stok",    value: formatCurrency(totalStockValue), icon: DollarSign, text: "oklch(0.40 0.10 145)", bg: "oklch(0.94 0.06 145)" },
+                ].map((s) => (
+                    <div key={s.label} className="rounded-xl p-4 flex items-center justify-between bg-white" style={{ border: "1px solid var(--border)", boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1">{s.label}</p>
+                            <p className="text-2xl font-bold" style={{ color: s.text }}>{s.value}</p>
+                        </div>
+                        <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: s.bg }}>
+                            <s.icon className="h-5 w-5" style={{ color: s.text }} />
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            <div className="flex gap-4">
+            {/* ── Filters ── */}
+            <div className="flex gap-3">
                 <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                         placeholder="Cari produk..."
-                        className="pl-8"
+                        className="pl-9 h-9 bg-white border-gray-200 text-sm"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="h-9 w-44 text-sm border-gray-200 bg-white">
                         <SelectValue placeholder="Filter Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -225,26 +208,27 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
                 </Select>
             </div>
 
-            <div className="border rounded-lg">
+            {/* ── Table ── */}
+            <div className="rounded-xl border overflow-hidden" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>Produk</TableHead>
-                            <TableHead>SKU</TableHead>
-                            <TableHead>Kategori</TableHead>
-                            <TableHead className="text-right">Stok</TableHead>
-                            <TableHead className="text-right">Min. Stok</TableHead>
-                            <TableHead>Unit</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Nilai</TableHead>
-                            <TableHead>Aksi</TableHead>
+                        <TableRow style={{ background: "oklch(0.97 0.002 80)" }}>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Produk</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">SKU</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kategori</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Stok</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Min</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Unit</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Nilai</TableHead>
+                            <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredData.map((product) => (
-                            <TableRow key={product.id}>
-                                <TableCell className="font-medium">{product.name}</TableCell>
-                                <TableCell className="text-muted-foreground">{product.sku}</TableCell>
+                            <TableRow key={product.id} className="hover:bg-gray-50/60 transition-colors">
+                                <TableCell className="font-medium text-gray-900">{product.name}</TableCell>
+                                <TableCell className="text-gray-400 font-mono text-xs">{product.sku}</TableCell>
                                 <TableCell>{product.category}</TableCell>
                                 <TableCell className="text-right font-bold">{product.stock}</TableCell>
                                 <TableCell className="text-right text-muted-foreground">{product.minStock}</TableCell>
@@ -261,7 +245,7 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
                         ))}
                         {filteredData.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-10 text-gray-400">
                                     Tidak ada produk ditemukan
                                 </TableCell>
                             </TableRow>
@@ -277,7 +261,7 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
                         <DialogTitle>Koreksi Stok - {selectedProduct?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="bg-slate-50 rounded-lg p-3 text-sm">
+                        <div className="rounded-lg p-3 text-sm" style={{ background: "oklch(0.97 0.002 80)" }}>
                             <div className="flex justify-between">
                                 <span>Stok Saat Ini:</span>
                                 <span className="font-bold">{selectedProduct?.stock} {selectedProduct?.unit}</span>
@@ -371,6 +355,6 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
                     </div>
                 </DialogContent>
             </Dialog>
-        </>
+        </div>
     );
 };

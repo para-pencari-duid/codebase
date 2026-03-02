@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
+import { alertError } from "@/lib/swal";
 import Link from "next/link";
 
 interface Recipe {
@@ -45,75 +43,67 @@ export function RecipesTab() {
         setRecipes(data);
       }
     } catch (error) {
-      toast.error("Gagal memuat resep");
+      alertError("Gagal memuat resep");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Daftar Resep</CardTitle>
-          <Link href="/production/recipes/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Resep
-            </Button>
-          </Link>
-        </div>
-      </CardHeader>
-      <CardContent>
+    <div className="rounded-xl border overflow-hidden" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+        <p className="text-sm font-semibold text-gray-700">Daftar Resep</p>
+        <Link href="/production/recipes/new">
+          <Button size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Resep
+          </Button>
+        </Link>
+      </div>
+      <div className="p-4">
         {loading ? (
-          <p>Loading...</p>
+          <p className="text-center py-8 text-gray-400 text-sm">Loading...</p>
         ) : recipes.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>Belum ada resep. Tambahkan resep untuk memulai produksi.</p>
+          <div className="text-center py-10 text-gray-400 text-sm">
+            Belum ada resep. Tambahkan resep untuk memulai produksi.
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {recipes.map((recipe) => (
-              <Card key={recipe.id}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{recipe.product.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">SKU: {recipe.product.sku}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-sm font-medium">Hasil: {recipe.yield} {recipe.yieldUnit}</p>
+              <div
+                key={recipe.id}
+                className="rounded-xl p-4 bg-white hover:shadow-md transition-shadow"
+                style={{ border: "1px solid var(--border)", boxShadow: "0 1px 2px oklch(0 0 0 / 5%)" }}
+              >
+                <p className="font-semibold text-sm text-gray-900">{recipe.product.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5 mb-3">SKU: {recipe.product.sku}</p>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-600">Hasil: {recipe.yield} {recipe.yieldUnit}</p>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Bahan ({recipe.ingredients.length}):</p>
+                    <div className="space-y-1">
+                      {recipe.ingredients.slice(0, 3).map((ing) => (
+                        <div key={ing.id} className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">{ing.material.name}</span>
+                          <span className="font-medium text-gray-700">{ing.quantity} {ing.unit}</span>
+                        </div>
+                      ))}
+                      {recipe.ingredients.length > 3 && (
+                        <p className="text-xs text-gray-400">+{recipe.ingredients.length - 3} bahan lainnya</p>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium mb-1">Bahan ({recipe.ingredients.length}):</p>
-                      <div className="space-y-1">
-                        {recipe.ingredients.slice(0, 3).map((ing) => (
-                          <div key={ing.id} className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">{ing.material.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {ing.quantity} {ing.unit}
-                            </Badge>
-                          </div>
-                        ))}
-                        {recipe.ingredients.length > 3 && (
-                          <p className="text-xs text-muted-foreground">
-                            +{recipe.ingredients.length - 3} bahan lainnya
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <Link href={`/production/recipes/${recipe.id}`}>
-                      <Button variant="outline" size="sm" className="w-full mt-2">
-                        Lihat Detail
-                      </Button>
-                    </Link>
                   </div>
-                </CardContent>
-              </Card>
+                  <Link href={`/production/recipes/${recipe.id}`}>
+                    <Button variant="outline" size="sm" className="w-full mt-2">
+                      Lihat Detail
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

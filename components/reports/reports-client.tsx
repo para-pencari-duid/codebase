@@ -48,7 +48,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 
 type DateRange = { from: Date | undefined; to: Date | undefined };
 
@@ -75,7 +75,7 @@ export function ReportsClient() {
             const data = await res.json();
             setReportData(data);
         } catch {
-            toast.error("Gagal memuat laporan");
+            alertError("Gagal memuat laporan");
         } finally {
             setLoading(false);
         }
@@ -110,10 +110,10 @@ export function ReportsClient() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast.success("Laporan berhasil diunduh");
+            alertSuccess("Laporan berhasil diunduh");
         } catch (error) {
             console.error(error);
-            toast.error("Gagal mengunduh laporan");
+            alertError("Gagal mengunduh laporan");
         } finally {
             setExporting(false);
         }
@@ -195,7 +195,7 @@ export function ReportsClient() {
         }
 
         if (data.length === 0) {
-            toast.error("Tidak ada data untuk diekspor");
+            alertError("Tidak ada data untuk diekspor");
             return;
         }
 
@@ -203,7 +203,7 @@ export function ReportsClient() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
         XLSX.writeFile(wb, `${sheetName}_${format(new Date(), "yyyyMMdd")}.xlsx`);
-        toast.success("Berhasil mengekspor ke Excel");
+        alertSuccess("Berhasil mengekspor ke Excel");
     };
 
     const exportToPDF = () => {
@@ -264,7 +264,7 @@ export function ReportsClient() {
         }
 
         if (rows.length === 0) {
-            toast.error("Tidak ada data untuk diekspor");
+            alertError("Tidak ada data untuk diekspor");
             return;
         }
 
@@ -289,13 +289,16 @@ export function ReportsClient() {
         });
 
         doc.save(`${title}_${format(new Date(), "yyyyMMdd")}.pdf`);
-        toast.success("Berhasil mengekspor ke PDF");
+        alertSuccess("Berhasil mengekspor ke PDF");
     };
 
     return (
-        <>
-            <div className="flex items-center justify-between">
-                <Heading title="Laporan" description="Analisis data penjualan dan inventori" />
+        <div className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Laporan</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">Analisis data penjualan dan inventori</p>
+                </div>
                 <div className="flex items-center gap-2">
                     <Popover>
                         <PopoverTrigger asChild>
@@ -752,7 +755,7 @@ export function ReportsClient() {
                     )}
                 </TabsContent>
             </Tabs>
-        </>
+        </div>
     );
 }
 

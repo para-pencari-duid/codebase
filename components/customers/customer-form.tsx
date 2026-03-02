@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -82,24 +82,25 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ initialData }) => {
             }
             router.refresh();
             router.push("/customers");
-            toast.success(toastMessage);
+            alertSuccess(toastMessage);
         } catch {
-            toast.error("Terjadi kesalahan.");
+            alertError("Terjadi kesalahan.");
         } finally {
             setLoading(false);
         }
     };
 
     const onDelete = async () => {
-        if (!confirm("Yakin ingin menghapus pelanggan ini?")) return;
+        const ok = await confirmDestroy({ title: "Hapus pelanggan?", description: "Data pelanggan ini akan dihapus permanen." });
+        if (!ok) return;
         try {
             setLoading(true);
             await fetch(`/api/customers/${initialData?.id}`, { method: "DELETE" });
             router.refresh();
             router.push("/customers");
-            toast.success("Pelanggan berhasil dihapus.");
+            alertSuccess("Pelanggan berhasil dihapus.");
         } catch {
-            toast.error("Gagal menghapus pelanggan.");
+            alertError("Gagal menghapus pelanggan.");
         } finally {
             setLoading(false);
         }
@@ -109,8 +110,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ initialData }) => {
         <>
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                    <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
-                    <p className="text-sm text-muted-foreground">{description}</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">{title}</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">{description}</p>
                 </div>
                 {initialData && (
                     <Button disabled={loading} variant="destructive" size="sm" onClick={onDelete}>

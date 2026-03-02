@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Edit, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { formatDate } from "@/lib/utils";
 
 export type UserColumn = {
@@ -36,17 +36,18 @@ function CellActions({ row }: { row: UserColumn }) {
     const router = useRouter();
 
     const onDelete = async () => {
-        if (!confirm("Yakin ingin menghapus/menonaktifkan pengguna ini?")) return;
+        const ok = await confirmDestroy({ title: "Hapus pengguna?", description: "Pengguna akan dihapus atau dinonaktifkan." });
+        if (!ok) return;
         try {
             const res = await fetch(`/api/users/${row.id}`, { method: "DELETE" });
             if (!res.ok) {
                 const msg = await res.text();
                 throw new Error(msg);
             }
-            toast.success("Pengguna berhasil dihapus/dinonaktifkan");
+            alertSuccess("Pengguna berhasil dihapus/dinonaktifkan");
             router.refresh();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Gagal menghapus pengguna");
+            alertError(error instanceof Error ? error.message : "Gagal menghapus pengguna");
         }
     };
 

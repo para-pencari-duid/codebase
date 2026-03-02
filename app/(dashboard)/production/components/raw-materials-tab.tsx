@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { formatCurrency } from "@/lib/dashboard-utils";
 
 interface RawMaterial {
@@ -65,7 +65,7 @@ export function RawMaterialsTab() {
         setMaterials(data);
       }
     } catch (error) {
-      toast.error("Gagal memuat bahan baku");
+      alertError("Gagal memuat bahan baku");
     } finally {
       setLoading(false);
     }
@@ -89,13 +89,13 @@ export function RawMaterialsTab() {
         throw new Error(error.error);
       }
 
-      toast.success(editing ? "Bahan baku berhasil diupdate" : "Bahan baku berhasil ditambahkan");
+      alertSuccess(editing ? "Bahan baku berhasil diupdate" : "Bahan baku berhasil ditambahkan");
       setShowDialog(false);
       setEditing(null);
       setFormData({ name: "", sku: "", unit: "kg", stock: "0", minStock: "1", cost: "0", supplier: "" });
       fetchMaterials();
     } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+      alertError(error.message || "Terjadi kesalahan");
     }
   };
 
@@ -114,7 +114,8 @@ export function RawMaterialsTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Hapus bahan baku ini?")) return;
+    const ok = await confirmDestroy({ title: "Hapus bahan baku?", text: "Bahan baku akan dihapus permanen." });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/raw-materials/${id}`, {
@@ -126,10 +127,10 @@ export function RawMaterialsTab() {
         throw new Error(error.error);
       }
 
-      toast.success("Bahan baku berhasil dihapus");
+      alertSuccess("Bahan baku berhasil dihapus");
       fetchMaterials();
     } catch (error: any) {
-      toast.error(error.message || "Gagal menghapus bahan baku");
+      alertError(error.message || "Gagal menghapus bahan baku");
     }
   };
 
@@ -139,62 +140,51 @@ export function RawMaterialsTab() {
     <>
       {/* Low Stock Alert */}
       {lowStockMaterials.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50/50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
-              <CardTitle className="text-orange-900">Bahan Baku Hampir Habis</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-orange-700">
-              {lowStockMaterials.length} bahan baku memerlukan restok
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: "oklch(0.97 0.06 60)", border: "1px solid oklch(0.85 0.06 60)" }}>
+          <AlertCircle className="h-5 w-5 shrink-0" style={{ color: "oklch(0.50 0.14 55)" }} />
+          <div>
+            <p className="font-semibold text-sm" style={{ color: "oklch(0.40 0.14 55)" }}>Bahan Baku Hampir Habis</p>
+            <p className="text-xs mt-0.5" style={{ color: "oklch(0.50 0.10 55)" }}>{lowStockMaterials.length} bahan baku memerlukan restok</p>
+          </div>
+        </div>
       )}
 
-      {/* Materials Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Daftar Bahan Baku</CardTitle>
-            <Button onClick={() => { setEditing(null); setShowDialog(true); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Bahan Baku
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+      {/* ── Table ── */}
+      <div className="rounded-xl border overflow-hidden" style={{ boxShadow: "0 1px 3px oklch(0 0 0 / 5%)" }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <p className="text-sm font-semibold text-gray-700">Daftar Bahan Baku</p>
+          <Button size="sm" onClick={() => { setEditing(null); setShowDialog(true); }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah
+          </Button>
+        </div>
           {loading ? (
-            <p>Loading...</p>
+            <p className="text-center py-8 text-gray-400 text-sm">Loading...</p>
           ) : materials.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Belum ada bahan baku</p>
-            </div>
+            <div className="text-center py-10 text-gray-400 text-sm">Belum ada bahan baku</div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Stok</TableHead>
-                  <TableHead>Min Stok</TableHead>
-                  <TableHead>Harga</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                <TableRow style={{ background: "oklch(0.97 0.002 80)" }}>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">SKU</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stok</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Min</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Harga</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Supplier</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {materials.map((material) => (
-                  <TableRow key={material.id}>
-                    <TableCell className="font-medium">{material.name}</TableCell>
-                    <TableCell>{material.sku || "-"}</TableCell>
+                  <TableRow key={material.id} className="hover:bg-gray-50/60 transition-colors">
+                    <TableCell className="font-medium text-gray-900">{material.name}</TableCell>
+                    <TableCell className="font-mono text-xs text-gray-400">{material.sku || "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span>{material.stock} {material.unit}</span>
                         {material.stock <= material.minStock && (
-                          <Badge variant="destructive" className="text-xs">Low</Badge>
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "oklch(0.94 0.08 20)", color: "oklch(0.45 0.16 20)" }}>Low</span>
                         )}
                       </div>
                     </TableCell>
@@ -216,8 +206,7 @@ export function RawMaterialsTab() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Add/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

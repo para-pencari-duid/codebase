@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { formatCurrency } from "@/lib/utils";
 
 export type CustomerColumn = {
@@ -32,13 +32,14 @@ const CellAction = ({ data }: { data: CustomerColumn }) => {
     const router = useRouter();
 
     const onDelete = async () => {
-        if (!confirm("Yakin ingin menghapus pelanggan ini?")) return;
+        const ok = await confirmDestroy({ title: "Hapus pelanggan?", description: "Data pelanggan ini akan dihapus permanen." });
+        if (!ok) return;
         try {
             await fetch(`/api/customers/${data.id}`, { method: "DELETE" });
-            toast.success("Pelanggan berhasil dihapus.");
+            alertSuccess("Pelanggan berhasil dihapus.");
             router.refresh();
         } catch {
-            toast.error("Gagal menghapus pelanggan.");
+            alertError("Gagal menghapus pelanggan.");
         }
     };
 

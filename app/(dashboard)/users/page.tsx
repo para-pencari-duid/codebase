@@ -37,7 +37,7 @@ export default async function UsersPage() {
     }));
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="p-5 lg:p-7">
             <UserClient data={formattedUsers} currentUserRole={session.user.role || "KASIR"} />
         </div>
     );

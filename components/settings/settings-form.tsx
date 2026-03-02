@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { toast } from "sonner";
+import { alertSuccess, alertError } from "@/lib/swal";
 import {
   Save,
   Store,
@@ -220,10 +220,10 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
 
       if (!res.ok) throw new Error("Gagal menyimpan pengaturan");
 
-      toast.success("Pengaturan berhasil disimpan");
+      alertSuccess("Pengaturan berhasil disimpan");
       router.refresh();
     } catch {
-      toast.error("Terjadi kesalahan saat menyimpan");
+      alertError("Terjadi kesalahan saat menyimpan");
     } finally {
       setLoading(false);
     }
@@ -807,7 +807,7 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
           </Card>
 
           {/* Tier 3-6 Feature Toggles */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Fitur Lanjutan (Tier 3-6)</CardTitle>
               <CardDescription>
@@ -895,7 +895,7 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
                 />
               ))}
             </CardContent>
-          </Card>
+          </Card> */}
 
           <div className="flex justify-end">
             <Button type="submit" disabled={loading} size="lg">
