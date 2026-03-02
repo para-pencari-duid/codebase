@@ -6,8 +6,8 @@ import * as z from "zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import Link from "next/link";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,27 +19,21 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { alertSuccess, alertError } from "@/lib/swal";
 
 const formSchema = z.object({
-    email: z.string().email({
-        message: "Email tidak valid.",
-    }),
-    password: z.string().min(1, {
-        message: "Password harus diisi.",
-    }),
+    email: z.string().email({ message: "Email tidak valid." }),
+    password: z.string().min(1, { message: "Password harus diisi." }),
 });
 
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: {
-            email: "",
-            password: "",
-        },
+        defaultValues: { email: "", password: "" },
     });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -53,70 +47,124 @@ export default function LoginPage() {
             });
 
             if (result?.error) {
-                toast.error("Login gagal. Periksa email dan password Anda.");
+                alertError("Periksa kembali email dan password Anda.", "Login Gagal");
             } else {
-                toast.success("Login berhasil!");
+                await alertSuccess("Selamat datang kembali!", "Login Berhasil");
                 router.push("/dashboard");
                 router.refresh();
             }
-        } catch (error) {
-            toast.error("Terjadi kesalahan sistem.");
+        } catch {
+            alertError("Terjadi kesalahan sistem. Coba lagi.");
         } finally {
             setIsLoading(false);
         }
     }
 
     return (
-        <Card>
-            <CardHeader className="space-y-1 text-center">
-                <CardTitle className="text-2xl font-bold">Masuk ke Sistem</CardTitle>
-                <CardDescription>
-                    Masukkan email dan password untuk masuk ke sistem
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="email"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Email</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="email@usaha.com" {...field} disabled={isLoading} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Password</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="******" {...field} disabled={isLoading} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? "Loading..." : "Login"}
-                        </Button>
-                    </form>
-                </Form>
-            </CardContent>
-            <CardFooter className="justify-center">
-                <p className="text-sm text-muted-foreground">
-                    Belum punya akun usaha?{" "}
-                    <Link href="/register" className="font-semibold text-primary hover:underline">
-                        Daftar di sini
-                    </Link>
+        <div className="space-y-6">
+            {/* Heading */}
+            <div className="space-y-1">
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                    Masuk ke akun Anda
+                </h2>
+                <p className="text-sm text-gray-500">
+                    Gunakan email dan password yang terdaftar
                 </p>
-            </CardFooter>
-        </Card>
+            </div>
+
+            {/* Form */}
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    {/* Email */}
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-sm font-medium text-gray-700">
+                                    Email
+                                </FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder="email@usaha.com"
+                                        type="email"
+                                        autoComplete="email"
+                                        className="h-10 border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+                                        disabled={isLoading}
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    {/* Password */}
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-sm font-medium text-gray-700">
+                                    Password
+                                </FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="••••••••"
+                                            autoComplete="current-password"
+                                            className="h-10 pr-10 border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+                                            disabled={isLoading}
+                                            {...field}
+                                        />
+                                        <button
+                                            type="button"
+                                            tabIndex={-1}
+                                            onClick={() => setShowPassword((v) => !v)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                        >
+                                            {showPassword
+                                                ? <EyeOff className="h-4 w-4" />
+                                                : <Eye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    {/* Submit */}
+                    <Button
+                        type="submit"
+                        className="w-full h-10 font-semibold mt-2"
+                        disabled={isLoading}
+                    >
+                        {isLoading
+                            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</>
+                            : "Masuk"}
+                    </Button>
+                </form>
+            </Form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-gray-100" />
+                <span className="text-xs text-gray-400">atau</span>
+                <div className="h-px flex-1 bg-gray-100" />
+            </div>
+
+            {/* Register link */}
+            <p className="text-center text-sm text-gray-500">
+                Belum punya akun usaha?{" "}
+                <Link
+                    href="/register"
+                    className="font-semibold text-gray-900 hover:underline underline-offset-4"
+                >
+                    Daftar di sini
+                </Link>
+            </p>
+        </div>
     );
 }

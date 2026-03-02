@@ -5,10 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import Link from "next/link";
 import {
-    Coffee, Cake, WashingMachine, Store, Scissors, Truck, Building2, HelpCircle,
+    Coffee, Cake, WashingMachine, Store, Scissors, Truck, Building2, HelpCircle, Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,9 +21,9 @@ import {
     FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { alertSuccess, alertError } from "@/lib/swal";
 
 const BUSINESS_TYPES = [
     {
@@ -159,31 +158,34 @@ export default function RegisterPage() {
                 if (res.status === 409) {
                     form.setError("businessSlug", { message: data.error });
                 } else {
-                    toast.error(data.error || "Pendaftaran gagal.");
+                    alertError(data.error || "Pendaftaran gagal.");
                 }
                 return;
             }
 
-            toast.success("Usaha berhasil didaftarkan! Silakan login.");
+            await alertSuccess("Silakan login dengan akun baru Anda.", "Pendaftaran Berhasil!");
             router.push("/login");
         } catch {
-            toast.error("Terjadi kesalahan. Coba lagi.");
+            alertError("Terjadi kesalahan. Coba lagi.");
         } finally {
             setIsLoading(false);
         }
     }
 
     return (
-        <Card>
-            <CardHeader className="space-y-1 text-center">
-                <CardTitle className="text-2xl font-bold">Daftarkan Usaha Anda</CardTitle>
-                <CardDescription>
-                    Buat akun baru untuk mengelola usaha Anda dengan sistem ERP
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-6">
+            {/* Heading */}
+            <div className="space-y-1">
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                    Daftarkan Usaha Anda
+                </h2>
+                <p className="text-sm text-gray-500">
+                    Buat akun baru untuk mengelola usaha Anda
+                </p>
+            </div>
+
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
                         {/* ── Tipe Usaha ── */}
                         <FormField
@@ -369,20 +371,27 @@ export default function RegisterPage() {
                             />
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? "Mendaftarkan..." : "Daftar Sekarang"}
+                        <Button type="submit" className="w-full h-10 font-semibold" disabled={isLoading}>
+                            {isLoading
+                                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Mendaftarkan...</>
+                                : "Daftar Sekarang"}
                         </Button>
                     </form>
-                </Form>
-            </CardContent>
-            <CardFooter className="justify-center">
-                <p className="text-sm text-muted-foreground">
-                    Sudah punya akun?{" "}
-                    <Link href="/login" className="font-semibold text-primary hover:underline">
-                        Login di sini
-                    </Link>
-                </p>
-            </CardFooter>
-        </Card>
+            </Form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-gray-100" />
+                <span className="text-xs text-gray-400">atau</span>
+                <div className="h-px flex-1 bg-gray-100" />
+            </div>
+
+            <p className="text-center text-sm text-gray-500">
+                Sudah punya akun?{" "}
+                <Link href="/login" className="font-semibold text-gray-900 hover:underline underline-offset-4">
+                    Login di sini
+                </Link>
+            </p>
+        </div>
     );
 }

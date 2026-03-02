@@ -126,3 +126,73 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── SweetAlert2 custom styling ─────────────────────────────────────────── */
+
+.swal-popup {
+  border-radius: 0.75rem !important;
+  padding: 1.75rem !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif !important;
+  box-shadow: 0 8px 32px oklch(0 0 0 / 12%) !important;
+}
+
+.swal-title {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  color: oklch(0.145 0 0) !important;
+}
+
+/* Primary confirm button */
+.swal-btn-primary {
+  background-color: oklch(0.205 0 0);
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease;
+}
+.swal-btn-primary:hover {
+  opacity: 0.85;
+}
+
+/* Destructive confirm button */
+.swal-btn-danger {
+  background-color: oklch(0.577 0.245 27.325);
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease;
+}
+.swal-btn-danger:hover {
+  opacity: 0.85;
+}
+
+/* Cancel button */
+.swal-btn-cancel {
+  background-color: oklch(0.97 0 0);
+  color: oklch(0.4 0 0);
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid oklch(0.922 0 0);
+  transition: background-color 0.15s ease;
+}
+.swal-btn-cancel:hover {
+  background-color: oklch(0.93 0 0);
+}
+
+/* Toast popup */
+.swal-toast {
+  border-radius: 0.625rem !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif !important;
+  box-shadow: 0 4px 16px oklch(0 0 0 / 10%) !important;
+}
