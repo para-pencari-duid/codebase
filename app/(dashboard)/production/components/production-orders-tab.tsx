@@ -63,7 +63,7 @@ export function ProductionOrdersTab() {
   };
 
   const handleStart = async (id: string) => {
-    const ok = await confirmAction({ title: "Mulai produksi?", text: "Bahan baku akan dikurangi dari stok." });
+    const ok = await confirmAction({ title: "Mulai produksi?", description: "Bahan baku akan dikurangi dari stok." });
     if (!ok) return;
 
     try {
