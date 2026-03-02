@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 
@@ -29,23 +30,32 @@ export async function POST(req: NextRequest) {
             return new NextResponse("Ukuran file maksimal 5MB", { status: 400 });
         }
 
-        // Generate unique filename
+        const bytes = await file.arrayBuffer();
+        const inputBuffer = Buffer.from(bytes);
+
+        // Convert to WebP (skip animated GIF)
+        let uploadBuffer: Buffer;
+        if (file.type === "image/gif") {
+            // Keep GIF as-is (may be animated)
+            uploadBuffer = inputBuffer;
+        } else {
+            uploadBuffer = await sharp(inputBuffer)
+                .webp({ quality: 82 })
+                .toBuffer();
+        }
+
+        // Generate unique filename — always .webp (except GIF)
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 8);
-        const ext = file.type === "image/webp" ? "webp"
-            : file.type === "image/png" ? "png"
-            : file.type === "image/gif" ? "gif"
-            : "jpg";
+        const ext = file.type === "image/gif" ? "gif" : "webp";
         const filename = `${timestamp}-${randomStr}.${ext}`;
-
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        const contentType = file.type === "image/gif" ? "image/gif" : "image/webp";
 
         // Upload to Supabase Storage
         const { error } = await supabaseAdmin.storage
             .from(STORAGE_BUCKET)
-            .upload(filename, buffer, {
-                contentType: file.type,
+            .upload(filename, uploadBuffer, {
+                contentType,
                 upsert: false,
             });
 
