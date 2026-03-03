@@ -30,6 +30,7 @@ export interface PosProduct {
   unit: string;
   categoryId: string | null;
   category: PosProductCategory | null;
+  orderType: "READY" | "PRE_ORDER";
   price: number;
   cost: number;
   stock: number;
@@ -38,6 +39,7 @@ export interface PosProduct {
   updatedAt: string;
   modifierGroups: PosModifierGroup[];
 }
+
 
 export interface PosCategory {
   id: string;

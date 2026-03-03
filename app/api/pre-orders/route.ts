@@ -137,6 +137,45 @@ export async function POST(req: NextRequest) {
     // Use first item as primary label for backward-compat legacy fields
     const firstItem = parsedItems[0];
 
+    // Resolve or create Customer record
+    let resolvedCustomerId: string | null = customerId || null;
+
+    if (!resolvedCustomerId && customerPhone) {
+      // Try to find existing customer by phone, or create a new one
+      try {
+        const existingCustomer = await prisma.customer.findUnique({
+          where: { phone: customerPhone.trim() },
+        });
+
+        if (existingCustomer) {
+          resolvedCustomerId = existingCustomer.id;
+          // Update name if changed
+          if (existingCustomer.name !== customerName.trim()) {
+            await prisma.customer.update({
+              where: { id: existingCustomer.id },
+              data: {
+                name: customerName.trim(),
+                ...(customerAddress?.trim() && { address: customerAddress.trim() }),
+              },
+            });
+          }
+        } else {
+          const newCustomer = await prisma.customer.create({
+            data: {
+              name: customerName.trim(),
+              phone: customerPhone.trim(),
+              address: customerAddress?.trim() || null,
+              isActive: true,
+            },
+          });
+          resolvedCustomerId = newCustomer.id;
+        }
+      } catch (customerErr) {
+        console.error("[pre-orders POST] Failed to upsert customer:", customerErr);
+        // Non-blocking: continue without customerId if upsert fails
+      }
+    }
+
     // Generate nomor tiket
     let ticketNo = generateTicketNo();
     const existing = await prisma.jobTicket.findFirst({ where: { ticketNo } });
@@ -165,7 +204,7 @@ export async function POST(req: NextRequest) {
         deliveryType: deliveryType || "PICKUP",
         status: "PENDING",
         createdBy: session.user.id,
-        customerId: customerId || null,
+        customerId: resolvedCustomerId,
         items: {
           create: parsedItems.map((it) => ({
             name: it.name,

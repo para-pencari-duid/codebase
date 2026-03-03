@@ -17,6 +17,7 @@ export interface PosCustomer {
   id: string;
   name: string;
   phone: string;
+  address?: string | null;
 }
 
 export interface PosLoyaltyInfo {

@@ -7,6 +7,7 @@ const productSchema = z.object({
     name: z.string().min(1),
     sku: z.string().min(1),
     categoryId: z.string().optional().nullable(),
+    orderType: z.enum(["READY", "PRE_ORDER"]).default("READY"),
     price: z.coerce.number().min(0),
     cost: z.coerce.number().min(0).optional(),
     stock: z.coerce.number().min(0),
@@ -16,6 +17,7 @@ const productSchema = z.object({
     images: z.array(z.string()).optional(),
     isActive: z.boolean().default(true),
 });
+
 
 export const runtime = "nodejs";
 
@@ -56,7 +58,8 @@ export async function PUT(
 
         const { id } = await params;
         const body = await req.json();
-        const { name, sku, categoryId, price, cost, stock, minStock, unit, description, images, isActive } = productSchema.parse(body);
+        const { name, sku, categoryId, orderType, price, cost, stock, minStock, unit, description, images, isActive } = productSchema.parse(body);
+
 
         if (!id) {
             return new NextResponse("Product ID is required", { status: 400 });
@@ -69,6 +72,7 @@ export async function PUT(
                 name,
                 sku,
                 categoryId: categoryId || null,
+                orderType: orderType ?? "READY",
                 basePrice: price,
                 baseCost: cost || 0,
                 unit,
@@ -76,6 +80,7 @@ export async function PUT(
                 images: images || [],
                 isActive,
             },
+
         });
 
         // Update the default variant

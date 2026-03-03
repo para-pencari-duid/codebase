@@ -65,12 +65,13 @@ function mapProduct(item: PosProductRecord): PosProduct {
     categoryId: item.categoryId,
     category: item.category
       ? {
-          id: item.category.id,
-          name: item.category.name,
-          icon: item.category.icon,
-          color: item.category.color,
-        }
+        id: item.category.id,
+        name: item.category.name,
+        icon: item.category.icon,
+        color: item.category.color,
+      }
       : null,
+    orderType: (item.orderType as "READY" | "PRE_ORDER") ?? "READY",
     price: Number(item.variants[0]?.price ?? item.basePrice ?? 0),
     cost: Number(item.variants[0]?.cost ?? item.baseCost ?? 0),
     stock: Number(item.variants[0]?.stock ?? 0),

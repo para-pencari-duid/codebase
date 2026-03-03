@@ -339,45 +339,32 @@ export function createTransactionMessage(data: {
   businessPhone?: string;
 }): string {
   const itemsList = data.items
-    .map((item) => `  ${item.quantity}x ${item.name} - ${formatCurrency(item.price)}`)
+    .map((item) => `${item.quantity}x ${item.name.padEnd(22)} ${formatCurrency(item.price * item.quantity)}`)
     .join("\n");
 
-  return `
-╔═══════════════════════════════════╗
-  ${data.businessName.toUpperCase()}
-  ${data.businessAddress || ""}
-  ${data.businessPhone || ""}
-╚═══════════════════════════════════╝
+  const lines = [
+    `*${data.businessName}*`,
+    data.businessAddress || null,
+    data.businessPhone || null,
+    "",
+    `No        : ${data.transactionNo}`,
+    `Tgl       : ${formatDate(new Date())}`,
+    `Atas Nama : ${data.customerName}`,
+    "",
+    itemsList,
+    "",
+    `Subtotal : ${formatCurrency(data.subtotal)}`,
+    data.tax > 0 ? `Pajak    : ${formatCurrency(data.tax)}` : null,
+    data.discount > 0 ? `Diskon   : -${formatCurrency(data.discount)}` : null,
+    `*Total    : ${formatCurrency(data.total)}*`,
+    "",
+    `Bayar : ${data.payment}`,
+    data.points ? `Poin  : +${data.points} poin` : null,
+    "",
+    `Terima kasih, ${data.customerName}.`,
+  ];
 
-📋 STRUK PEMBELIAN
-
-No. Transaksi: ${data.transactionNo}
-Tanggal: ${formatDate(new Date())}
-Pelanggan: ${data.customerName}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-ITEM PEMBELIAN:
-${itemsList}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Subtotal    : ${formatCurrency(data.subtotal)}
-Pajak       : ${formatCurrency(data.tax)}
-Diskon      : ${formatCurrency(data.discount)}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TOTAL       : ${formatCurrency(data.total)}
-
-Pembayaran  : ${data.payment}
-${data.points ? `Poin Didapat: +${data.points} poin 🎁` : ""}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Terima kasih atas kepercayaan Anda!
-Semoga hari Anda menyenangkan. 😊
-
-~ ${data.businessName} ~
-`.trim();
+  return lines.filter((l) => l !== null).join("\n");
 }
 
 /**

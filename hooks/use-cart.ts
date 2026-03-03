@@ -22,6 +22,7 @@ export interface CartItem {
     };
     modifiers?: CartItemModifier[];
     notes?: string;
+    isPreOrder?: boolean;  // true when this item is a pre-order product
 }
 
 interface CartStore {

@@ -17,6 +17,8 @@ interface UsePosCustomerResult {
   setNewCustomerName: (value: string) => void;
   newCustomerPhone: string;
   setNewCustomerPhone: (value: string) => void;
+  newCustomerAddress: string;
+  setNewCustomerAddress: (value: string) => void;
   addNewLoading: boolean;
   handleAddNewCustomer: () => Promise<void>;
   resetCustomerState: () => void;
@@ -33,6 +35,7 @@ export function usePosCustomer(): UsePosCustomerResult {
   const [showAddNew, setShowAddNew] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const [addNewLoading, setAddNewLoading] = useState(false);
 
   useEffect(() => {
@@ -82,6 +85,7 @@ export function usePosCustomer(): UsePosCustomerResult {
         body: JSON.stringify({
           name: newCustomerName.trim(),
           phone: newCustomerPhone.trim(),
+          address: newCustomerAddress.trim() || null,
         }),
       });
 
@@ -92,6 +96,7 @@ export function usePosCustomer(): UsePosCustomerResult {
       setShowAddNew(false);
       setNewCustomerName("");
       setNewCustomerPhone("");
+      setNewCustomerAddress("");
       setCustomerOpen(false);
       toast.success(`Pelanggan "${newCustomer.name}" berhasil ditambahkan`);
     } catch {
@@ -109,6 +114,7 @@ export function usePosCustomer(): UsePosCustomerResult {
     setShowAddNew(false);
     setNewCustomerName("");
     setNewCustomerPhone("");
+    setNewCustomerAddress("");
     setAddNewLoading(false);
   };
 
@@ -127,6 +133,8 @@ export function usePosCustomer(): UsePosCustomerResult {
     setNewCustomerName,
     newCustomerPhone,
     setNewCustomerPhone,
+    newCustomerAddress,
+    setNewCustomerAddress,
     addNewLoading,
     handleAddNewCustomer,
     resetCustomerState,

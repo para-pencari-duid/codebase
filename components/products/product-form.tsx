@@ -18,6 +18,7 @@ type Product = {
   name: string;
   sku: string;
   categoryId?: string | null;
+  orderType?: "READY" | "PRE_ORDER" | null;
   price?: any;
   cost?: any;
   stock?: any;
@@ -27,6 +28,7 @@ type Product = {
   images?: string[];
   isActive?: boolean;
 };
+
 import { alertSuccess, alertError, confirmDestroy } from "@/lib/swal";
 import { Trash } from "lucide-react";
 
@@ -60,7 +62,8 @@ import {
 const formSchema = z.object({
   name: z.string().min(1, "Nama produk wajib diisi"),
   sku: z.string().min(1, "SKU wajib diisi"),
-  categoryId: z.string().min(1, "Kategori wajib dipilih"),
+  categoryId: z.string().optional(),
+  orderType: z.enum(["READY", "PRE_ORDER"]).default("READY"),
   price: z.coerce.number().min(0, "Harga tidak boleh negatif"),
   cost: z.coerce.number().min(0).optional(),
   stock: z.coerce.number().min(0).default(0),
@@ -70,6 +73,7 @@ const formSchema = z.object({
   images: z.array(z.string()).default([]),
   isActive: z.boolean().default(true),
 });
+
 
 interface ProductFormProps {
   initialData: Product | null;
@@ -94,26 +98,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const defaultValues = initialData
     ? {
-        ...initialData,
-        price: parseFloat(String(initialData.price)),
-        cost: initialData.cost ? parseFloat(String(initialData.cost)) : 0,
-        description: initialData.description || "",
-        images: initialData.images || [],
-        minStock: initialData.minStock || 0,
-      }
+      ...initialData,
+      categoryId: initialData.categoryId ?? "",
+      orderType: (initialData.orderType as "READY" | "PRE_ORDER") ?? "READY",
+      price: parseFloat(String(initialData.price)),
+      cost: initialData.cost ? parseFloat(String(initialData.cost)) : 0,
+      description: initialData.description || "",
+      images: initialData.images || [],
+      minStock: initialData.minStock || 0,
+    }
     : {
-        name: "",
-        sku: "",
-        categoryId: "",
-        price: 0,
-        cost: 0,
-        stock: 0,
-        minStock: 5,
-        unit: "pcs",
-        description: "",
-        images: [],
-        isActive: true,
-      };
+      name: "",
+      sku: "",
+      categoryId: "",
+      orderType: "READY" as const,
+      price: 0,
+      cost: 0,
+      stock: 0,
+      minStock: 5,
+      unit: "pcs",
+      description: "",
+      images: [],
+      isActive: true,
+    };
 
   type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -121,6 +128,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     resolver: zodResolver(formSchema) as any,
     defaultValues: defaultValues as Partial<ProductFormValues>,
   });
+
+  // Watch orderType reactively to conditionally show/hide stock fields
+  const watchedOrderType = form.watch("orderType");
+  const isPreOrder = watchedOrderType === "PRE_ORDER";
 
   const onSubmit = async (data: ProductFormValues) => {
     try {
@@ -258,6 +269,33 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </FormItem>
               )}
             />
+            {/* Jenis Pesanan */}
+            <FormField
+              control={form.control}
+              name="orderType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jenis Pesanan</FormLabel>
+                  <Select
+                    disabled={loading}
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih jenis pesanan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="READY">Kue Jadi (Ready)</SelectItem>
+                      <SelectItem value="PRE_ORDER">Pre-Order</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="unit"
@@ -323,42 +361,46 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="stock"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stok Awal</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      disabled={loading}
-                      placeholder="0"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="minStock"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Minimum Stok (Alert)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      disabled={loading}
-                      placeholder="5"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isPreOrder && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="stock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stok Awal</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          disabled={loading}
+                          placeholder="0"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="minStock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Minimum Stok (Alert)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          disabled={loading}
+                          placeholder="5"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
           </div>
 
           <FormField

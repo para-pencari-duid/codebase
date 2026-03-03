@@ -34,10 +34,26 @@ export async function GET(req: Request) {
       where.isActive = isActiveParam === "true";
     }
 
-    const materials = await prisma.item.findMany({
+    const rawMaterials = await prisma.item.findMany({
       where,
       include: { variants: true },
       orderBy: { name: "asc" },
+    });
+
+    // Flatten first variant fields so UI gets stock/minStock/cost directly
+    const materials = rawMaterials.map((item) => {
+      const variant = item.variants[0];
+      return {
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        unit: item.unit,
+        isActive: item.isActive,
+        supplier: item.description ?? null, // description is repurposed as supplier notes
+        stock: variant ? Number(variant.stock) : 0,
+        minStock: variant ? Number(variant.minStock) : 0,
+        cost: variant ? Number(variant.cost ?? 0) : 0,
+      };
     });
 
     return NextResponse.json(materials);

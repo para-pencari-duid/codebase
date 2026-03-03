@@ -17,6 +17,10 @@ interface PosCartPanelProps {
   onUpdateNotes: (item: CartItem, notes: string) => void;
   onClearCart: () => void;
   onGoToCheckout: () => void;
+  /** Feature 5: pass true when at least one cart item is a pre-order */
+  hasPreOrderItems?: boolean;
+  /** Feature 5: callback to open the pre-order dialog */
+  onGoToPreOrder?: () => void;
 }
 
 export function PosCartPanel({
@@ -31,6 +35,8 @@ export function PosCartPanel({
   onUpdateNotes,
   onClearCart,
   onGoToCheckout,
+  hasPreOrderItems = false,
+  onGoToPreOrder,
 }: PosCartPanelProps) {
   return (
     <>
@@ -39,6 +45,12 @@ export function PosCartPanel({
           <ShoppingCart className="h-4 w-4" />
           Keranjang ({itemCount} item)
         </h2>
+        {hasPreOrderItems && (
+          <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+            <CalendarClock className="h-3 w-3" />
+            Ada produk pre-order di keranjang
+          </p>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -51,26 +63,27 @@ export function PosCartPanel({
           items.map((item) => (
             <div
               key={item.id}
-              className="flex gap-3 p-3 bg-white rounded-lg border shadow-sm"
+              className={`flex gap-3 p-3 rounded-lg border shadow-sm ${item.isPreOrder ? "border-amber-200 bg-amber-50/40" : "bg-white"
+                }`}
             >
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-sm line-clamp-1">
+                <h4 className="font-medium text-sm line-clamp-1 flex items-center gap-1.5">
                   {item.name}
+                  {item.isPreOrder && (
+                    <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700">
+                      Pre-Order
+                    </span>
+                  )}
                 </h4>
                 {item.modifiers && item.modifiers.length > 0 && (
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {item.modifiers
-                      .map((modifier) => modifier.optionName)
-                      .join(", ")}
+                    {item.modifiers.map((m) => m.optionName).join(", ")}
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
                   {formatCurrency(
                     Number(item.price) +
-                      (item.modifiers || []).reduce(
-                        (sum, modifier) => sum + modifier.price,
-                        0,
-                      ),
+                    (item.modifiers || []).reduce((sum, m) => sum + m.price, 0),
                   )}
                 </p>
                 <input
@@ -91,14 +104,13 @@ export function PosCartPanel({
                   >
                     <Minus className="h-3 w-3" />
                   </Button>
-                  <span className="text-sm w-5 text-center">
-                    {item.quantity}
-                  </span>
+                  <span className="text-sm w-5 text-center">{item.quantity}</span>
                   <Button
                     variant="outline"
                     size="icon"
                     className="h-6 w-6"
-                    disabled={item.quantity >= item.stock}
+                    // Feature 6: pre-order items have no stock cap
+                    disabled={!item.isPreOrder && item.quantity >= item.stock}
                     onClick={() => onIncreaseQuantity(item)}
                   >
                     <Plus className="h-3 w-3" />
@@ -107,11 +119,8 @@ export function PosCartPanel({
                 <span className="text-sm font-semibold">
                   {formatCurrency(
                     (Number(item.price) +
-                      (item.modifiers || []).reduce(
-                        (sum, modifier) => sum + modifier.price,
-                        0,
-                      )) *
-                      item.quantity,
+                      (item.modifiers || []).reduce((sum, m) => sum + m.price, 0)) *
+                    item.quantity,
                   )}
                 </span>
               </div>
@@ -147,18 +156,38 @@ export function PosCartPanel({
             >
               <Trash className="mr-2 h-4 w-4" /> Batal
             </Button>
-            <Button onClick={onGoToCheckout} disabled={items.length === 0}>
+            {/* Feature 5: disable Pay when cart has pre-order items */}
+            <Button
+              onClick={onGoToCheckout}
+              disabled={items.length === 0 || hasPreOrderItems}
+              title={
+                hasPreOrderItems
+                  ? "Ada produk pre-order — lanjut ke formulir pre-order"
+                  : undefined
+              }
+            >
               Bayar
             </Button>
           </div>
-          <Link href="/pre-orders">
+          {/* Feature 5: show pre-order CTA when mixed cart detected */}
+          {hasPreOrderItems && onGoToPreOrder ? (
             <Button
-              variant="outline"
-              className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={onGoToPreOrder}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
             >
-              <CalendarClock className="mr-2 h-4 w-4" /> Pre-Order
+              <CalendarClock className="mr-2 h-4 w-4" />
+              Lanjut ke Pre-Order
             </Button>
-          </Link>
+          ) : (
+            <Link href="/pre-orders">
+              <Button
+                variant="outline"
+                className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
+              >
+                <CalendarClock className="mr-2 h-4 w-4" /> Pre-Order
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </>

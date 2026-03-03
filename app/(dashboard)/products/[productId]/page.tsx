@@ -13,23 +13,9 @@ export default async function ProductPage({
 
     const { productId } = await params;
 
-    // Ensure the two required categories always exist
-    await Promise.all([
-        db.itemCategory.upsert({
-            where: { name: 'Produk Siap' },
-            update: {},
-            create: { name: 'Produk Siap' },
-        }),
-        db.itemCategory.upsert({
-            where: { name: 'Pre-Order' },
-            update: {},
-            create: { name: 'Pre-Order' },
-        }),
-    ]);
-
-    // Only expose the two simplified categories
+    // Load all active categories for the product form
     const categories = await db.itemCategory.findMany({
-        where: { name: { in: ['Produk Siap', 'Pre-Order'] } },
+        where: { isActive: true },
         orderBy: { name: 'asc' },
     });
 

@@ -4,30 +4,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Search,
   User,
   UserPlus,
   Loader2,
-  ChevronsUpDown,
   Gift,
   Check,
+  X,
+  MapPin,
 } from "lucide-react";
+
 import {
   clampPercentDiscount,
   formatNumberInputValue,
@@ -44,8 +40,6 @@ import type { PosPaymentMethodUiOption } from "./types";
 
 interface PosCheckoutPanelProps {
   items: CartItem[];
-  customerOpen: boolean;
-  setCustomerOpen: (value: boolean) => void;
   customerQuery: string;
   setCustomerQuery: (value: string) => void;
   customers: PosCustomer[];
@@ -58,6 +52,8 @@ interface PosCheckoutPanelProps {
   setNewCustomerName: (value: string) => void;
   newCustomerPhone: string;
   setNewCustomerPhone: (value: string) => void;
+  newCustomerAddress: string;
+  setNewCustomerAddress: (value: string) => void;
   addNewLoading: boolean;
   onAddNewCustomer: () => Promise<void>;
   loyaltyInfo: PosLoyaltyInfo | null;
@@ -91,12 +87,18 @@ interface PosCheckoutPanelProps {
   loading: boolean;
   onBackToCart: () => void;
   onConfirmPayment: () => Promise<void>;
+  /** 'payment' (default) = regular checkout; 'preorder' = show pickup date instead of payment */
+  checkoutMode?: "payment" | "preorder";
+  pickupDate?: string;
+  setPickupDate?: (v: string) => void;
+  pickupTime?: string;
+  setPickupTime?: (v: string) => void;
+  deliveryType?: "PICKUP" | "DELIVERY";
+  setDeliveryType?: (v: "PICKUP" | "DELIVERY") => void;
 }
 
 export function PosCheckoutPanel({
   items,
-  customerOpen,
-  setCustomerOpen,
   customerQuery,
   setCustomerQuery,
   customers,
@@ -109,6 +111,8 @@ export function PosCheckoutPanel({
   setNewCustomerName,
   newCustomerPhone,
   setNewCustomerPhone,
+  newCustomerAddress,
+  setNewCustomerAddress,
   addNewLoading,
   onAddNewCustomer,
   loyaltyInfo,
@@ -142,7 +146,15 @@ export function PosCheckoutPanel({
   loading,
   onBackToCart,
   onConfirmPayment,
+  checkoutMode = "payment",
+  pickupDate = "",
+  setPickupDate,
+  pickupTime = "10:00",
+  setPickupTime,
+  deliveryType = "PICKUP",
+  setDeliveryType,
 }: PosCheckoutPanelProps) {
+  const isPreorderMode = checkoutMode === "preorder";
   return (
     <>
       <div className="p-4 border-b bg-white shadow-sm flex items-center gap-3">
@@ -158,20 +170,43 @@ export function PosCheckoutPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <div className="bg-white rounded-lg border p-3 space-y-1.5 text-sm">
+        <div className="bg-white rounded-lg border p-3 space-y-2 text-sm">
           <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">
             Ringkasan Pesanan
           </p>
-          {items.map((item) => (
-            <div key={item.id} className="flex justify-between">
-              <span className="line-clamp-1 flex-1 mr-2">
-                {item.quantity}x {item.name}
-              </span>
-              <span className="shrink-0">
-                {formatCurrency(Number(item.price) * item.quantity)}
-              </span>
-            </div>
-          ))}
+          {items.map((item) => {
+            const modifierTotal = (item.modifiers ?? []).reduce((s, m) => s + m.price, 0);
+            const unitTotal = (Number(item.price) + modifierTotal) * item.quantity;
+            return (
+              <div key={item.id} className="space-y-0.5">
+                <div className="flex justify-between gap-2">
+                  <span className="flex-1 font-medium">
+                    {item.quantity}x {item.name}
+                  </span>
+                  <span className="shrink-0 font-medium">
+                    {formatCurrency(unitTotal)}
+                  </span>
+                </div>
+                {item.modifiers && item.modifiers.length > 0 && (
+                  <div className="pl-4 space-y-0.5">
+                    {item.modifiers.map((mod, i) => (
+                      <div key={i} className="flex justify-between text-xs text-muted-foreground">
+                        <span>+ {mod.optionName}</span>
+                        {mod.price > 0 && (
+                          <span>+{formatCurrency(mod.price * item.quantity)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {item.notes && (
+                  <p className="pl-4 text-xs text-amber-700 italic">
+                    📝 {item.notes}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="space-y-2">
@@ -183,21 +218,31 @@ export function PosCheckoutPanel({
           </div>
 
           {selectedCustomer ? (
-            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">{selectedCustomer.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {selectedCustomer.phone}
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{selectedCustomer.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedCustomer.phone}
+                  </p>
+                  {selectedCustomer.address && (
+                    <div className="flex items-start gap-1 mt-1">
+                      <MapPin className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCustomer.address}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs shrink-0"
+                  onClick={() => setSelectedCustomer(null)}
+                >
+                  Ganti
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setSelectedCustomer(null)}
-              >
-                Ganti
-              </Button>
             </div>
           ) : showAddNew ? (
             <div className="space-y-2 border rounded-lg p-3 bg-white">
@@ -214,6 +259,13 @@ export function PosCheckoutPanel({
                 placeholder="No. HP (cth: 0812...)"
                 value={newCustomerPhone}
                 onChange={(event) => setNewCustomerPhone(event.target.value)}
+                className="h-8 text-sm"
+              />
+
+              <Input
+                placeholder="Alamat"
+                value={newCustomerAddress}
+                onChange={(event) => setNewCustomerAddress(event.target.value)}
                 className="h-8 text-sm"
               />
               <div className="flex gap-2">
@@ -241,68 +293,63 @@ export function PosCheckoutPanel({
             </div>
           ) : (
             <div className="space-y-2">
-              <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between h-9 text-sm"
-                  >
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      <Search className="h-3.5 w-3.5" />
-                      Cari nama / nomor HP...
-                    </span>
-                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      placeholder="Ketik nama / nomor HP..."
-                      value={customerQuery}
-                      onValueChange={setCustomerQuery}
-                    />
-                    <CommandList>
-                      {searchLoading && (
-                        <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      )}
-                      {!searchLoading &&
-                        customerQuery.length >= 2 &&
-                        customers.length === 0 && (
-                          <CommandEmpty>Pelanggan tidak ditemukan</CommandEmpty>
-                        )}
-                      {!searchLoading && customerQuery.length < 2 && (
-                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                          Ketik min. 2 huruf untuk mencari
-                        </div>
-                      )}
-                      <CommandGroup>
-                        {customers.map((customer) => (
-                          <CommandItem
-                            key={customer.id}
-                            value={customer.id}
-                            onSelect={() => {
-                              setSelectedCustomer(customer);
-                              setCustomerOpen(false);
-                            }}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                {customer.name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {customer.phone}
-                              </span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              {/* Inline customer search — works on mobile keyboard */}
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Cari nama / nomor HP..."
+                    value={customerQuery}
+                    onChange={(e) => setCustomerQuery(e.target.value)}
+                    className="pl-9 pr-8 h-9 text-sm"
+                    autoComplete="off"
+                  />
+                  {customerQuery.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomerQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown results */}
+                {customerQuery.length >= 2 && (
+                  <div className="absolute z-50 w-full mt-1 rounded-md border bg-white shadow-lg max-h-52 overflow-y-auto">
+                    {searchLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : customers.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+                        Pelanggan tidak ditemukan
+                      </div>
+                    ) : (
+                      customers.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          className="w-full text-left px-4 py-2.5 hover:bg-accent text-sm flex flex-col gap-0.5 border-b last:border-b-0"
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            setCustomerQuery("");
+                          }}
+                        >
+                          <span className="font-medium">{customer.name}</span>
+                          <span className="text-xs text-muted-foreground">{customer.phone}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {customerQuery.length > 0 && customerQuery.length < 2 && (
+                  <p className="text-xs text-muted-foreground mt-1 pl-1">Ketik min. 2 huruf untuk mencari</p>
+                )}
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -373,209 +420,263 @@ export function PosCheckoutPanel({
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label className="font-semibold text-sm">Metode Pembayaran</Label>
-          <div className="grid grid-cols-3 gap-2">
-            {paymentMethods.map((methodOption) => {
-              const Icon = methodOption.icon;
-              return (
-                <button
-                  key={methodOption.value}
-                  onClick={() => {
-                    setPaymentMethod(methodOption.value);
-                    setPaymentAmount(0);
-                  }}
-                  className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-colors",
-                    paymentMethod === methodOption.value
-                      ? "border-primary bg-primary/5 text-primary font-semibold"
-                      : "border-border hover:border-primary/50",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {methodOption.label}
-                </button>
-              );
-            })}
+        {isPreorderMode ? (
+          /* ===== PRE-ORDER: Pickup date & time & delivery type ===== */
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Tipe Pengiriman *</Label>
+              <Select
+                value={deliveryType}
+                onValueChange={(v) => setDeliveryType?.(v as "PICKUP" | "DELIVERY")}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PICKUP">Ambil di Toko</SelectItem>
+                  <SelectItem value="DELIVERY">Diantar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Tanggal Pengambilan *</Label>
+              <input
+                type="date"
+                value={pickupDate}
+                onChange={(e) => setPickupDate?.(e.target.value)}
+                min={new Date().toISOString().slice(0, 10)}
+                required
+                className="w-full h-9 rounded-md border border-input px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Jam Pengambilan *</Label>
+              <input
+                type="time"
+                value={pickupTime}
+                onChange={(e) => setPickupTime?.(e.target.value)}
+                required
+                className="w-full h-9 rounded-md border border-input px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Catatan</Label>
+              <Textarea
+                placeholder="Catatan pre-order (opsional)..."
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                className="text-sm resize-none h-16"
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          /* ===== REGULAR: Payment method, cash amount, discount, notes ===== */
+          <>
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Metode Pembayaran</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {paymentMethods.map((methodOption) => {
+                  const Icon = methodOption.icon;
+                  return (
+                    <button
+                      key={methodOption.value}
+                      onClick={() => {
+                        setPaymentMethod(methodOption.value);
+                        setPaymentAmount(0);
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-colors",
+                        paymentMethod === methodOption.value
+                          ? "border-primary bg-primary/5 text-primary font-semibold"
+                          : "border-border hover:border-primary/50",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {methodOption.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-        {paymentMethod === "QRIS" && (
-          <div className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border">
-            {qrisLoadState === "loading" && (
-              <>
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-xs text-muted-foreground">
-                  Membuat QR QRIS...
-                </p>
-              </>
+            {paymentMethod === "QRIS" && (
+              <div className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border">
+                {qrisLoadState === "loading" && (
+                  <>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">
+                      Membuat QR QRIS...
+                    </p>
+                  </>
+                )}
+                {qrisLoadState === "error" && (
+                  <p className="text-xs text-destructive text-center">
+                    Gagal membuat QR. Pastikan QRIS sudah diatur di Pengaturan.
+                  </p>
+                )}
+                {qrisImage && qrisLoadState === "idle" && (
+                  <>
+                    <Image
+                      src={qrisImage}
+                      alt="QR QRIS"
+                      width={192}
+                      height={192}
+                      className="rounded-lg"
+                    />
+                    <p className="text-xs text-muted-foreground text-center">
+                      Scan QR untuk membayar{" "}
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(finalTotal)}
+                      </span>
+                    </p>
+                  </>
+                )}
+              </div>
             )}
-            {qrisLoadState === "error" && (
-              <p className="text-xs text-destructive text-center">
-                Gagal membuat QR. Pastikan QRIS sudah diatur di Pengaturan.
-              </p>
-            )}
-            {qrisImage && qrisLoadState === "idle" && (
-              <>
-                <Image
-                  src={qrisImage}
-                  alt="QR QRIS"
-                  width={192}
-                  height={192}
-                  className="rounded-lg"
+
+            {paymentMethod === "CASH" && (
+              <div className="space-y-2">
+                <Label className="font-semibold text-sm">Jumlah Bayar</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Jumlah bayar"
+                  placeholder="0"
+                  value={formatNumberInputValue(paymentAmount)}
+                  onChange={(event) =>
+                    setPaymentAmount(parseDigitsToNumber(event.target.value))
+                  }
+                  className="text-right font-mono text-base h-10"
                 />
-                <p className="text-xs text-muted-foreground text-center">
-                  Scan QR untuk membayar{" "}
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(finalTotal)}
-                  </span>
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {paymentMethod === "CASH" && (
-          <div className="space-y-2">
-            <Label className="font-semibold text-sm">Jumlah Bayar</Label>
-            <Input
-              type="text"
-              inputMode="numeric"
-              aria-label="Jumlah bayar"
-              placeholder="0"
-              value={formatNumberInputValue(paymentAmount)}
-              onChange={(event) =>
-                setPaymentAmount(parseDigitsToNumber(event.target.value))
-              }
-              className="text-right font-mono text-base h-10"
-            />
-            <div className="grid grid-cols-3 gap-1.5">
-              {quickCashAmounts.map((amount) => (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {quickCashAmounts.map((amount) => (
+                    <Button
+                      key={amount}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setPaymentAmount(amount)}
+                    >
+                      {amount >= 1000 ? `${amount / 1000}rb` : amount}
+                    </Button>
+                  ))}
+                </div>
                 <Button
-                  key={amount}
                   variant="outline"
                   size="sm"
-                  className="text-xs h-7"
-                  onClick={() => setPaymentAmount(amount)}
+                  className="w-full h-7 text-xs"
+                  onClick={() => setPaymentAmount(Math.ceil(finalTotal))}
                 >
-                  {amount >= 1000 ? `${amount / 1000}rb` : amount}
+                  Pas: {formatCurrency(Math.ceil(finalTotal))}
                 </Button>
-              ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Diskon</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label={
+                    discountType === "amount" ? "Diskon rupiah" : "Diskon persen"
+                  }
+                  placeholder="0"
+                  value={
+                    discountInput > 0
+                      ? discountType === "amount"
+                        ? formatNumberInputValue(discountInput)
+                        : String(discountInput)
+                      : ""
+                  }
+                  onChange={(event) =>
+                    setDiscountInput(
+                      discountType === "percent"
+                        ? clampPercentDiscount(
+                          parseDigitsToNumber(event.target.value),
+                        )
+                        : parseDigitsToNumber(event.target.value),
+                    )
+                  }
+                  className="flex-1 h-9 text-sm"
+                />
+                <div className="flex rounded-md border overflow-hidden shrink-0">
+                  <button
+                    onClick={() => setDiscountType("amount")}
+                    className={cn(
+                      "px-3 text-sm transition-colors",
+                      discountType === "amount"
+                        ? "bg-primary text-white"
+                        : "hover:bg-muted",
+                    )}
+                  >
+                    Rp
+                  </button>
+                  <button
+                    onClick={() => setDiscountType("percent")}
+                    className={cn(
+                      "px-3 text-sm transition-colors",
+                      discountType === "percent"
+                        ? "bg-primary text-white"
+                        : "hover:bg-muted",
+                    )}
+                  >
+                    %
+                  </button>
+                </div>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-7 text-xs"
-              onClick={() => setPaymentAmount(Math.ceil(finalTotal))}
-            >
-              Pas: {formatCurrency(Math.ceil(finalTotal))}
-            </Button>
+
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Catatan</Label>
+              <Textarea
+                placeholder="Catatan transaksi (opsional)..."
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                className="text-sm resize-none h-16"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between text-muted-foreground">
+          <span>Subtotal</span>
+          <span>{formatCurrency(subtotal)}</span>
+        </div>
+        {taxIncluded && tax > 0 && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>Pajak ({taxRate}%)</span>
+            <span>{formatCurrency(tax)}</span>
           </div>
         )}
-
-        <div className="space-y-2">
-          <Label className="font-semibold text-sm">Diskon</Label>
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              inputMode="numeric"
-              aria-label={
-                discountType === "amount" ? "Diskon rupiah" : "Diskon persen"
-              }
-              placeholder="0"
-              value={
-                discountInput > 0
-                  ? discountType === "amount"
-                    ? formatNumberInputValue(discountInput)
-                    : String(discountInput)
-                  : ""
-              }
-              onChange={(event) =>
-                setDiscountInput(
-                  discountType === "percent"
-                    ? clampPercentDiscount(
-                        parseDigitsToNumber(event.target.value),
-                      )
-                    : parseDigitsToNumber(event.target.value),
-                )
-              }
-              className="flex-1 h-9 text-sm"
-            />
-            <div className="flex rounded-md border overflow-hidden shrink-0">
-              <button
-                onClick={() => setDiscountType("amount")}
-                className={cn(
-                  "px-3 text-sm transition-colors",
-                  discountType === "amount"
-                    ? "bg-primary text-white"
-                    : "hover:bg-muted",
-                )}
-              >
-                Rp
-              </button>
-              <button
-                onClick={() => setDiscountType("percent")}
-                className={cn(
-                  "px-3 text-sm transition-colors",
-                  discountType === "percent"
-                    ? "bg-primary text-white"
-                    : "hover:bg-muted",
-                )}
-              >
-                %
-              </button>
-            </div>
+        {manualDiscount > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Diskon</span>
+            <span>-{formatCurrency(manualDiscount)}</span>
           </div>
+        )}
+        {pointsRedemptionAmount > 0 && (
+          <div className="flex justify-between text-amber-600">
+            <span>Poin ({pointsToRedeem} poin)</span>
+            <span>-{formatCurrency(pointsRedemptionAmount)}</span>
+          </div>
+        )}
+        <Separator />
+        <div className="flex justify-between font-bold text-base">
+          <span>Total</span>
+          <span>{formatCurrency(finalTotal)}</span>
         </div>
-
-        <div className="space-y-2">
-          <Label className="font-semibold text-sm">Catatan</Label>
-          <Textarea
-            placeholder="Catatan transaksi (opsional)..."
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            className="text-sm resize-none h-16"
-          />
-        </div>
+        {paymentMethod === "CASH" && paymentAmount > 0 && (
+          <div className="flex justify-between text-blue-600 font-medium">
+            <span>Kembalian</span>
+            <span>{formatCurrency(changeAmount)}</span>
+          </div>
+        )}
       </div>
 
       <div className="p-4 bg-white border-t space-y-3">
-        <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between text-muted-foreground">
-            <span>Subtotal</span>
-            <span>{formatCurrency(subtotal)}</span>
-          </div>
-          {taxIncluded && tax > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Pajak ({taxRate}%)</span>
-              <span>{formatCurrency(tax)}</span>
-            </div>
-          )}
-          {manualDiscount > 0 && (
-            <div className="flex justify-between text-green-600">
-              <span>Diskon</span>
-              <span>-{formatCurrency(manualDiscount)}</span>
-            </div>
-          )}
-          {pointsRedemptionAmount > 0 && (
-            <div className="flex justify-between text-amber-600">
-              <span>Poin ({pointsToRedeem} poin)</span>
-              <span>-{formatCurrency(pointsRedemptionAmount)}</span>
-            </div>
-          )}
-          <Separator />
-          <div className="flex justify-between font-bold text-base">
-            <span>Total</span>
-            <span>{formatCurrency(finalTotal)}</span>
-          </div>
-          {paymentMethod === "CASH" && paymentAmount > 0 && (
-            <div className="flex justify-between text-blue-600 font-medium">
-              <span>Kembalian</span>
-              <span>{formatCurrency(changeAmount)}</span>
-            </div>
-          )}
-        </div>
-
         <Button
           className="w-full h-11 text-base font-semibold"
           onClick={() => void onConfirmPayment()}
@@ -586,7 +687,11 @@ export function PosCheckoutPanel({
           ) : (
             <Check className="h-4 w-4 mr-2" />
           )}
-          {loading ? "Memproses..." : "Konfirmasi Bayar"}
+          {loading
+            ? "Memproses..."
+            : isPreorderMode
+              ? "Buat Pre-Order"
+              : "Konfirmasi Bayar"}
         </Button>
 
         {!selectedCustomer && (
@@ -594,13 +699,18 @@ export function PosCheckoutPanel({
             Pilih pelanggan terlebih dahulu
           </p>
         )}
-        {selectedCustomer &&
+        {!isPreorderMode && selectedCustomer &&
           paymentMethod === "CASH" &&
           paymentAmount < finalTotal && (
             <p className="text-xs text-center text-red-500">
               Kurang {formatCurrency(finalTotal - paymentAmount)}
             </p>
           )}
+        {isPreorderMode && selectedCustomer && !pickupDate && (
+          <p className="text-xs text-center text-red-500">
+            Pilih tanggal pengambilan
+          </p>
+        )}
       </div>
     </>
   );

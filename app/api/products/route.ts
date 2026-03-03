@@ -7,6 +7,7 @@ const productSchema = z.object({
     name: z.string().min(1),
     sku: z.string().min(1),
     categoryId: z.string().optional().nullable(),
+    orderType: z.enum(["READY", "PRE_ORDER"]).default("READY"),
     price: z.coerce.number().min(0),
     cost: z.coerce.number().min(0).optional(),
     stock: z.coerce.number().min(0),
@@ -16,6 +17,7 @@ const productSchema = z.object({
     images: z.array(z.string()).optional(),
     isActive: z.boolean().default(true),
 });
+
 
 export const runtime = "nodejs";
 
@@ -27,7 +29,8 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { name, sku, categoryId, price, cost, stock, minStock, unit, description, images, isActive } = productSchema.parse(body);
+        const { name, sku, categoryId, orderType, price, cost, stock, minStock, unit, description, images, isActive } = productSchema.parse(body);
+
 
         // Create Item with a default variant
         const item = await db.item.create({
@@ -35,7 +38,9 @@ export async function POST(req: Request) {
                 name,
                 sku,
                 categoryId: categoryId || null,
+                orderType: orderType ?? "READY",
                 basePrice: price,
+
                 baseCost: cost || 0,
                 unit: unit || "pcs",
                 description,

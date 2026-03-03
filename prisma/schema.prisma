@@ -65,7 +65,8 @@ model Item {
   sku         String   @unique
   name        String
   description String?
-  type        ItemType @default(GOODS)
+  type        ItemType  @default(GOODS)
+  orderType   OrderType @default(READY)
   categoryId  String?
   images      String[]
   isActive    Boolean  @default(true)
@@ -95,6 +96,12 @@ enum ItemType {
   RAW_MATERIAL
   BUNDLE
 }
+
+enum OrderType {
+  READY
+  PRE_ORDER
+}
+
 
 model ItemVariant {
   id         String   @id @default(cuid())

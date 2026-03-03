@@ -28,19 +28,15 @@ export async function POST(req: NextRequest) {
 
     const settings = await prisma.settings.findFirst();
 
-    if (!settings?.whatsappTenantId || !settings?.whatsappEnabled) {
+    if (!settings?.whatsappEnabled) {
       return NextResponse.json(
-        { error: "WhatsApp not configured or not enabled" },
+        { error: "WhatsApp tidak aktif. Aktifkan di Pengaturan terlebih dahulu." },
         { status: 400 }
       );
     }
 
-    // Send message
-    const result = await sendWhatsAppMessage(
-      settings.whatsappTenantId,
-      phone,
-      message
-    );
+    // Send message (single-tenant Fonnte — token from FONNTE_TOKEN env)
+    const result = await sendWhatsAppMessage(phone, message);
 
     if (result.success) {
       return NextResponse.json({

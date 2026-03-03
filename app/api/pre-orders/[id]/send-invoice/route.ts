@@ -46,21 +46,31 @@ export async function POST(
       ? ticket.items.map(it => `- ${it.name} x${it.quantity}`).join("\n")
       : `- ${ticket.title} x${ticket.quantity}`;
 
-    const statusLine = isPaid ? `Status: PAID ✅` : `Status: BELUM LUNAS ⏳`;
+    const statusLine = isPaid ? `Status   : PAID ✅` : `Status   : BELUM LUNAS ⏳`;
+
+    // include unit price in each line for a more formal invoice
+    const itemLinesFormal = ticket.items.length > 0
+      ? ticket.items
+          .map((it) =>
+            `- ${it.name} x${it.quantity} @ ${formatCurrency(Number(it.unitPrice))}`
+          )
+          .join("\n")
+      : `- ${ticket.title} x${ticket.quantity} @ ${formatCurrency(Number(ticket.unitPrice))}`;
 
     const message = [
       `INVOICE ${storeName.toUpperCase()}`,
+      `==============================`,
+      `Pelanggan : ${ticket.customerName}`,
+      `No. HP    : ${ticket.customerPhone}`,
       ``,
-      `Nama: ${ticket.customerName}`,
-      `No HP: ${ticket.customerPhone}`,
+      `Rincian Pesanan:`,
+      itemLinesFormal,
       ``,
-      `Pesanan:`,
-      itemLines,
-      ``,
-      `Total: ${formatCurrency(Number(ticket.totalPrice))}`,
+      `Total     : ${formatCurrency(Number(ticket.totalPrice))}`,
       statusLine,
-    ]
-      .join("\n");
+      ``,
+      `Terima kasih atas kepercayaan Anda.`,
+    ].join("\n");
 
     const sent = await sendWhatsAppNotification(
       ticket.customerPhone,

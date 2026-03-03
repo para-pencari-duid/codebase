@@ -66,7 +66,7 @@ export const POSClient: React.FC<POSClientProps> = ({
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [mode, setMode] = useState<"cart" | "checkout">("cart");
+  const [mode, setMode] = useState<"cart" | "checkout" | "preorder-checkout">("cart");
   const [isCartExpanded, setIsCartExpanded] = useState(true);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
@@ -85,6 +85,11 @@ export const POSClient: React.FC<POSClientProps> = ({
   const [usePoints, setUsePoints] = useState(false);
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
 
+  // Pre-order checkout state
+  const [pickupDate, setPickupDate] = useState("");
+  const [pickupTime, setPickupTime] = useState("10:00");
+  const [deliveryType, setDeliveryType] = useState<"PICKUP" | "DELIVERY">("PICKUP");
+
   const {
     customerOpen,
     setCustomerOpen,
@@ -99,7 +104,9 @@ export const POSClient: React.FC<POSClientProps> = ({
     newCustomerName,
     setNewCustomerName,
     newCustomerPhone,
-    setNewCustomerPhone,
+    setNewCustomerPhone,    
+    newCustomerAddress,
+    setNewCustomerAddress,
     addNewLoading,
     handleAddNewCustomer,
     resetCustomerState,
@@ -153,14 +160,20 @@ export const POSClient: React.FC<POSClientProps> = ({
           product.sku.toLowerCase().includes(search.toLowerCase());
         const matchCategory =
           selectedCategory === "all" || product.categoryId === selectedCategory;
-        // Pre-Order category products are shown regardless of stock
-        const isPreOrderProduct = product.category?.name === "Pre-Order";
+        // Pre-Order products are shown regardless of stock
+        const isPreOrderProduct = product.orderType === "PRE_ORDER";
         return (
           matchSearch && matchCategory && product.isActive &&
           (isPreOrderProduct || product.stock > 0)
         );
       }),
     [products, search, selectedCategory],
+  );
+
+  // Feature 5: detect if cart has any pre-order items → disable Pay, show PreOrder button
+  const hasPreOrderItems = useMemo(
+    () => cart.items.some((item) => item.isPreOrder === true),
+    [cart.items],
   );
 
   const canPay =
@@ -183,11 +196,7 @@ export const POSClient: React.FC<POSClientProps> = ({
 
   const onAddToCart = useCallback(
     (product: PosProduct) => {
-      // Pre-Order category products open the pre-order dialog
-      if (product.category?.name === "Pre-Order") {
-        setPreOrderOpen(true);
-        return;
-      }
+      const isPreOrder = product.orderType === "PRE_ORDER";
 
       if (product.modifierGroups && product.modifierGroups.length > 0) {
         setModPickerProduct(product);
@@ -195,10 +204,13 @@ export const POSClient: React.FC<POSClientProps> = ({
         return;
       }
 
-      const existing = cart.items.find((item) => item.id === product.id);
-      if (existing && existing.quantity >= product.stock) {
-        alertError(`Stok ${product.name} tidak mencukupi.`, "Stok Habis");
-        return;
+      // For ready products: enforce stock limit
+      if (!isPreOrder) {
+        const existing = cart.items.find((item) => item.id === product.id);
+        if (existing && existing.quantity >= product.stock) {
+          alertError(`Stok ${product.name} tidak mencukupi.`, "Stok Habis");
+          return;
+        }
       }
 
       cart.addItem({
@@ -208,11 +220,13 @@ export const POSClient: React.FC<POSClientProps> = ({
         name: product.name,
         price: Number(product.price),
         quantity: 1,
-        stock: product.stock,
+        // Feature 6: pre-order products have unlimited stock
+        stock: isPreOrder ? Infinity : product.stock,
         images: product.images,
         category: product.category
           ? { name: product.category.name, icon: product.category.icon }
           : undefined,
+        isPreOrder,
       });
     },
     [cart],
@@ -220,6 +234,7 @@ export const POSClient: React.FC<POSClientProps> = ({
 
   const onModifierConfirm = useCallback(
     (product: PosProduct, modifiers: CartItemModifier[]) => {
+      const isPreOrder = product.orderType === "PRE_ORDER";
       cart.addItem({
         id: product.id,
         itemId: product.id,
@@ -227,11 +242,12 @@ export const POSClient: React.FC<POSClientProps> = ({
         name: product.name,
         price: Number(product.price),
         quantity: 1,
-        stock: product.stock,
+        stock: isPreOrder ? Infinity : product.stock,
         images: product.images,
         category: product.category
           ? { name: product.category.name, icon: product.category.icon }
           : undefined,
+        isPreOrder,
         modifiers,
       });
       setModPickerOpen(false);
@@ -244,6 +260,18 @@ export const POSClient: React.FC<POSClientProps> = ({
     if (cart.items.length === 0) return;
     resetCheckout();
     setMode("checkout");
+  }, [cart.items.length, resetCheckout]);
+
+  const handleGoToPreOrderCheckout = useCallback(() => {
+    if (cart.items.length === 0) return;
+    resetCheckout();
+    // Default pickup date = tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setPickupDate(tomorrow.toISOString().slice(0, 10));
+    setPickupTime("10:00");
+    setDeliveryType("PICKUP");
+    setMode("preorder-checkout");
   }, [cart.items.length, resetCheckout]);
 
   const handleBackToCart = useCallback(() => {
@@ -382,6 +410,50 @@ export const POSClient: React.FC<POSClientProps> = ({
     resetCheckout,
   ]);
 
+  const handleConfirmPreOrder = useCallback(async () => {
+    if (!selectedCustomer || !pickupDate) return;
+    setLoading(true);
+    try {
+      const preOrderItems = cart.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: Number(item.price) + (item.modifiers || []).reduce((s, m) => s + m.price, 0),
+        notes: item.notes || undefined,
+      }));
+
+      const response = await fetch("/api/pre-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: selectedCustomer.id,
+          customerName: selectedCustomer.name,
+          customerPhone: selectedCustomer.phone,
+          items: preOrderItems,
+          pickupDate: `${pickupDate}T${pickupTime}:00`,
+          notes,
+          deliveryType,
+          dpAmount: 0,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        alertError(`Pre-order gagal: ${err}`);
+        return;
+      }
+
+      cart.removeAll();
+      setMode("cart");
+      setIsMobileCartOpen(false);
+      resetCheckout();
+      alertSuccess("Pre-order berhasil dibuat!", "Pre-Order Berhasil");
+    } catch {
+      alertError("Terjadi kesalahan saat membuat pre-order.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCustomer, pickupDate, pickupTime, deliveryType, cart, notes, resetCheckout]);
+
   const cartCheckoutContent =
     mode === "cart" ? (
       <div className="flex flex-1 min-h-0 flex-col">
@@ -397,14 +469,14 @@ export const POSClient: React.FC<POSClientProps> = ({
           onUpdateNotes={(item, notes) => cart.updateNotes(item.id, notes)}
           onClearCart={cart.removeAll}
           onGoToCheckout={handleGoToCheckout}
+          hasPreOrderItems={hasPreOrderItems}
+          onGoToPreOrder={handleGoToPreOrderCheckout}
         />
       </div>
-    ) : (
+    ) : mode === "preorder-checkout" ? (
       <div className="flex flex-1 min-h-0 flex-col">
         <PosCheckoutPanel
           items={cart.items}
-          customerOpen={customerOpen}
-          setCustomerOpen={setCustomerOpen}
           customerQuery={customerQuery}
           setCustomerQuery={setCustomerQuery}
           customers={customers}
@@ -417,6 +489,68 @@ export const POSClient: React.FC<POSClientProps> = ({
           setNewCustomerName={setNewCustomerName}
           newCustomerPhone={newCustomerPhone}
           setNewCustomerPhone={setNewCustomerPhone}
+          newCustomerAddress={newCustomerAddress}
+          setNewCustomerAddress={setNewCustomerAddress}
+          addNewLoading={addNewLoading}
+          onAddNewCustomer={handleAddNewCustomer}
+          loyaltyInfo={null}
+          usePoints={false}
+          setUsePoints={() => { }}
+          pointsToRedeem={0}
+          setPointsToRedeem={() => { }}
+          pointsRedemptionAmount={0}
+          paymentMethods={paymentMethods}
+          paymentMethod={paymentMethod}
+          setPaymentMethod={setPaymentMethod}
+          qrisLoadState={"idle"}
+          qrisImage={null}
+          finalTotal={finalTotal}
+          paymentAmount={paymentAmount}
+          setPaymentAmount={setPaymentAmount}
+          quickCashAmounts={quickCashAmounts}
+          discountInput={discountInput}
+          setDiscountInput={setDiscountInput}
+          discountType={discountType}
+          setDiscountType={setDiscountType}
+          notes={notes}
+          setNotes={setNotes}
+          subtotal={subtotal}
+          tax={tax}
+          taxRate={settings.taxRate}
+          taxIncluded={settings.taxIncluded}
+          manualDiscount={manualDiscount}
+          changeAmount={changeAmount}
+          canPay={!!selectedCustomer && !!pickupDate}
+          loading={loading}
+          onBackToCart={handleBackToCart}
+          onConfirmPayment={handleConfirmPreOrder}
+          checkoutMode="preorder"
+          pickupDate={pickupDate}
+          setPickupDate={setPickupDate}
+          pickupTime={pickupTime}
+          setPickupTime={setPickupTime}
+          deliveryType={deliveryType}
+          setDeliveryType={setDeliveryType}
+        />
+      </div>
+    ) : (
+      <div className="flex flex-1 min-h-0 flex-col">
+        <PosCheckoutPanel
+          items={cart.items}
+          customerQuery={customerQuery}
+          setCustomerQuery={setCustomerQuery}
+          customers={customers}
+          selectedCustomer={selectedCustomer}
+          setSelectedCustomer={setSelectedCustomer}
+          searchLoading={searchLoading}
+          showAddNew={showAddNew}
+          setShowAddNew={setShowAddNew}
+          newCustomerName={newCustomerName}
+          setNewCustomerName={setNewCustomerName}
+          newCustomerPhone={newCustomerPhone}
+          setNewCustomerPhone={setNewCustomerPhone}
+          newCustomerAddress={newCustomerAddress}
+          setNewCustomerAddress={setNewCustomerAddress}
           addNewLoading={addNewLoading}
           onAddNewCustomer={handleAddNewCustomer}
           loyaltyInfo={loyaltyInfo}
@@ -459,7 +593,7 @@ export const POSClient: React.FC<POSClientProps> = ({
       <div className="flex h-[calc(100svh-60px)] min-h-0 overflow-hidden">
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
           {/* Pre-Order shortcut bar */}
-          <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b" style={{ background: "var(--brand-muted, oklch(0.96 0.04 60))" }}>
+          {/* <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b" style={{ background: "var(--brand-muted, oklch(0.96 0.04 60))" }}>
             <span className="text-xs font-medium" style={{ color: "oklch(0.5 0 0)" }}>Pintasan:</span>
             <button
               type="button"
@@ -470,7 +604,7 @@ export const POSClient: React.FC<POSClientProps> = ({
               <CalendarDays className="h-3.5 w-3.5" />
               Pre-Order Baru
             </button>
-          </div>
+          </div> */}
           <PosProductPanel
             search={search}
             onSearchChange={setSearch}
@@ -484,9 +618,8 @@ export const POSClient: React.FC<POSClientProps> = ({
 
         {cart.items.length > 0 && (
           <div
-            className={`relative hidden lg:flex flex-col h-full min-h-0 transition-all duration-200 ${
-              isCartExpanded ? "w-90 xl:w-100" : "w-14"
-            }`}
+            className={`relative hidden lg:flex flex-col h-full min-h-0 transition-all duration-200 ${isCartExpanded ? "w-90 xl:w-100" : "w-14"
+              }`}
             style={{ borderLeft: "1px solid var(--border)", background: "oklch(0.99 0.002 80)" }}
           >
             <button
