@@ -1377,7 +1377,8 @@ export async function generateProfitLossReport(data: ProfitLossData): Promise<Ex
   setSectionHeaderStyle(cogsHeader);
   row++;
 
-  ws.getCell(`B${row}`).value = "Bahan Baku:";
+  // top-level COGS value (calculated from sold items, not from expenses table)
+  ws.getCell(`B${row}`).value = "COGS (Bahan Baku):";
   ws.getCell(`C${row}`).value = formatCurrency(data.cogs);
   row++;
 
@@ -1472,6 +1473,35 @@ export async function generateProfitLossReport(data: ProfitLossData): Promise<Ex
   ws.getCell(`B${row}`).value = "vs Tahun Lalu:";
   ws.getCell(`C${row}`).value = `${data.comparison.vsLastYear >= 0 ? "+" : ""}${data.comparison.vsLastYear.toFixed(1)}% ${growthIcon(data.comparison.vsLastYear)}`;
   ws.getCell(`C${row}`).font = { bold: true, color: { argb: growthColor(data.comparison.vsLastYear) } };
+  row += 2;
+
+  // Notes explaining calculation for non-technical users
+  ws.mergeCells(`A${row}:D${row}`);
+  const noteHeader = ws.getCell(`A${row}`);
+  noteHeader.value = "CATATAN PEMERHATIAN";
+  setSectionHeaderStyle(noteHeader);
+  row++;
+
+  const notesText = [
+    "1. Pendapatan dihitung dari jumlah seluruh transaksi berhasil.",
+    "2. Beban pokok (COGS) berasal dari harga modal produk yang terjual;",
+    "   bukan dari catatan pengeluaran manual.",
+    "3. Biaya operasional berasal dari tabel Pengeluaran (Expenses) yang", 
+    "   Anda masukkan lewat menu Pengeluaran.",
+    "4. Laba kotor = Pendapatan - COGS; Laba operasional = Laba kotor - Biaya;",
+    "   Laba bersih = Laba operasional (biaya lain belum dihitung).",
+    "5. Perbandingan menunjukkan perubahan persen terhadap periode bulan", 
+    "   lalu dan tahun lalu.",
+    "6. Laporan ini hanya menggunakan data nyata; tidak ada angka estimasi."
+  ];
+
+  notesText.forEach((line) => {
+    ws.mergeCells(`A${row}:D${row}`);
+    const cell = ws.getCell(`A${row}`);
+    cell.value = line;
+    cell.font = { size: 10 }; // smaller font
+    row++;
+  });
 
   return workbook;
 }

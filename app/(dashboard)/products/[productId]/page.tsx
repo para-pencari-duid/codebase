@@ -22,12 +22,25 @@ export default async function ProductPage({
     let product = null;
 
     if (productId !== "new") {
-        product = await db.item.findFirst({
+        const raw = await db.item.findFirst({
             where: {
                 id: productId,
             },
             include: { variants: true },
         });
+        if (raw) {
+            // convert Decimal values to numbers so they can be passed to client
+            product = {
+                ...raw,
+                basePrice: Number(raw.basePrice),
+                baseCost: Number(raw.baseCost),
+                variants: raw.variants.map((v) => ({
+                    ...v,
+                    price: Number(v.price),
+                    cost: Number(v.cost),
+                })),
+            };
+        }
     }
 
     return (
