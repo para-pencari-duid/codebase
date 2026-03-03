@@ -934,7 +934,7 @@ async function generateCustomerReportData(
   };
 }
 
-async function generateProfitLossData(
+export async function generateProfitLossData(
   startDate: Date,
   endDate: Date,
   businessName: string
@@ -1000,16 +1000,7 @@ async function generateProfitLossData(
     }))
     .filter((e) => e.amount > 0);
 
-  // If no expense data, use estimates
-  if (operationalExpenses.length === 0) {
-    operationalExpenses.push(
-      { name: "Gaji & Upah", amount: Math.round(totalRevenue * 0.1) },
-      { name: "Sewa", amount: 5000000 },
-      { name: "Utilitas (Listrik/Air)", amount: 2500000 },
-      { name: "Marketing", amount: Math.round(totalRevenue * 0.01) },
-      { name: "Lain-lain", amount: 1500000 }
-    );
-  }
+  // no fallback estimates; if there are no expenses recorded the list stays empty
 
   const totalOpex = operationalExpenses.reduce((sum, e) => sum + e.amount, 0);
   const operatingProfit = grossProfit - totalOpex;
@@ -1068,7 +1059,7 @@ async function generateProfitLossData(
 }
 
 // Helper function for comparison calculations
-async function generateProfitLossDataSimple(
+export async function generateProfitLossDataSimple(
   startDate: Date,
   endDate: Date
 ): Promise<{ revenue: number; netProfit: number }> {

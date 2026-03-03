@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { generateProfitLossData, generateProfitLossDataSimple } from "./export/route";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -142,7 +143,14 @@ export async function GET(req: Request) {
 
                 return NextResponse.json({ type: "products", summary, products });
             }
-
+            case "profitloss": {
+                // use same dateFilter logic used above
+                // if startDate/endDate not provided defaulted earlier
+                // data helper functions are hoisted further down
+                const data = await generateProfitLossData(startDate ? new Date(startDate) : new Date(new Date().setDate(1)), endDate ? new Date(endDate) : new Date(), "");
+                // the helper returns full structure; wrap it so client can display the same
+                return NextResponse.json({ type: "profitloss", ...data });
+            }
             case "cashier": {
                 const transactions = await db.transaction.findMany({
                     where,
@@ -224,6 +232,17 @@ export async function GET(req: Request) {
                 };
 
                 return NextResponse.json({ type: "stock", summary, products: stockData });
+            }
+
+            case "profitloss": {
+                // calculate period boundaries same as export handler
+                const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
+                start.setHours(0, 0, 0, 0);
+                const end = endDate ? new Date(endDate) : new Date();
+                end.setHours(23, 59, 59, 999);
+
+                const profitData = await generateProfitLossData(start, end, "");
+                return NextResponse.json({ type: "profitloss", ...profitData });
             }
 
             case "preorders": {

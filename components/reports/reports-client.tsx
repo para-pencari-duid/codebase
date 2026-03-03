@@ -446,7 +446,7 @@ export function ReportsClient() {
             </div>
 
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="sales" className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" /> Penjualan
                     </TabsTrigger>
@@ -458,6 +458,9 @@ export function ReportsClient() {
                     </TabsTrigger>
                     <TabsTrigger value="stock" className="flex items-center gap-2">
                         <Warehouse className="h-4 w-4" /> Stok
+                    </TabsTrigger>
+                    <TabsTrigger value="profitloss" className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" /> Laba Rugi
                     </TabsTrigger>
                     <TabsTrigger value="preorders" className="flex items-center gap-2">
                         <FileText className="h-4 w-4" /> Pre-Order
@@ -683,6 +686,46 @@ export function ReportsClient() {
                         </>
                     ) : (
                         <EmptyState message="Klik 'Tampilkan' untuk memuat laporan stok" />
+                    )}
+                </TabsContent>
+
+                {/* Profit/Loss Report */}
+                <TabsContent value="profitloss" className="space-y-4">
+                    {reportData?.type === "profitloss" ? (
+                        <>
+                            <div className="grid gap-4 md:grid-cols-4">
+                                <SummaryCard title="Total Pendapatan" value={formatCurrency(reportData.revenue.total)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                                <SummaryCard title="Gross Profit" value={formatCurrency(reportData.grossProfit)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                                <SummaryCard title="Total Opex" value={formatCurrency(reportData.totalOperationalExpenses)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                                <SummaryCard title="Net Profit" value={formatCurrency(reportData.netProfit)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                            </div>
+
+                            {reportData.operationalExpenses?.length > 0 && (
+                                <Card>
+                                    <CardHeader><CardTitle>Biaya Operasional</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Nama</TableHead>
+                                                    <TableHead className="text-right">Jumlah</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {reportData.operationalExpenses.map((e: any, idx: number) => (
+                                                    <TableRow key={idx}>
+                                                        <TableCell>{e.name}</TableCell>
+                                                        <TableCell className="text-right">{formatCurrency(e.amount)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </>
+                    ) : (
+                        <EmptyState message="Klik 'Tampilkan' untuk memuat laporan laba rugi" />
                     )}
                 </TabsContent>
 
