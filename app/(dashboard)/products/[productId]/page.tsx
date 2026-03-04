@@ -26,7 +26,20 @@ export default async function ProductPage({
             where: {
                 id: productId,
             },
-            include: { variants: true },
+            select: {
+                id: true,
+                name: true,
+                sku: true,
+                categoryId: true,
+                orderType: true,
+                unit: true,
+                description: true,
+                images: true,
+                isActive: true,
+                basePrice: true,
+                baseCost: true,
+                variants: true,
+            },
         });
         if (raw) {
             // build a typed product object, converting decimals and
