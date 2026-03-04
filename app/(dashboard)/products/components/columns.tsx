@@ -98,6 +98,26 @@ export const columns: ColumnDef<ProductColumn>[] = [
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={async () => {
+                                try {
+                                    const res = await fetch('/api/shares', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ scope: 'single', singleProductId: product.id }),
+                                    });
+                                    if (!res.ok) throw new Error('Failed');
+                                    const data = await res.json();
+                                    const url = data.url;
+                                    if (navigator.clipboard && url) await navigator.clipboard.writeText(url);
+                                    alertSuccess('Link share telah disalin ke clipboard');
+                                } catch (e) {
+                                    alertError('Gagal membuat link share');
+                                }
+                            }}
+                        >
+                            Bagikan
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={onDelete} className="text-red-600">
                             <Trash className="mr-2 h-4 w-4" />
                             Hapus
