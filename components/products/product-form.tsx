@@ -13,7 +13,7 @@ type Category = {
   createdAt: Date;
   updatedAt: Date;
 };
-type Product = {
+export type Product = {
   id: string;
   name: string;
   sku: string;

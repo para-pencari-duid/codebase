@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { ProductForm } from "@/components/products/product-form";
+import { ProductForm, Product } from "@/components/products/product-form";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -19,7 +19,7 @@ export default async function ProductPage({
         orderBy: { name: 'asc' },
     });
 
-    let product = null;
+    let product: Product | null = null;
 
     if (productId !== "new") {
         const raw = await db.item.findFirst({
@@ -29,16 +29,27 @@ export default async function ProductPage({
             include: { variants: true },
         });
         if (raw) {
-            // convert Decimal values to numbers so they can be passed to client
+            // build a typed product object, converting decimals and
+            // selecting only the fields the form expects
+            const priceNum = Number(raw.variants?.[0]?.price ?? raw.basePrice ?? 0);
+            const costNum = Number(raw.variants?.[0]?.cost ?? raw.baseCost ?? 0);
+            const stockNum = Number(raw.variants?.[0]?.stock ?? 0);
+            const minStockNum = Number(raw.variants?.[0]?.minStock ?? 0);
+
             product = {
-                ...raw,
-                basePrice: Number(raw.basePrice),
-                baseCost: Number(raw.baseCost),
-                variants: raw.variants.map((v) => ({
-                    ...v,
-                    price: Number(v.price),
-                    cost: Number(v.cost),
-                })),
+                id: raw.id,
+                name: raw.name,
+                sku: raw.sku,
+                categoryId: raw.categoryId ?? null,
+                orderType: raw.orderType as "READY" | "PRE_ORDER" | null,
+                price: priceNum,
+                cost: costNum,
+                stock: stockNum,
+                minStock: minStockNum,
+                unit: raw.unit,
+                description: raw.description ?? null,
+                images: raw.images ?? [],
+                isActive: raw.isActive,
             };
         }
     }
