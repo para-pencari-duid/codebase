@@ -26,6 +26,26 @@ interface Recipe {
   }[];
 }
 
+interface RecipeApi {
+  id: string;
+  item?: {
+    id: string;
+    name?: string | null;
+    sku?: string | null;
+  } | null;
+  yield?: number | null;
+  yieldUnit?: string | null;
+  components?: {
+    id: string;
+    componentItem?: {
+      name?: string | null;
+      unit?: string | null;
+    } | null;
+    quantity?: number | null;
+    unit?: string | null;
+  }[];
+}
+
 export function RecipesTab() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,8 +59,28 @@ export function RecipesTab() {
       setLoading(true);
       const res = await fetch("/api/recipes");
       if (res.ok) {
-        const data = await res.json();
-        setRecipes(data);
+        const data = (await res.json()) as RecipeApi[];
+        const mappedRecipes: Recipe[] = (Array.isArray(data) ? data : []).map((recipe) => ({
+          id: recipe.id,
+          product: {
+            id: recipe.item?.id || "",
+            name: recipe.item?.name || "Produk tidak ditemukan",
+            sku: recipe.item?.sku || "-",
+          },
+          yield: Number(recipe.yield || 0),
+          yieldUnit: recipe.yieldUnit || "pcs",
+          ingredients: (recipe.components || []).map((component) => ({
+            id: component.id,
+            material: {
+              name: component.componentItem?.name || "Bahan tidak ditemukan",
+              unit: component.componentItem?.unit || component.unit || "pcs",
+            },
+            quantity: Number(component.quantity || 0),
+            unit: component.unit || component.componentItem?.unit || "pcs",
+          })),
+        }));
+
+        setRecipes(mappedRecipes);
       }
     } catch (error) {
       alertError("Gagal memuat resep");
