@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Select,
     SelectContent,
@@ -143,226 +144,244 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
             <Separator className="my-4" />
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full">
-                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                        <FormField
-                            control={form.control}
-                            name="productId"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Produk</FormLabel>
-                                    <Select
-                                        disabled={loading || !!initialData}
-                                        onValueChange={field.onChange}
-                                        value={field.value}
-                                        defaultValue={field.value}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih produk" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {products.map((product) => (
-                                                <SelectItem key={product.id} value={product.id}>
-                                                    {product.name} ({product.sku})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="yield"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Hasil Produksi</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" disabled={loading} {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="yieldUnit"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Satuan</FormLabel>
-                                        <FormControl>
-                                            <Input disabled={loading} {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                        <FormField
-                            control={form.control}
-                            name="prepTime"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Waktu Persiapan (menit)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" disabled={loading} {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="cookTime"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Waktu Masak (menit)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" disabled={loading} {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                    <Tabs defaultValue="ingredients" className="space-y-5">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="ingredients">Input Bahan Yang Dibutuhkan</TabsTrigger>
+                            <TabsTrigger value="steps">Step By Step</TabsTrigger>
+                        </TabsList>
 
-                    <FormField
-                        control={form.control}
-                        name="notes"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Catatan</FormLabel>
-                                <FormControl>
-                                    <Textarea
-                                        disabled={loading}
-                                        placeholder="Catatan tambahan untuk resep ini"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-medium">Bahan Baku</h3>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => append({ materialId: "", quantity: 0, unit: "kg", notes: "" })}
-                            >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Tambah Bahan
-                            </Button>
-                        </div>
-
-                        {fields.map((field, index) => (
-                            <Card key={field.id}>
-                                <CardContent className="pt-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                                        <div className="md:col-span-4">
-                                            <FormField
-                                                control={form.control}
-                                                name={`ingredients.${index}.materialId`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className={index !== 0 ? "sr-only" : ""}>Bahan Baku</FormLabel>
-                                                        <Select
-                                                            disabled={loading}
-                                                            onValueChange={(value) => {
-                                                                field.onChange(value);
-                                                                const material = materials.find(m => m.id === value);
-                                                                if (material) {
-                                                                    form.setValue(`ingredients.${index}.unit`, material.unit);
-                                                                }
-                                                            }}
-                                                            value={field.value}
-                                                            defaultValue={field.value}
-                                                        >
-                                                            <FormControl>
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Pilih bahan" />
-                                                                </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent>
-                                                                {materials.map((material) => (
-                                                                    <SelectItem key={material.id} value={material.id}>
-                                                                        {material.name} (Stok: {Number(material.stock)} {material.unit})
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="md:col-span-3">
-                                            <FormField
-                                                control={form.control}
-                                                name={`ingredients.${index}.quantity`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className={index !== 0 ? "sr-only" : ""}>Jumlah</FormLabel>
-                                                        <FormControl>
-                                                            <Input type="number" disabled={loading} {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <FormField
-                                                control={form.control}
-                                                name={`ingredients.${index}.unit`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className={index !== 0 ? "sr-only" : ""}>Satuan</FormLabel>
-                                                        <FormControl>
-                                                            <Input disabled={loading} {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <FormField
-                                                control={form.control}
-                                                name={`ingredients.${index}.notes`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className={index !== 0 ? "sr-only" : ""}>Catatan</FormLabel>
-                                                        <FormControl>
-                                                            <Input disabled={loading} placeholder="Keterangan" {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="md:col-span-1">
-                                            <Button
-                                                type="button"
-                                                variant="destructive"
-                                                size="icon"
-                                                onClick={() => remove(index)}
-                                                disabled={fields.length === 1}
+                        <TabsContent value="ingredients" className="space-y-6">
+                            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                                <FormField
+                                    control={form.control}
+                                    name="productId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Produk</FormLabel>
+                                            <Select
+                                                disabled={loading || !!initialData}
+                                                onValueChange={field.onChange}
+                                                value={field.value}
+                                                defaultValue={field.value}
                                             >
-                                                <Trash className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih produk" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {products.map((product) => (
+                                                        <SelectItem key={product.id} value={product.id}>
+                                                            {product.name} ({product.sku})
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="yield"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Hasil Produksi</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" disabled={loading} {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="yieldUnit"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Satuan</FormLabel>
+                                                <FormControl>
+                                                    <Input disabled={loading} {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium">Bahan Baku</h3>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => append({ materialId: "", quantity: 0, unit: "kg", notes: "" })}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Tambah Bahan
+                                    </Button>
+                                </div>
+
+                                {fields.map((field, index) => (
+                                    <Card key={field.id}>
+                                        <CardContent className="pt-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                                                <div className="md:col-span-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`ingredients.${index}.materialId`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className={index !== 0 ? "sr-only" : ""}>Bahan Baku</FormLabel>
+                                                                <Select
+                                                                    disabled={loading}
+                                                                    onValueChange={(value) => {
+                                                                        field.onChange(value);
+                                                                        const material = materials.find(m => m.id === value);
+                                                                        if (material) {
+                                                                            form.setValue(`ingredients.${index}.unit`, material.unit);
+                                                                        }
+                                                                    }}
+                                                                    value={field.value}
+                                                                    defaultValue={field.value}
+                                                                >
+                                                                    <FormControl>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Pilih bahan" />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        {materials.map((material) => (
+                                                                            <SelectItem key={material.id} value={material.id}>
+                                                                                {material.name} (Stok: {Number(material.stock)} {material.unit})
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-3">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`ingredients.${index}.quantity`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className={index !== 0 ? "sr-only" : ""}>Jumlah</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" disabled={loading} {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`ingredients.${index}.unit`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className={index !== 0 ? "sr-only" : ""}>Satuan</FormLabel>
+                                                                <FormControl>
+                                                                    <Input disabled={loading} {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`ingredients.${index}.notes`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className={index !== 0 ? "sr-only" : ""}>Catatan</FormLabel>
+                                                                <FormControl>
+                                                                    <Input disabled={loading} placeholder="Keterangan" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="icon"
+                                                        onClick={() => remove(index)}
+                                                        disabled={fields.length === 1}
+                                                    >
+                                                        <Trash className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="steps" className="space-y-6">
+                            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                                <FormField
+                                    control={form.control}
+                                    name="prepTime"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Waktu Persiapan (menit)</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" disabled={loading} {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="cookTime"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Waktu Masak (menit)</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" disabled={loading} {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            <FormField
+                                control={form.control}
+                                name="notes"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Langkah Step By Step</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                disabled={loading}
+                                                placeholder={"1. Siapkan semua bahan\n2. Timbang bahan sesuai takaran\n3. Campur dan olah hingga adonan siap"}
+                                                className="min-h-40"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Tulis instruksi proses pembuatan secara berurutan per langkah.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </TabsContent>
+                    </Tabs>
 
                     <Button disabled={loading} className="ml-auto" type="submit">
                         {action}
