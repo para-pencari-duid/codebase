@@ -181,13 +181,14 @@ export function ReportsClient() {
                     SKU: p.sku,
                     "Nama Produk": p.name,
                     Kategori: p.category,
+                    "Status Order": p.orderType === "PRE_ORDER" ? "Pre-Order" : "Ready Stock",
                     Stok: p.stock,
                     "Min Stok": p.minStock,
                     Satuan: p.unit,
                     "Harga Jual": p.price,
                     "Harga Modal": p.cost,
                     "Nilai Stok": p.stockValue,
-                    Status: p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
+                    "Status Stok": p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
                 }));
                 break;
             case "preorders":
@@ -265,11 +266,12 @@ export function ReportsClient() {
                 break;
             case "stock":
                 title = "Laporan Stok Barang";
-                headers = ["SKU", "Nama Produk", "Kategori", "Stok", "Min Stok", "Status"];
+                headers = ["SKU", "Nama Produk", "Kategori", "Status Order", "Stok", "Min Stok", "Status Stok"];
                 rows = (reportData.products || []).map((p: any) => [
                     p.sku,
                     p.name,
                     p.category,
+                    p.orderType === "PRE_ORDER" ? "Pre-Order" : "Ready Stock",
                     p.stock,
                     p.minStock,
                     p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
@@ -660,11 +662,13 @@ export function ReportsClient() {
                 <TabsContent value="stock" className="space-y-4">
                     {reportData?.type === "stock" ? (
                         <>
-                            <div className="grid gap-4 md:grid-cols-4">
+                            <div className="grid gap-4 md:grid-cols-6">
                                 <SummaryCard title="Total Produk" value={reportData.summary.totalProducts.toString()} icon={<Package className="h-4 w-4 text-muted-foreground" />} />
                                 <SummaryCard title="Nilai Stok" value={formatCurrency(reportData.summary.totalStockValue)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
                                 <SummaryCard title="Stok Rendah" value={reportData.summary.lowStock.toString()} icon={<Warehouse className="h-4 w-4 text-orange-500" />} />
                                 <SummaryCard title="Stok Habis" value={reportData.summary.outOfStock.toString()} icon={<Warehouse className="h-4 w-4 text-red-500" />} />
+                                <SummaryCard title="Ready Stock" value={(reportData.summary.readyStockCount || 0).toString()} icon={<Warehouse className="h-4 w-4 text-green-600" />} />
+                                <SummaryCard title="Pre-Order" value={(reportData.summary.preOrderCount || 0).toString()} icon={<FileText className="h-4 w-4 text-amber-600" />} />
                             </div>
                             <Card>
                                 <CardHeader>
@@ -677,11 +681,12 @@ export function ReportsClient() {
                                                 <TableHead>SKU</TableHead>
                                                 <TableHead>Produk</TableHead>
                                                 <TableHead>Kategori</TableHead>
+                                                <TableHead>Status Order</TableHead>
                                                 <TableHead className="text-right">Stok</TableHead>
                                                 <TableHead className="text-right">Min</TableHead>
                                                 <TableHead>Satuan</TableHead>
                                                 <TableHead className="text-right">Nilai Stok</TableHead>
-                                                <TableHead>Status</TableHead>
+                                                <TableHead>Status Stok</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -690,6 +695,11 @@ export function ReportsClient() {
                                                     <TableCell className="font-mono text-sm">{p.sku}</TableCell>
                                                     <TableCell className="font-medium">{p.name}</TableCell>
                                                     <TableCell>{p.category}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={p.orderType === "PRE_ORDER" ? "secondary" : "default"}>
+                                                            {p.orderType === "PRE_ORDER" ? "Pre-Order" : "Ready Stock"}
+                                                        </Badge>
+                                                    </TableCell>
                                                     <TableCell className="text-right">{p.stock}</TableCell>
                                                     <TableCell className="text-right">{p.minStock}</TableCell>
                                                     <TableCell>{p.unit}</TableCell>

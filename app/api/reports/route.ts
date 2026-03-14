@@ -214,6 +214,7 @@ export async function GET(req: Request) {
                     name: v.item.name,
                     sku: v.sku,
                     category: v.item.category?.name || "Uncategorized",
+                    orderType: v.item.orderType === "PRE_ORDER" ? "PRE_ORDER" : "READY",
                     stock: v.stock,
                     minStock: v.minStock,
                     unit: v.item.unit,
@@ -233,6 +234,8 @@ export async function GET(req: Request) {
                     totalStockValue: stockData.reduce((s, p) => s + p.stockValue, 0),
                     outOfStock: stockData.filter((p) => p.status === "OUT_OF_STOCK").length,
                     lowStock: stockData.filter((p) => p.status === "LOW_STOCK").length,
+                    readyStockCount: stockData.filter((p) => p.orderType === "READY").length,
+                    preOrderCount: stockData.filter((p) => p.orderType === "PRE_ORDER").length,
                 };
 
                 return NextResponse.json({ type: "stock", summary, products: stockData });
