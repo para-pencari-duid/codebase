@@ -32,7 +32,7 @@ export default async function ProductsPage() {
     }));
 
     return (
-        <div className="p-5 lg:p-7">
+        <div className="p-3 sm:p-5 lg:p-7">
             <ProductClient data={formattedProducts} />
         </div>
     );

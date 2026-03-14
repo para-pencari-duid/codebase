@@ -55,21 +55,22 @@ export function DataTable<TData, TValue>({
 
     return (
         <div>
-            <div className="flex items-center py-4">
+            <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
                 <Input
                     placeholder="Search..."
                     value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ""}
                     onChange={(event) =>
                         table.getColumn(searchKey)?.setFilterValue(event.target.value)
                     }
-                    className="max-w-sm"
+                    className="w-full sm:max-w-sm"
                 />
-                <div className="flex items-center space-x-2 ml-auto">
+                <div className="ml-0 flex w-full items-center justify-end gap-2 sm:ml-auto sm:w-auto">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => table.previousPage()}
                         disabled={!table.getCanPreviousPage()}
+                        className="flex-1 sm:flex-none"
                     >
                         Previous
                     </Button>
@@ -78,6 +79,7 @@ export function DataTable<TData, TValue>({
                         size="sm"
                         onClick={() => table.nextPage()}
                         disabled={!table.getCanNextPage()}
+                        className="flex-1 sm:flex-none"
                     >
                         Next
                     </Button>
