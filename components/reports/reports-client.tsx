@@ -188,7 +188,7 @@ export function ReportsClient() {
                     "Harga Jual": p.price,
                     "Harga Modal": p.cost,
                     "Nilai Stok": p.stockValue,
-                    "Status Stok": p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
+                    "Status Stok": p.orderType === "PRE_ORDER" ? "Pre-Order" : p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
                 }));
                 break;
             case "preorders":
@@ -274,7 +274,7 @@ export function ReportsClient() {
                     p.orderType === "PRE_ORDER" ? "Pre-Order" : "Ready Stock",
                     p.stock,
                     p.minStock,
-                    p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
+                    p.orderType === "PRE_ORDER" ? "Pre-Order" : p.status === "OUT_OF_STOCK" ? "Habis" : p.status === "LOW_STOCK" ? "Rendah" : "OK",
                 ]);
                 break;
         }
@@ -707,18 +707,22 @@ export function ReportsClient() {
                                                     <TableCell>
                                                         <Badge
                                                             variant={
-                                                                p.status === "OUT_OF_STOCK"
-                                                                    ? "destructive"
-                                                                    : p.status === "LOW_STOCK"
-                                                                      ? "secondary"
-                                                                      : "default"
+                                                                p.orderType === "PRE_ORDER"
+                                                                    ? "outline"
+                                                                    : p.status === "OUT_OF_STOCK"
+                                                                      ? "destructive"
+                                                                      : p.status === "LOW_STOCK"
+                                                                        ? "secondary"
+                                                                        : "default"
                                                             }
                                                         >
-                                                            {p.status === "OUT_OF_STOCK"
-                                                                ? "Habis"
-                                                                : p.status === "LOW_STOCK"
-                                                                  ? "Rendah"
-                                                                  : "OK"}
+                                                            {p.orderType === "PRE_ORDER"
+                                                                ? "Pre-Order"
+                                                                : p.status === "OUT_OF_STOCK"
+                                                                  ? "Habis"
+                                                                  : p.status === "LOW_STOCK"
+                                                                    ? "Rendah"
+                                                                    : "OK"}
                                                         </Badge>
                                                     </TableCell>
                                                 </TableRow>

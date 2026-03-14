@@ -222,11 +222,13 @@ export async function GET(req: Request) {
                     price: Number(v.price),
                     stockValue: v.stock * Number(v.cost || 0),
                     status:
-                        v.stock === 0
-                            ? "OUT_OF_STOCK"
-                            : v.stock <= v.minStock
-                              ? "LOW_STOCK"
-                              : "OK",
+                                                v.item.orderType === "PRE_ORDER"
+                                                        ? "PRE_ORDER"
+                                                        : v.stock === 0
+                                                            ? "OUT_OF_STOCK"
+                                                            : v.stock <= v.minStock
+                                                                ? "LOW_STOCK"
+                                                                : "OK",
                 }));
 
                 const summary = {
