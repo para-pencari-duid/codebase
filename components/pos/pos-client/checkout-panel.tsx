@@ -572,7 +572,7 @@ export function PosCheckoutPanel({
               </div>
             )}
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label className="font-semibold text-sm">Diskon</Label>
               <div className="flex gap-2">
                 <Input
@@ -625,7 +625,7 @@ export function PosCheckoutPanel({
                   </button>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             <div className="space-y-2">
               <Label className="font-semibold text-sm">Catatan</Label>
