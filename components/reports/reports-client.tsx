@@ -119,6 +119,20 @@ export function ReportsClient() {
         }
     }, [dateRange]);
 
+    const downloadComplexForActiveTab = useCallback(() => {
+        const typeMap: Record<string, string> = {
+            sales: "sales",
+            products: "products",
+            cashier: "cashier",
+            stock: "stock",
+            profitloss: "profitloss",
+            preorders: "preorders",
+        };
+
+        const reportType = typeMap[activeTab] || "sales";
+        downloadExcelReport(reportType);
+    }, [activeTab, downloadExcelReport]);
+
     const exportToExcel = () => {
         if (!reportData) return;
 
@@ -361,9 +375,17 @@ export function ReportsClient() {
                                 <Package className="mr-2 h-4 w-4" />
                                 Analisis Produk
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadExcelReport("cashier")}>
+                                <Users className="mr-2 h-4 w-4" />
+                                Analisis Kasir
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => downloadExcelReport("inventory")}>
                                 <Warehouse className="mr-2 h-4 w-4" />
                                 Inventory (Stok)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadExcelReport("preorders")}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Analisis Pre-Order
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => downloadExcelReport("customers")}>
                                 <Users className="mr-2 h-4 w-4" />
@@ -377,9 +399,13 @@ export function ReportsClient() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    <Button variant="default" onClick={downloadComplexForActiveTab} disabled={exporting}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Kompleks (Tab Aktif)
+                    </Button>
                     <Button variant="outline" onClick={exportToExcel} disabled={!reportData}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
-                        Basic Excel
+                        Quick Excel
                     </Button>
                     <Button variant="outline" onClick={exportToPDF} disabled={!reportData}>
                         <FileText className="mr-2 h-4 w-4" />
@@ -545,10 +571,12 @@ export function ReportsClient() {
                 <TabsContent value="products" className="space-y-4">
                     {reportData?.type === "products" ? (
                         <>
-                            <div className="grid gap-4 md:grid-cols-3">
+                            <div className="grid gap-4 md:grid-cols-5">
                                 <SummaryCard title="Produk Terjual" value={reportData.summary.totalProducts.toString()} icon={<Package className="h-4 w-4 text-muted-foreground" />} />
                                 <SummaryCard title="Total Qty" value={reportData.summary.totalQuantitySold.toString()} icon={<Package className="h-4 w-4 text-muted-foreground" />} />
                                 <SummaryCard title="Total Pendapatan" value={formatCurrency(reportData.summary.totalRevenue)} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                                <SummaryCard title="Ready Stock" value={(reportData.summary.readyStockCount || 0).toString()} icon={<Warehouse className="h-4 w-4 text-green-600" />} />
+                                <SummaryCard title="Pre-Order" value={(reportData.summary.preOrderCount || 0).toString()} icon={<FileText className="h-4 w-4 text-amber-600" />} />
                             </div>
                             <Card>
                                 <CardHeader>
@@ -561,6 +589,7 @@ export function ReportsClient() {
                                                 <TableHead>SKU</TableHead>
                                                 <TableHead>Produk</TableHead>
                                                 <TableHead>Kategori</TableHead>
+                                                <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">Qty Terjual</TableHead>
                                                 <TableHead className="text-right">Pendapatan</TableHead>
                                             </TableRow>
@@ -571,6 +600,11 @@ export function ReportsClient() {
                                                     <TableCell className="font-mono text-sm">{p.sku}</TableCell>
                                                     <TableCell className="font-medium">{p.name}</TableCell>
                                                     <TableCell>{p.category}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={p.orderType === "PRE_ORDER" ? "secondary" : "default"}>
+                                                            {p.orderType === "PRE_ORDER" ? "Pre-Order" : "Ready Stock"}
+                                                        </Badge>
+                                                    </TableCell>
                                                     <TableCell className="text-right">{p.quantitySold}</TableCell>
                                                     <TableCell className="text-right">{formatCurrency(p.revenue)}</TableCell>
                                                 </TableRow>

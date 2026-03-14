@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import ExcelJS from "exceljs";
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
 import {
@@ -93,6 +94,18 @@ export async function GET(req: NextRequest) {
         break;
       }
 
+      case "sales": {
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
+        start.setHours(0, 0, 0, 0);
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        const data = await generateMonthlySalesData(start, end, businessName, "Custom");
+        workbook = await generateMonthlySalesReport(data);
+        filename = `Laporan_Penjualan_${start.toISOString().split("T")[0]}_${end.toISOString().split("T")[0]}.xlsx`;
+        break;
+      }
+
       case "products": {
         const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
         start.setHours(0, 0, 0, 0);
@@ -109,6 +122,24 @@ export async function GET(req: NextRequest) {
         const data = await generateInventoryReportData(businessName);
         workbook = await generateInventoryReport(data);
         filename = `Laporan_Inventory_${new Date().toISOString().split("T")[0]}.xlsx`;
+        break;
+      }
+
+      case "stock": {
+        const data = await generateInventoryReportData(businessName);
+        workbook = await generateInventoryReport(data);
+        filename = `Laporan_Stok_${new Date().toISOString().split("T")[0]}.xlsx`;
+        break;
+      }
+
+      case "cashier": {
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
+        start.setHours(0, 0, 0, 0);
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        workbook = await generateCashierPerformanceWorkbook(start, end, businessName);
+        filename = `Laporan_Kasir_${start.toISOString().split("T")[0]}_${end.toISOString().split("T")[0]}.xlsx`;
         break;
       }
 
@@ -136,6 +167,17 @@ export async function GET(req: NextRequest) {
         break;
       }
 
+      case "preorders": {
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
+        start.setHours(0, 0, 0, 0);
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        workbook = await generatePreOrdersWorkbook(start, end, businessName);
+        filename = `Laporan_PreOrder_${start.toISOString().split("T")[0]}_${end.toISOString().split("T")[0]}.xlsx`;
+        break;
+      }
+
       default:
         return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
     }
@@ -160,6 +202,171 @@ export async function GET(req: NextRequest) {
 // ============================================
 // DATA GENERATION FUNCTIONS
 // ============================================
+
+async function generateCashierPerformanceWorkbook(
+  startDate: Date,
+  endDate: Date,
+  businessName: string
+): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = businessName;
+  workbook.created = new Date();
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      status: "COMPLETED",
+      createdAt: { gte: startDate, lte: endDate },
+    },
+    include: {
+      items: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const cashierMap: Record<string, {
+    name: string;
+    email: string;
+    transactionCount: number;
+    totalRevenue: number;
+    totalItems: number;
+    avgBasket: number;
+  }> = {};
+
+  for (const tx of transactions) {
+    const uid = tx.userId || "unknown";
+    if (!cashierMap[uid]) {
+      cashierMap[uid] = {
+        name: tx.user?.name || "-",
+        email: tx.user?.email || "-",
+        transactionCount: 0,
+        totalRevenue: 0,
+        totalItems: 0,
+        avgBasket: 0,
+      };
+    }
+
+    cashierMap[uid].transactionCount += 1;
+    cashierMap[uid].totalRevenue += Number(tx.total);
+    cashierMap[uid].totalItems += tx.items.reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  const rows = Object.values(cashierMap)
+    .map((cashier) => ({
+      ...cashier,
+      avgBasket: cashier.transactionCount > 0 ? cashier.totalRevenue / cashier.transactionCount : 0,
+    }))
+    .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+  const summarySheet = workbook.addWorksheet("Ringkasan");
+  summarySheet.columns = [{ width: 28 }, { width: 28 }];
+  summarySheet.addRow(["Laporan Kasir", `${startDate.toLocaleDateString("id-ID")} - ${endDate.toLocaleDateString("id-ID")}`]);
+  summarySheet.addRow(["Cabang", businessName]);
+  summarySheet.addRow(["Total Kasir Aktif", rows.length]);
+  summarySheet.addRow(["Total Transaksi", transactions.length]);
+  summarySheet.addRow(["Total Pendapatan", rows.reduce((s, r) => s + r.totalRevenue, 0)]);
+
+  const detailSheet = workbook.addWorksheet("Performa Kasir");
+  detailSheet.columns = [
+    { width: 24 },
+    { width: 32 },
+    { width: 18 },
+    { width: 16 },
+    { width: 22 },
+    { width: 20 },
+  ];
+  detailSheet.addRow(["Nama", "Email", "Jumlah Transaksi", "Total Item", "Total Pendapatan", "Avg / Transaksi"]);
+
+  rows.forEach((r) => {
+    detailSheet.addRow([
+      r.name,
+      r.email,
+      r.transactionCount,
+      r.totalItems,
+      r.totalRevenue,
+      Math.round(r.avgBasket),
+    ]);
+  });
+
+  detailSheet.getColumn(5).numFmt = '"Rp" #,##0';
+  detailSheet.getColumn(6).numFmt = '"Rp" #,##0';
+
+  return workbook;
+}
+
+async function generatePreOrdersWorkbook(
+  startDate: Date,
+  endDate: Date,
+  businessName: string
+): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = businessName;
+  workbook.created = new Date();
+
+  const tickets = await prisma.jobTicket.findMany({
+    where: {
+      status: { not: "CANCELLED" },
+      createdAt: { gte: startDate, lte: endDate },
+    },
+    include: { items: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const summarySheet = workbook.addWorksheet("Ringkasan");
+  summarySheet.columns = [{ width: 28 }, { width: 28 }];
+  summarySheet.addRow(["Laporan Pre-Order", `${startDate.toLocaleDateString("id-ID")} - ${endDate.toLocaleDateString("id-ID")}`]);
+  summarySheet.addRow(["Cabang", businessName]);
+  summarySheet.addRow(["Total Order", tickets.length]);
+  summarySheet.addRow(["Total Omzet", tickets.reduce((s, t) => s + Number(t.totalPrice), 0)]);
+  summarySheet.addRow(["Total DP", tickets.reduce((s, t) => s + Number(t.dpAmount), 0)]);
+
+  const detailSheet = workbook.addWorksheet("Detail Pre-Order");
+  detailSheet.columns = [
+    { width: 18 },
+    { width: 22 },
+    { width: 18 },
+    { width: 26 },
+    { width: 16 },
+    { width: 14 },
+    { width: 14 },
+    { width: 14 },
+    { width: 14 },
+    { width: 16 },
+  ];
+  detailSheet.addRow([
+    "No. Order",
+    "Pelanggan",
+    "No. HP",
+    "Produk",
+    "Status",
+    "Qty",
+    "Total",
+    "DP",
+    "Sisa",
+    "Metode Bayar",
+  ]);
+
+  tickets.forEach((t) => {
+    detailSheet.addRow([
+      t.ticketNo,
+      t.customerName,
+      t.customerPhone,
+      t.title,
+      t.status,
+      t.quantity,
+      Number(t.totalPrice),
+      Number(t.dpAmount),
+      Number(t.remainingAmount),
+      t.finalPayMethod ?? t.dpMethod ?? "-",
+    ]);
+  });
+
+  detailSheet.getColumn(7).numFmt = '"Rp" #,##0';
+  detailSheet.getColumn(8).numFmt = '"Rp" #,##0';
+  detailSheet.getColumn(9).numFmt = '"Rp" #,##0';
+
+  return workbook;
+}
 
 async function generateDailySalesData(
   startDate: Date,

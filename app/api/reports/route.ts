@@ -96,7 +96,7 @@ export async function GET(req: Request) {
                         variant: {
                             include: {
                                 item: {
-                                    select: { id: true, name: true, sku: true, category: { select: { name: true } } },
+                                    select: { id: true, name: true, sku: true, orderType: true, category: { select: { name: true } } },
                                 },
                             },
                         },
@@ -110,6 +110,7 @@ export async function GET(req: Request) {
                         name: string;
                         sku: string;
                         category: string;
+                        orderType: "READY" | "PRE_ORDER";
                         quantitySold: number;
                         revenue: number;
                     }
@@ -123,6 +124,7 @@ export async function GET(req: Request) {
                             name: item.variant?.item?.name || item.itemName,
                             sku: item.variant?.item?.sku || "",
                             category: item.variant?.item?.category?.name || "Uncategorized",
+                            orderType: item.variant?.item?.orderType === "PRE_ORDER" ? "PRE_ORDER" : "READY",
                             quantitySold: 0,
                             revenue: 0,
                         };
@@ -139,6 +141,8 @@ export async function GET(req: Request) {
                     totalProducts: products.length,
                     totalQuantitySold: products.reduce((s, p) => s + p.quantitySold, 0),
                     totalRevenue: products.reduce((s, p) => s + p.revenue, 0),
+                    readyStockCount: products.filter((p) => p.orderType === "READY").length,
+                    preOrderCount: products.filter((p) => p.orderType === "PRE_ORDER").length,
                 };
 
                 return NextResponse.json({ type: "products", summary, products });
