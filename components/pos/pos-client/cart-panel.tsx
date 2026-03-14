@@ -170,7 +170,7 @@ export function PosCartPanel({
             </Button>
           </div>
           {/* Feature 5: show pre-order CTA when mixed cart detected */}
-          {hasPreOrderItems && onGoToPreOrder ? (
+          {/* {hasPreOrderItems && onGoToPreOrder ? (
             <Button
               onClick={onGoToPreOrder}
               className="w-full bg-amber-500 hover:bg-amber-600 text-white"
@@ -187,7 +187,7 @@ export function PosCartPanel({
                 <CalendarClock className="mr-2 h-4 w-4" /> Pre-Order
               </Button>
             </Link>
-          )}
+          )} */}
         </div>
       </div>
     </>
