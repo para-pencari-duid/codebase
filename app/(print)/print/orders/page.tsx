@@ -45,6 +45,8 @@ interface StoreInfo {
   logo?: string;
 }
 
+type PrintPaper = "a4" | "thermal";
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string | Date | null | undefined) {
@@ -325,9 +327,15 @@ function InvoiceDoc({ order, store }: { order: Order; store: StoreInfo }) {
 
 function PrintContent() {
   const searchParams = useSearchParams();
-  const mode = searchParams.get("mode") ?? "labels"; // "labels" | "recap"
+  const mode = searchParams.get("mode") ?? "labels"; // "labels" | "recap" | "invoice"
   const ids = searchParams.get("ids"); // comma-separated order IDs
   const date = searchParams.get("date"); // YYYY-MM-DD
+  const paperParam = (searchParams.get("paper") ?? searchParams.get("format") ?? "a4").toLowerCase();
+  const paper: PrintPaper =
+    mode !== "recap" && ["thermal", "receipt", "resi"].includes(paperParam)
+      ? "thermal"
+      : "a4";
+  const paperLabel = paper === "thermal" ? "Printer resi" : "HVS / A4";
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [recapDate, setRecapDate] = useState<string>("");
@@ -366,8 +374,8 @@ function PrintContent() {
           );
           setOrders(results.filter((r) => r && !r.error));
         }
-      } catch (e: any) {
-        setError(e.message ?? "Gagal memuat");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Gagal memuat");
       } finally {
         setLoading(false);
       }
@@ -402,36 +410,40 @@ function PrintContent() {
 
   return (
     <>
-      {/* Print controls — hidden on print */}
-      <div className="print-controls no-print">
-        <strong>{orders.length} pesanan</strong> siap cetak
-        <button onClick={() => window.print()} className="btn-print">
-          Cetak
-        </button>
-        <button onClick={() => window.close()} className="btn-close">
-          Tutup
-        </button>
-      </div>
+      <div className={`print-page print-${paper}`}>
+        {/* Print controls — hidden on print */}
+        <div className="print-controls no-print">
+          <strong>{orders.length} pesanan</strong>
+          <span>Format: {paperLabel}</span>
+          <button onClick={() => window.print()} className="btn-print">
+            Cetak
+          </button>
+          <button onClick={() => window.close()} className="btn-close">
+            Tutup
+          </button>
+        </div>
 
-      {mode === "recap" ? (
-        <RecapSheet orders={orders} date={recapDate} storeName={storeInfo.name} />
-      ) : mode === "invoice" ? (
-        <div className="invoice-grid">
-          {orders.map((order) => (
-            <InvoiceDoc key={order.id} order={order} store={storeInfo} />
-          ))}
-        </div>
-      ) : (
-        <div className="labels-grid">
-          {orders.map((order) => (
-            <OrderLabel key={order.id} order={order} store={storeInfo} />
-          ))}
-        </div>
-      )}
+        {mode === "recap" ? (
+          <RecapSheet orders={orders} date={recapDate} storeName={storeInfo.name} />
+        ) : mode === "invoice" ? (
+          <div className="invoice-grid">
+            {orders.map((order) => (
+              <InvoiceDoc key={order.id} order={order} store={storeInfo} />
+            ))}
+          </div>
+        ) : (
+          <div className="labels-grid">
+            {orders.map((order) => (
+              <OrderLabel key={order.id} order={order} store={storeInfo} />
+            ))}
+          </div>
+        )}
+      </div>
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Arial, sans-serif; background: #f5f5f5; }
+        .print-page { min-height: 100vh; }
 
         /* ── Print controls ── */
         .print-controls {
@@ -522,11 +534,12 @@ function PrintContent() {
           align-items: baseline;
           gap: 4px;
           margin-bottom: 2px;
+          min-width: 0;
         }
         .rc-label { color: #555; font-size: 10px; }
         .rc-mono { font-family: monospace; font-size: 10px; color: #777; }
         .rc-val { font-size: 10px; color: #111; }
-        .rc-val-sm { font-size: 10px; color: #555; }
+        .rc-val-sm { font-size: 10px; color: #555; overflow-wrap: anywhere; }
         .rc-val-bold { font-size: 11px; font-weight: 700; color: #111; }
         .rc-paid { color: #15803d; font-weight: 700; }
         .rc-unpaid { color: #b91c1c; font-weight: 700; }
@@ -541,9 +554,9 @@ function PrintContent() {
         }
 
         /* ── Item rows ── */
-        .rc-item-name { font-weight: 600; color: #111; flex: 1; }
+        .rc-item-name { font-weight: 600; color: #111; flex: 1; overflow-wrap: anywhere; }
         .rc-item-price { white-space: nowrap; font-size: 10px; color: #111; }
-        .rc-item-note { font-size: 9px; color: #777; font-style: italic; padding-left: 8px; margin-bottom: 2px; }
+        .rc-item-note { font-size: 9px; color: #777; font-style: italic; padding-left: 8px; margin-bottom: 2px; overflow-wrap: anywhere; }
 
         /* ── Badge + status ── */
         .rc-badge {
@@ -623,9 +636,44 @@ function PrintContent() {
           margin: 0 auto;
         }
 
+        /* ── Thermal receipt preview ── */
+        .print-thermal {
+          width: 80mm;
+          max-width: 80mm;
+          margin: 0 auto;
+          background: white;
+        }
+        .print-thermal .print-controls {
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          width: min(100vw, 420px);
+          justify-content: center;
+        }
+        .print-thermal .labels-grid,
+        .print-thermal .invoice-grid {
+          padding: 56px 4mm 8mm;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          max-width: 80mm;
+          margin: 0 auto;
+        }
+        .print-thermal .label-card,
+        .print-thermal .invoice-card {
+          width: 72mm;
+          border-radius: 0;
+          padding: 3mm;
+          font-size: 11px;
+        }
+        .print-thermal .rc-logo { height: 28px; }
+        .print-thermal .rc-store-name { font-size: 12px; letter-spacing: 0.5px; }
+        .print-thermal .rc-customer { font-size: 13px; }
+
         /* ── Print media ── */
         @media print {
-          @page { size: A4; margin: 8mm; }
+          @page { size: ${paper === "thermal" ? "auto" : "A4"}; margin: ${paper === "thermal" ? "3mm" : "8mm"}; }
+          ${paper === "thermal" ? "html, body { width: 80mm; }" : ""}
           body { background: white; }
           .no-print { display: none !important; }
           .labels-grid {
@@ -639,6 +687,31 @@ function PrintContent() {
             padding: 0;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
+          }
+          .print-thermal {
+            width: auto;
+            max-width: none;
+            margin: 0;
+          }
+          .print-thermal .labels-grid,
+          .print-thermal .invoice-grid {
+            display: block;
+            width: 72mm;
+            max-width: 72mm;
+            padding: 0;
+          }
+          .print-thermal .label-card,
+          .print-thermal .invoice-card {
+            width: 72mm;
+            border: none;
+            padding: 0;
+            page-break-after: always;
+            break-after: page;
+          }
+          .print-thermal .label-card:last-child,
+          .print-thermal .invoice-card:last-child {
+            page-break-after: auto;
+            break-after: auto;
           }
         }
       `}</style>

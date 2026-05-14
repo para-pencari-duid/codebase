@@ -7,6 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -43,6 +50,7 @@ import {
   TableProperties,
   X,
   Plus,
+  ChevronDown,
 } from "lucide-react";
 import { alertSuccess, alertError, confirmDestroy, confirmAction } from "@/lib/swal";
 import { formatCurrency } from "@/lib/utils";
@@ -107,6 +115,11 @@ interface PreOrder {
   createdByUser?: { name: string };
 }
 
+type PrintPaper = "a4" | "thermal";
+type PrintMode = "labels" | "invoice";
+type ButtonVariant = "default" | "outline" | "ghost" | "secondary" | "destructive" | "link";
+type ButtonSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<
@@ -168,6 +181,53 @@ function StatusBadge({ status }: { status: PreOrderStatus }) {
       <Icon className="h-3 w-3" />
       {cfg.label}
     </span>
+  );
+}
+
+function PrintFormatMenu({
+  label,
+  mode,
+  variant = "outline",
+  size = "sm",
+  iconOnly = false,
+  className,
+  onSelect,
+}: {
+  label: string;
+  mode: PrintMode;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  iconOnly?: boolean;
+  className?: string;
+  onSelect: (paper: PrintPaper) => void;
+}) {
+  const Icon = mode === "labels" ? Printer : FileSpreadsheet;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant={variant} size={size} className={className} title={label} aria-label={label}>
+          <Icon className={iconOnly ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          {!iconOnly && (
+            <>
+              {label}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuLabel>{label}</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => onSelect("a4")}>
+          <FileSpreadsheet className="h-4 w-4" />
+          HVS / A4
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onSelect("thermal")}>
+          <Printer className="h-4 w-4" />
+          Printer Resi
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -538,16 +598,21 @@ export default function PreOrdersPage() {
     // WA notifications removed — only sent on completion via API
   };
 
-  const handlePrintLabels = (ids: string[]) => {
-    window.open(`/print/orders?mode=labels&ids=${ids.join(",")}`, "_blank");
+  const openPrintOrders = (mode: PrintMode, ids: string[], paper: PrintPaper = "a4") => {
+    if (ids.length === 0) return;
+    window.open(`/print/orders?mode=${mode}&paper=${paper}&ids=${ids.join(",")}`, "_blank");
+  };
+
+  const handlePrintLabels = (ids: string[], paper: PrintPaper = "a4") => {
+    openPrintOrders("labels", ids, paper);
   };
 
   const handlePrintRecap = () => {
     window.open(`/print/orders?mode=recap&date=${recapDate}`, "_blank");
   };
 
-  const handlePrintInvoice = (id: string) => {
-    window.open(`/print/orders?mode=invoice&ids=${id}`, "_blank");
+  const handlePrintInvoice = (ids: string | string[], paper: PrintPaper = "a4") => {
+    openPrintOrders("invoice", Array.isArray(ids) ? ids : [ids], paper);
   };
 
   const toggleSelect = (id: string) => {
@@ -633,14 +698,17 @@ export default function PreOrdersPage() {
             <div className="flex items-center gap-3 rounded-xl p-3 flex-wrap"
                  style={{ background: "oklch(0.95 0.05 240)", border: "1px solid oklch(0.82 0.08 240)" }}>
               <span className="text-sm font-semibold" style={{ color: "oklch(0.40 0.14 240)" }}>{selectedIds.size} dipilih</span>
-              <Button size="sm" onClick={() => handlePrintLabels(Array.from(selectedIds))}>
-                <Printer className="h-3.5 w-3.5 mr-1.5" />
-                Cetak Label
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => window.open(`/print/orders?mode=invoice&ids=${Array.from(selectedIds).join(",")}`, "_blank")}>
-                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
-                Cetak Invoice
-              </Button>
+              <PrintFormatMenu
+                label="Cetak Label"
+                mode="labels"
+                variant="default"
+                onSelect={(paper) => handlePrintLabels(Array.from(selectedIds), paper)}
+              />
+              <PrintFormatMenu
+                label="Cetak Invoice"
+                mode="invoice"
+                onSelect={(paper) => handlePrintInvoice(Array.from(selectedIds), paper)}
+              />
               <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
                 <X className="h-3.5 w-3.5 mr-1" />
                 Batal Pilih
@@ -789,22 +857,22 @@ export default function PreOrdersPage() {
 
                     {/* Detail / Edit / Cancel */}
                     <div className="flex gap-1">
-                      <Button
-                        size="icon"
+                      <PrintFormatMenu
+                        label="Cetak Label"
+                        mode="labels"
                         variant="ghost"
-                        title="Cetak Label"
-                        onClick={() => handlePrintLabels([order.id])}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                      <Button
                         size="icon"
+                        iconOnly
+                        onSelect={(paper) => handlePrintLabels([order.id], paper)}
+                      />
+                      <PrintFormatMenu
+                        label="Cetak Invoice"
+                        mode="invoice"
                         variant="ghost"
-                        title="Cetak Invoice"
-                        onClick={() => handlePrintInvoice(order.id)}
-                      >
-                        <FileSpreadsheet className="h-4 w-4" />
-                      </Button>
+                        size="icon"
+                        iconOnly
+                        onSelect={(paper) => handlePrintInvoice(order.id, paper)}
+                      />
                       <Button size="icon" variant="ghost" onClick={() => setDetailOrder(order)}>
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -854,10 +922,11 @@ export default function PreOrdersPage() {
                   <Printer className="h-4 w-4 mr-1.5" />
                   Cetak Rekap A4
                 </Button>
-                <Button variant="outline" onClick={() => handlePrintLabels(recapOrders.map((o) => o.id))}>
-                  <Printer className="h-4 w-4 mr-1.5" />
-                  Cetak Semua Label
-                </Button>
+                <PrintFormatMenu
+                  label="Cetak Semua Label"
+                  mode="labels"
+                  onSelect={(paper) => handlePrintLabels(recapOrders.map((o) => o.id), paper)}
+                />
               </>
             )}
           </div>
@@ -910,12 +979,24 @@ export default function PreOrdersPage() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Cetak Label" onClick={() => handlePrintLabels([order.id])}>
-                            <Printer className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Cetak Invoice" onClick={() => handlePrintInvoice(order.id)}>
-                            <FileSpreadsheet className="h-3.5 w-3.5" />
-                          </Button>
+                          <PrintFormatMenu
+                            label="Cetak Label"
+                            mode="labels"
+                            variant="ghost"
+                            size="icon"
+                            iconOnly
+                            className="h-7 w-7"
+                            onSelect={(paper) => handlePrintLabels([order.id], paper)}
+                          />
+                          <PrintFormatMenu
+                            label="Cetak Invoice"
+                            mode="invoice"
+                            variant="ghost"
+                            size="icon"
+                            iconOnly
+                            className="h-7 w-7"
+                            onSelect={(paper) => handlePrintInvoice(order.id, paper)}
+                          />
                         </div>
                       </td>
                     </tr>
