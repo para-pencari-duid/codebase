@@ -505,6 +505,10 @@ export default function PreOrdersPage() {
       alertError("Minimal 1 item pesanan wajib diisi.");
       return;
     }
+    if (form.deliveryType === "DELIVERY" && !form.customerAddress.trim()) {
+      alertError("Alamat pengiriman wajib diisi.");
+      return;
+    }
     setSaving(true);
     try {
       const pickupDateTime = form.pickupDate
@@ -517,7 +521,7 @@ export default function PreOrdersPage() {
           action: "edit",
           customerName: form.customerName,
           customerPhone: form.customerPhone,
-          customerAddress: form.customerAddress,
+          customerAddress: form.deliveryType === "DELIVERY" ? form.customerAddress : null,
           notes: form.notes,
           pickupDate: pickupDateTime?.toISOString(),
           deliveryType: form.deliveryType,
@@ -1154,11 +1158,6 @@ export default function PreOrdersPage() {
               <Label>Nomor HP</Label>
               <Input value={form.customerPhone} onChange={(e) => setForm((f) => ({ ...f, customerPhone: e.target.value }))} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Alamat</Label>
-              <Input value={form.customerAddress} onChange={(e) => setForm((f) => ({ ...f, customerAddress: e.target.value }))} />
-            </div>
-
             <Separator />
 
             {/* Items table */}
@@ -1222,11 +1221,11 @@ export default function PreOrdersPage() {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label>Tanggal Ambil</Label>
+                <Label>{form.deliveryType === "DELIVERY" ? "Tanggal Kirim" : "Tanggal Ambil"}</Label>
                 <Input type="date" value={form.pickupDate} onChange={(e) => setForm((f) => ({ ...f, pickupDate: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Jam Ambil</Label>
+                <Label>{form.deliveryType === "DELIVERY" ? "Jam Kirim" : "Jam Ambil"}</Label>
                 <Input type="time" value={form.pickupTime} onChange={(e) => setForm((f) => ({ ...f, pickupTime: e.target.value }))} />
               </div>
             </div>
@@ -1240,6 +1239,17 @@ export default function PreOrdersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {form.deliveryType === "DELIVERY" && (
+              <div className="space-y-1.5">
+                <Label>Alamat Pengiriman</Label>
+                <Textarea
+                  rows={2}
+                  value={form.customerAddress}
+                  onChange={(e) => setForm((f) => ({ ...f, customerAddress: e.target.value }))}
+                  placeholder="Alamat tujuan pengiriman"
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Catatan</Label>
               <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

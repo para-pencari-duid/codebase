@@ -50,6 +50,8 @@ interface Transaction {
     paymentMethod: string;
     paymentAmount: number;
     changeAmount: number;
+    deliveryType?: string | null;
+    deliveryAddress?: string | null;
     status: string;
     notes: string | null;
     createdAt: string;
@@ -175,7 +177,12 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
                             <TableRow key={t.id} className="hover:bg-gray-50/60 transition-colors">
                                 <TableCell className="font-mono text-xs text-gray-600">{t.transactionNo}</TableCell>
                                 <TableCell className="text-sm text-gray-600">{formatDateTime(t.createdAt)}</TableCell>
-                                <TableCell className="text-sm font-medium text-gray-800">{t.customerName}</TableCell>
+                                <TableCell className="text-sm font-medium text-gray-800">
+                                    <div>{t.customerName}</div>
+                                    <div className="text-xs text-gray-500">
+                                        {t.deliveryType === "DELIVERY" ? "Diantar" : "Ambil di Toko"}
+                                    </div>
+                                </TableCell>
                                 <TableCell className="text-sm text-gray-600">{t.cashierName}</TableCell>
                                 <TableCell className="text-sm text-gray-600">{t.itemCount} item</TableCell>
                                 <TableCell className="text-right font-bold text-gray-900">{formatCurrency(t.total)}</TableCell>
@@ -239,6 +246,10 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
                                 <div><span className="text-gray-500">Tanggal:</span> <span className="text-gray-700">{formatDateTime(selectedTransaction.createdAt)}</span></div>
                                 <div><span className="text-gray-500">Kasir:</span> <span className="text-gray-700">{selectedTransaction.cashierName}</span></div>
                                 <div><span className="text-gray-500">Customer:</span> <span className="text-gray-700">{selectedTransaction.customerName}</span></div>
+                                <div><span className="text-gray-500">Tipe:</span> <span className="text-gray-700">{selectedTransaction.deliveryType === "DELIVERY" ? "Diantar" : "Ambil di Toko"}</span></div>
+                                {selectedTransaction.deliveryType === "DELIVERY" && selectedTransaction.deliveryAddress && (
+                                    <div className="col-span-2"><span className="text-gray-500">Alamat:</span> <span className="text-gray-700">{selectedTransaction.deliveryAddress}</span></div>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -316,6 +327,8 @@ export const TransactionClient: React.FC<TransactionClientProps> = ({ data }) =>
                     paymentMethod: selectedTransaction.paymentMethod,
                     paymentAmount: selectedTransaction.paymentAmount,
                     changeAmount: selectedTransaction.changeAmount,
+                    deliveryType: selectedTransaction.deliveryType,
+                    deliveryAddress: selectedTransaction.deliveryAddress,
                     businessName: "",
                 } : null}
             />

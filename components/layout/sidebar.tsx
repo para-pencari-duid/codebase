@@ -69,10 +69,18 @@ const MENU_GROUPS = [
   },
 ] as const;
 
+const CASHIER_MENU_HREFS = new Set([
+  "/pos",
+  "/transactions",
+  "/pre-orders",
+  "/customers",
+]);
+
 // ─── Sidebar props ────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   businessName?: string;
+  role?: string;
 }
 
 // ─── Logout handler ───────────────────────────────────────────────────────────
@@ -88,12 +96,25 @@ async function handleLogout() {
 
 // ─── Nav links ────────────────────────────────────────────────────────────────
 
-function NavLinks({ onNavClick }: { onNavClick?: () => void }) {
+function NavLinks({
+  onNavClick,
+  role = "OWNER",
+}: {
+  onNavClick?: () => void;
+  role?: string;
+}) {
   const pathname = usePathname();
+  const groups =
+    role === "KASIR"
+      ? MENU_GROUPS.map((group) => ({
+          ...group,
+          items: group.items.filter((item) => CASHIER_MENU_HREFS.has(item.href)),
+        })).filter((group) => group.items.length > 0)
+      : MENU_GROUPS;
 
   return (
     <nav className="flex flex-col gap-4">
-      {MENU_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.label}>
           {/* Group label */}
           <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 select-none">
@@ -209,7 +230,7 @@ function LogoutButton() {
 
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
-export function Sidebar({ businessName = "POS System" }: SidebarProps) {
+export function Sidebar({ businessName = "POS System", role }: SidebarProps) {
   return (
     <aside
       className="hidden lg:flex flex-col sticky top-0 h-screen w-[256px] shrink-0"
@@ -221,7 +242,7 @@ export function Sidebar({ businessName = "POS System" }: SidebarProps) {
       <LogoBlock businessName={businessName} />
 
       <div className="flex-1 overflow-y-auto py-3 px-2">
-        <NavLinks />
+        <NavLinks role={role} />
       </div>
 
       <LogoutButton />
@@ -231,7 +252,7 @@ export function Sidebar({ businessName = "POS System" }: SidebarProps) {
 
 // ─── Mobile Sidebar ───────────────────────────────────────────────────────────
 
-export function MobileSidebar({ businessName = "Menu" }: SidebarProps) {
+export function MobileSidebar({ businessName = "Menu", role }: SidebarProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -254,7 +275,7 @@ export function MobileSidebar({ businessName = "Menu" }: SidebarProps) {
           <LogoBlock businessName={businessName} />
 
           <div className="flex-1 overflow-y-auto py-3 px-2">
-            <NavLinks onNavClick={() => setOpen(false)} />
+            <NavLinks onNavClick={() => setOpen(false)} role={role} />
           </div>
 
           <LogoutButton />

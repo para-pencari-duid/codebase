@@ -51,6 +51,8 @@ export interface PosReceiptData {
   paymentMethod: string;
   paymentAmount: number;
   changeAmount: number;
+  deliveryType?: "PICKUP" | "DELIVERY" | string | null;
+  deliveryAddress?: string | null;
   pointsEarned?: number;
   pointsRedeemed?: number;
   pointsRedemptionAmount?: number;

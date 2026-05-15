@@ -35,6 +35,8 @@ interface AvailableProduct {
   images: string[];
 }
 
+type PreOrderPaymentType = "DP" | "FULL";
+
 function ItemNameCombobox({
   value,
   onChange,
@@ -220,8 +222,10 @@ export function PosPreOrderDialog({
   const [deliveryType, setDeliveryType] = useState<"PICKUP" | "DELIVERY">(
     "PICKUP",
   );
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   // Payment
+  const [paymentType, setPaymentType] = useState<PreOrderPaymentType>("DP");
   const [dpAmount, setDpAmount] = useState<number>(0);
   const [dpMethod, setDpMethod] = useState<string>("CASH");
   const [notes, setNotes] = useState("");
@@ -230,6 +234,11 @@ export function PosPreOrderDialog({
     (sum, it) => sum + it.quantity * it.unitPrice,
     0,
   );
+  const preOrderPaymentAmount =
+    paymentType === "FULL"
+      ? totalPrice
+      : Math.min(Math.max(dpAmount, 0), totalPrice);
+  const remainingAmount = Math.max(0, totalPrice - preOrderPaymentAmount);
 
   const resetForm = useCallback(() => {
     setCustomerSearch("");
@@ -243,6 +252,8 @@ export function PosPreOrderDialog({
     setPickupDate("");
     setPickupTime("10:00");
     setDeliveryType("PICKUP");
+    setDeliveryAddress("");
+    setPaymentType("DP");
     setDpAmount(0);
     setDpMethod("CASH");
     setNotes("");
@@ -280,8 +291,16 @@ export function PosPreOrderDialog({
       toast.error("Tanggal pengambilan wajib diisi");
       return;
     }
+    if (deliveryType === "DELIVERY" && !deliveryAddress.trim()) {
+      toast.error("Alamat pengiriman wajib diisi");
+      return;
+    }
     if (items.some((it) => !it.name.trim() || it.unitPrice <= 0)) {
       toast.error("Setiap item harus ada nama dan harga satuan");
+      return;
+    }
+    if (preOrderPaymentAmount <= 0) {
+      toast.error("Isi nominal DP atau pilih pelunasan");
       return;
     }
 
@@ -296,6 +315,8 @@ export function PosPreOrderDialog({
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
           customerAddress: customerAddress.trim() || null,
+          deliveryAddress:
+            deliveryType === "DELIVERY" ? deliveryAddress.trim() : null,
           customerId: selectedCustomerId || null,
           items: items.map((it) => ({
             name: it.name.trim(),
@@ -304,8 +325,8 @@ export function PosPreOrderDialog({
             notes: it.notes.trim() || null,
           })),
           notes: notes.trim() || null,
-          dpAmount: dpAmount || 0,
-          dpMethod: dpAmount > 0 ? dpMethod : null,
+          dpAmount: preOrderPaymentAmount,
+          dpMethod: preOrderPaymentAmount > 0 ? dpMethod : null,
           pickupDate: pickupDatetime,
           deliveryType,
         }),
@@ -595,9 +616,17 @@ export function PosPreOrderDialog({
               <Label>Tipe Pengiriman</Label>
               <Select
                 value={deliveryType}
-                onValueChange={(v) =>
-                  setDeliveryType(v as "PICKUP" | "DELIVERY")
-                }
+                onValueChange={(v) => {
+                  const nextType = v as "PICKUP" | "DELIVERY";
+                  setDeliveryType(nextType);
+                  if (
+                    nextType === "DELIVERY" &&
+                    !deliveryAddress.trim() &&
+                    customerAddress.trim()
+                  ) {
+                    setDeliveryAddress(customerAddress.trim());
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -608,37 +637,30 @@ export function PosPreOrderDialog({
                 </SelectContent>
               </Select>
             </div>
+            {deliveryType === "DELIVERY" && (
+              <div className="space-y-1">
+                <Label htmlFor="po-delivery-address">
+                  Alamat Pengiriman <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="po-delivery-address"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Alamat tujuan pengiriman"
+                  className="min-h-20"
+                />
+              </div>
+            )}
           </section>
 
-          {/* ── DP ── */}
+          {/* ── Payment ── */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Down Payment (DP)
+              Pembayaran
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="po-dp-amount">Jumlah DP (Rp)</Label>
-                <Input
-                  id="po-dp-amount"
-                  type="number"
-                  min="0"
-                  value={dpAmount || ""}
-                  onChange={(e) =>
-                    setDpAmount(parseFloat(e.target.value) || 0)
-                  }
-                  placeholder="0"
-                />
-                {dpAmount > 0 && totalPrice > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Sisa pelunasan:{" "}
-                    <span className="font-medium">
-                      {formatCurrency(Math.max(0, totalPrice - dpAmount))}
-                    </span>
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label>Metode DP</Label>
+                <Label>Metode Pembayaran</Label>
                 <Select value={dpMethod} onValueChange={setDpMethod}>
                   <SelectTrigger>
                     <SelectValue />
@@ -652,7 +674,65 @@ export function PosPreOrderDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label>Jenis Pembayaran</Label>
+                <Select
+                  value={paymentType}
+                  onValueChange={(value) =>
+                    setPaymentType(value as PreOrderPaymentType)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DP">DP</SelectItem>
+                    <SelectItem value="FULL">Pelunasan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {paymentType === "DP" ? (
+              <div className="space-y-1">
+                <Label htmlFor="po-dp-amount">
+                  Jumlah DP (Rp) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="po-dp-amount"
+                  type="number"
+                  min="0"
+                  max={totalPrice}
+                  value={dpAmount || ""}
+                  onChange={(e) =>
+                    setDpAmount(
+                      Math.min(
+                        Math.max(parseFloat(e.target.value) || 0, 0),
+                        totalPrice,
+                      ),
+                    )
+                  }
+                  placeholder="0"
+                />
+                {preOrderPaymentAmount > 0 && totalPrice > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Sisa pelunasan:{" "}
+                    <span className="font-medium">
+                      {formatCurrency(remainingAmount)}
+                    </span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm">
+                <span className="font-medium text-green-800">
+                  Total dilunasi
+                </span>
+                <span className="font-semibold text-green-700">
+                  {formatCurrency(totalPrice)}
+                </span>
+              </div>
+            )}
           </section>
 
           {/* ── Catatan Tambahan ── */}

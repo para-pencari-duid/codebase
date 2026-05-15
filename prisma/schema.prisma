@@ -242,6 +242,18 @@ model ProductionMaterial {
   @@index([variantId])
 }
 
+model ProductionTarget {
+  id             String   @id @default(cuid())
+  month          DateTime @unique
+  targetQuantity Int      @default(0)
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([month])
+}
+
 // ============================================================
 // JOB TICKET
 // ============================================================
@@ -333,6 +345,8 @@ model Transaction {
   paymentAmount  Decimal              @db.Decimal(10, 2) @default(0)
   changeAmount   Decimal              @db.Decimal(10, 2) @default(0)
   paymentStatus  InvoicePaymentStatus @default(PAID)
+  deliveryType   DeliveryType         @default(PICKUP)
+  deliveryAddress String?
   dueDate        DateTime?
   notes          String?
   status         TransactionStatus    @default(COMPLETED)

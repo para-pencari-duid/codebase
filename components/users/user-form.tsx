@@ -217,7 +217,7 @@ export function UserForm({ initialData }: UserFormProps) {
                                         </SelectContent>
                                     </Select>
                                     <FormDescription>
-                                        Owner: akses penuh | Manager: tanpa kelola user | Kasir: POS saja
+                                        Owner: akses penuh | Manager: operasional & laporan | Kasir: POS dan order harian
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>

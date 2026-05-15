@@ -27,6 +27,11 @@ const paymentMethodLabels: Record<string, string> = {
   EWALLET: "E-Wallet",
 };
 
+const deliveryTypeLabels: Record<string, string> = {
+  PICKUP: "Ambil di Toko",
+  DELIVERY: "Diantar",
+};
+
 function escapeHtml(value: unknown) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => {
     switch (char) {
@@ -63,6 +68,7 @@ function waitForImages(doc: Document) {
 }
 
 function buildReceiptHtml(data: PosReceiptData) {
+  const deliveryType = data.deliveryType || "PICKUP";
   const logoHtml = data.businessLogo
     ? `<img class="logo" src="${escapeHtml(data.businessLogo)}" alt="logo" />`
     : "";
@@ -191,6 +197,8 @@ function buildReceiptHtml(data: PosReceiptData) {
             <div>Tanggal: ${escapeHtml(formatDateTime(data.createdAt))}</div>
             <div>Kasir: ${escapeHtml(data.cashierName)}</div>
             ${data.customerName ? `<div>Customer: ${escapeHtml(data.customerName)}</div>` : ""}
+            <div>Tipe: ${escapeHtml(deliveryTypeLabels[deliveryType] || deliveryType)}</div>
+            ${deliveryType === "DELIVERY" && data.deliveryAddress ? `<div>Alamat: ${escapeHtml(data.deliveryAddress)}</div>` : ""}
           </div>
 
           <div class="divider"></div>
@@ -334,6 +342,15 @@ export function ReceiptDialog({
             <p>Tanggal: {formatDateTime(data.createdAt)}</p>
             <p>Kasir: {data.cashierName}</p>
             {data.customerName && <p>Customer: {data.customerName}</p>}
+            <p>
+              Tipe:{" "}
+              {deliveryTypeLabels[data.deliveryType || "PICKUP"] ||
+                data.deliveryType ||
+                "Ambil di Toko"}
+            </p>
+            {data.deliveryType === "DELIVERY" && data.deliveryAddress && (
+              <p>Alamat: {data.deliveryAddress}</p>
+            )}
           </div>
 
           <div className="border-t border-dashed border-gray-400 my-2" />

@@ -1,0 +1,3 @@
+ALTER TABLE "Transaction"
+ADD COLUMN IF NOT EXISTS "deliveryType" "DeliveryType" NOT NULL DEFAULT 'PICKUP',
+ADD COLUMN IF NOT EXISTS "deliveryAddress" TEXT;

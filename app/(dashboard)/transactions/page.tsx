@@ -31,6 +31,8 @@ export default async function TransactionsPage() {
         paymentMethod: t.paymentMethod || "CASH",
         paymentAmount: Number(t.paymentAmount),
         changeAmount: Number(t.changeAmount),
+        deliveryType: t.deliveryType,
+        deliveryAddress: t.deliveryAddress,
         status: t.status,
         notes: t.notes,
         createdAt: t.createdAt.toISOString(),

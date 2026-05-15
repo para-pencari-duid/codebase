@@ -3,7 +3,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendNotificationIfEnabled, createTransactionMessage } from "@/lib/whatsapp";
-import { PaymentMethod } from "@prisma/client";
+import { PaymentMethod, Prisma, TransactionStatus } from "@prisma/client";
 
 // Schema for Transaction Creation
 const paymentLineSchema = z.object({
@@ -30,6 +30,8 @@ const transactionSchema = z.object({
     // Legacy: single payment (backward compat)
     paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS", "DEBIT_CARD", "CREDIT_CARD", "EWALLET"]).optional(),
     paymentAmount: z.number().min(0).optional(),
+    deliveryType: z.enum(["PICKUP", "DELIVERY"]).optional(),
+    deliveryAddress: z.string().optional().nullable(),
     notes: z.string().optional(),
     customerId: z.string().optional().nullable(),
     discount: z.number().default(0),
@@ -55,7 +57,7 @@ export async function GET(req: Request) {
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
 
-        const where: any = {};
+        const where: Prisma.TransactionWhereInput = {};
 
         if (search) {
             where.OR = [
@@ -64,12 +66,12 @@ export async function GET(req: Request) {
             ];
         }
 
-        if (status) {
-            where.status = status;
+        if (status && status in TransactionStatus) {
+            where.status = status as TransactionStatus;
         }
 
-        if (paymentMethod) {
-            where.paymentMethod = paymentMethod;
+        if (paymentMethod && paymentMethod in PaymentMethod) {
+            where.paymentMethod = paymentMethod as PaymentMethod;
         }
 
         if (startDate && endDate) {
@@ -144,6 +146,15 @@ export async function POST(req: Request) {
 
         const primaryPaymentMethod = (resolvedPayments[0]?.method || "CASH") as PaymentMethod;
         const totalPaid = resolvedPayments.reduce((sum, p) => sum + p.amount, 0);
+        const deliveryType = validatedData.deliveryType || "PICKUP";
+        const deliveryAddress = validatedData.deliveryAddress?.trim() || null;
+
+        if (deliveryType === "DELIVERY" && !deliveryAddress) {
+            return NextResponse.json(
+                { error: "Alamat pengiriman wajib diisi" },
+                { status: 400 }
+            );
+        }
 
         // Fetch tenant settings (tax rate + loyalty)
         const tenantSettings = await db.settings.findFirst({ where: {} });
@@ -249,6 +260,8 @@ export async function POST(req: Request) {
                     paymentMethod: primaryPaymentMethod,
                     paymentAmount: totalPaid,
                     changeAmount: totalPaid - total,
+                    deliveryType,
+                    deliveryAddress: deliveryType === "DELIVERY" ? deliveryAddress : null,
                     notes: validatedData.notes,
                     pointsRedeemed: validatedData.pointsRedeemed,
                     items: {
@@ -256,7 +269,7 @@ export async function POST(req: Request) {
                     },
                     payments: {
                         create: resolvedPayments.map(p => ({
-                            method: p.method as any,
+                            method: p.method as PaymentMethod,
                             amount: p.amount,
                             reference: p.reference ?? null,
                         })),

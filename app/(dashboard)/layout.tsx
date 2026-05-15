@@ -1,4 +1,5 @@
 import { Sidebar, MobileSidebar } from "@/components/layout/sidebar";
+import { RoleRouteGuard } from "@/components/layout/role-route-guard";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -25,15 +26,15 @@ function getTodayLabel(): string {
 // ─── User Avatar ──────────────────────────────────────────────────────────────
 
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN:    "Admin",
+  OWNER:    "Owner",
   MANAGER:  "Manajer",
-  CASHIER:  "Kasir",
+  KASIR:  "Kasir",
 };
 
 const ROLE_STYLES: Record<string, { bg: string; text: string }> = {
-  ADMIN:    { bg: "bg-rose-50",   text: "text-rose-600" },
+  OWNER:    { bg: "bg-rose-50",   text: "text-rose-600" },
   MANAGER:  { bg: "bg-amber-50",  text: "text-amber-600" },
-  CASHIER:  { bg: "bg-sky-50",    text: "text-sky-600" },
+  KASIR:  { bg: "bg-sky-50",    text: "text-sky-600" },
 };
 
 function UserAvatar({ name, role }: { name: string; role: string }) {
@@ -87,13 +88,13 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar businessName={businessName} />
+      <Sidebar businessName={businessName} role={userRole} />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* ── Header ── */}
         <header className="flex h-15 shrink-0 items-center gap-3 px-4 lg:px-5"
           style={{ borderBottom: "1px solid var(--border)", background: "oklch(1 0 0)" }}>
-          <MobileSidebar businessName={businessName} />
+          <MobileSidebar businessName={businessName} role={userRole} />
 
           {/* Greeting */}
           <div className="flex-1 min-w-0">
@@ -115,10 +116,9 @@ export default async function DashboardLayout({
 
         {/* ── Page content ── */}
         <main className="flex-1 overflow-y-auto">
-          {children}
+          <RoleRouteGuard role={userRole}>{children}</RoleRouteGuard>
         </main>
       </div>
     </div>
   );
 }
-

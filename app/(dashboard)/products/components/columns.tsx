@@ -19,10 +19,73 @@ export type ProductColumn = {
     sku: string;
     category: string;
     price: string;
+    cost: string;
+    grossMargin: string;
+    marginRate: number;
     stock: number;
     isActive: boolean;
     createdAt: string;
 };
+
+function ProductActionsCell({ product }: { product: ProductColumn }) {
+    const router = useRouter();
+
+    const onDelete = async () => {
+        const ok = await confirmDestroy({ title: "Hapus produk?", description: `"${product.name}" akan dihapus permanen.` });
+        if (!ok) return;
+        try {
+            await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
+            alertSuccess("Produk berhasil dihapus.");
+            router.refresh();
+        } catch {
+            alertError("Gagal menghapus produk.");
+        }
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                <DropdownMenuItem
+                    onClick={() => router.push(`/products/${product.id}`)}
+                >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onClick={async () => {
+                        try {
+                            const res = await fetch('/api/shares', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ scope: 'single', singleProductId: product.id }),
+                            });
+                            if (!res.ok) throw new Error('Failed');
+                            const data = await res.json();
+                            const url = data.url;
+                            if (navigator.clipboard && url) await navigator.clipboard.writeText(url);
+                            alertSuccess('Link share telah disalin ke clipboard');
+                        } catch {
+                            alertError('Gagal membuat link share');
+                        }
+                    }}
+                >
+                    Bagikan
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onDelete} className="text-red-600">
+                    <Trash className="mr-2 h-4 w-4" />
+                    Hapus
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
 
 export const columns: ColumnDef<ProductColumn>[] = [
     {
@@ -52,6 +115,22 @@ export const columns: ColumnDef<ProductColumn>[] = [
         header: "Harga",
     },
     {
+        accessorKey: "cost",
+        header: "Modal",
+    },
+    {
+        accessorKey: "grossMargin",
+        header: "Margin",
+        cell: ({ row }) => (
+            <div className={row.original.marginRate >= 0 ? "text-green-600" : "text-red-600"}>
+                <div className="font-medium">{row.original.grossMargin}</div>
+                <div className="text-xs text-gray-500">
+                    {row.original.marginRate.toFixed(1)}%
+                </div>
+            </div>
+        ),
+    },
+    {
         accessorKey: "stock",
         header: "Stok",
     },
@@ -67,64 +146,7 @@ export const columns: ColumnDef<ProductColumn>[] = [
     {
         id: "actions",
         cell: ({ row }) => {
-            const router = useRouter();
-            const product = row.original;
-
-            const onDelete = async () => {
-                const ok = await confirmDestroy({ title: "Hapus produk?", description: `"${product.name}" akan dihapus permanen.` });
-                if (!ok) return;
-                try {
-                    await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
-                    alertSuccess("Produk berhasil dihapus.");
-                    router.refresh();
-                } catch (e) {
-                    alertError("Gagal menghapus produk.");
-                }
-            }
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                        <DropdownMenuItem
-                            onClick={() => router.push(`/products/${product.id}`)}
-                        >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={async () => {
-                                try {
-                                    const res = await fetch('/api/shares', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ scope: 'single', singleProductId: product.id }),
-                                    });
-                                    if (!res.ok) throw new Error('Failed');
-                                    const data = await res.json();
-                                    const url = data.url;
-                                    if (navigator.clipboard && url) await navigator.clipboard.writeText(url);
-                                    alertSuccess('Link share telah disalin ke clipboard');
-                                } catch (e) {
-                                    alertError('Gagal membuat link share');
-                                }
-                            }}
-                        >
-                            Bagikan
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={onDelete} className="text-red-600">
-                            <Trash className="mr-2 h-4 w-4" />
-                            Hapus
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            );
+            return <ProductActionsCell product={row.original} />;
         },
     },
 ];

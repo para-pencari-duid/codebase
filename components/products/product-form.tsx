@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 // Local types replacing removed Prisma model exports
@@ -19,10 +19,10 @@ export type Product = {
   sku: string;
   categoryId?: string | null;
   orderType?: "READY" | "PRE_ORDER" | null;
-  price?: any;
-  cost?: any;
-  stock?: any;
-  minStock?: any;
+  price?: number;
+  cost?: number;
+  stock?: number;
+  minStock?: number;
   unit?: string;
   description?: string | null;
   images?: string[];
@@ -95,17 +95,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     ? "Produk berhasil diperbarui."
     : "Produk berhasil dibuat.";
   const action = initialData ? "Simpan Perubahan" : "Buat";
+  type ProductFormValues = z.infer<typeof formSchema>;
 
-  const defaultValues = initialData
+  const defaultValues: ProductFormValues = initialData
     ? {
-      ...initialData,
+      name: initialData.name,
+      sku: initialData.sku,
       categoryId: initialData.categoryId ?? "",
       orderType: (initialData.orderType as "READY" | "PRE_ORDER") ?? "READY",
-      price: parseFloat(String(initialData.price)),
-      cost: initialData.cost ? parseFloat(String(initialData.cost)) : 0,
+      price: Number(initialData.price ?? 0),
+      cost: initialData.cost ? Number(initialData.cost) : 0,
+      stock: Number(initialData.stock ?? 0),
+      minStock: Number(initialData.minStock ?? 0),
+      unit: initialData.unit || "pcs",
       description: initialData.description || "",
       images: initialData.images || [],
-      minStock: initialData.minStock || 0,
+      isActive: initialData.isActive ?? true,
     }
     : {
       name: "",
@@ -122,16 +127,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       isActive: true,
     };
 
-  type ProductFormValues = z.infer<typeof formSchema>;
-
   const form = useForm<ProductFormValues>({
-    resolver: zodResolver(formSchema) as any,
-    defaultValues: defaultValues as Partial<ProductFormValues>,
+    resolver: zodResolver(formSchema) as unknown as Resolver<ProductFormValues>,
+    defaultValues,
   });
 
   // Watch orderType reactively to conditionally show/hide stock fields
   const watchedOrderType = form.watch("orderType");
   const isPreOrder = watchedOrderType === "PRE_ORDER";
+  const watchedPrice = form.watch("price") || 0;
+  const watchedCost = form.watch("cost") || 0;
+  const margin = Math.max(Number(watchedPrice) - Number(watchedCost), 0);
+  const marginRate =
+    Number(watchedPrice) > 0 ? (margin / Number(watchedPrice)) * 100 : 0;
 
   const onSubmit = async (data: ProductFormValues) => {
     try {
@@ -155,7 +163,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       router.refresh();
       router.push(`/products`);
       alertSuccess(toastMessage);
-    } catch (error) {
+    } catch {
       alertError("Terjadi kesalahan.");
     } finally {
       setLoading(false);
@@ -173,7 +181,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       router.refresh();
       router.push(`/products`);
       alertSuccess("Produk berhasil dihapus.");
-    } catch (error) {
+    } catch {
       alertError("Gagal menghapus produk.");
     } finally {
       setLoading(false);
@@ -342,7 +350,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               name="cost"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Harga Modal (Optional)</FormLabel>
+                  <FormLabel>Harga Modal</FormLabel>
                   <FormControl>
                     <Input
                       type="text"
@@ -357,6 +365,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       }
                     />
                   </FormControl>
+                  <FormDescription>
+                    Estimasi margin:{" "}
+                    <span className="font-medium">
+                      Rp {formatNumberInputValue(margin)} ({marginRate.toFixed(1)}%)
+                    </span>
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

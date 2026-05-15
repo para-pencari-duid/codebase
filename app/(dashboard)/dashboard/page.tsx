@@ -6,6 +6,7 @@ import { TopProducts } from "./components/top-products";
 import { SalesByCategory } from "./components/sales-by-category";
 import { CustomerInsights } from "./components/customer-insights";
 import { ExpenseAnalytics } from "./components/expense-analytics";
+import { ProductionTargetInsight } from "./components/production-target-insight";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -38,6 +39,7 @@ export default async function DashboardPage() {
         {/* Customer Insights & Expense Analytics */}
         <div className="grid gap-6">
           <CustomerInsights />
+          <ProductionTargetInsight />
           <ExpenseAnalytics />
         </div>
       </div>

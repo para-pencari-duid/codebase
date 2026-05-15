@@ -21,65 +21,44 @@ export async function GET(req: Request) {
     const range = (searchParams.get("range") as DateRangeOption) || "month";
 
     const dateRange = getDateRange(range);
+    const previousRange =
+      range === "month"
+        ? getPreviousMonthRange(dateRange.from)
+        : getPreviousPeriodRange(dateRange.from, dateRange.to);
 
-    // Get total expenses
-    const expenses = await prisma.expense.findMany({
-      where: {
-        date: {
-          gte: dateRange.from,
-          lte: dateRange.to,
+    const [expenses, previousExpenses] = await Promise.all([
+      prisma.expense.findMany({
+        where: {
+          date: {
+            gte: dateRange.from,
+            lte: dateRange.to,
+          },
         },
-      },
-      select: {
-        amount: true,
-        category: true,
-        date: true,
-      },
-    });
-
-    const totalExpenses = expenses.reduce(
-      (sum, exp) => sum + Number(exp.amount),
-      0
-    );
-
-    // Group by category
-    const byCategory: Record<string, { amount: number; count: number }> = {};
-    expenses.forEach((exp) => {
-      if (!byCategory[exp.category]) {
-        byCategory[exp.category] = { amount: 0, count: 0 };
-      }
-      byCategory[exp.category].amount += Number(exp.amount);
-      byCategory[exp.category].count += 1;
-    });
-
-    // Convert to array and sort by amount
-    const categoryBreakdown = Object.entries(byCategory)
-      .map(([category, data]) => ({
-        category,
-        amount: data.amount,
-        count: data.count,
-        percentage: totalExpenses > 0 ? (data.amount / totalExpenses) * 100 : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount);
-
-    // Get comparison with previous period
-    const previousRange = getPreviousPeriodRange(dateRange.from, dateRange.to);
-    const previousExpenses = await prisma.expense.findMany({
-      where: {
-        date: {
-          gte: previousRange.from,
-          lte: previousRange.to,
+        select: {
+          amount: true,
+          category: true,
+          date: true,
         },
-      },
-      select: {
-        amount: true,
-      },
-    });
+      }),
+      prisma.expense.findMany({
+        where: {
+          date: {
+            gte: previousRange.from,
+            lte: previousRange.to,
+          },
+        },
+        select: {
+          amount: true,
+          category: true,
+          date: true,
+        },
+      }),
+    ]);
 
-    const previousTotal = previousExpenses.reduce(
-      (sum, exp) => sum + Number(exp.amount),
-      0
-    );
+    const currentSummary = summarizeExpenses(expenses);
+    const previousSummary = summarizeExpenses(previousExpenses);
+    const totalExpenses = currentSummary.total;
+    const previousTotal = previousSummary.total;
 
     const changePercentage =
       previousTotal > 0
@@ -87,13 +66,73 @@ export async function GET(req: Request) {
         : totalExpenses > 0
         ? 100
         : 0;
+    const changeAmount = totalExpenses - previousTotal;
+
+    const allCategories = new Set([
+      ...Object.keys(currentSummary.byCategory),
+      ...Object.keys(previousSummary.byCategory),
+    ]);
+
+    const categoryBreakdown = Array.from(allCategories)
+      .map((category) => {
+        const current = currentSummary.byCategory[category] || {
+          amount: 0,
+          count: 0,
+        };
+        const previous = previousSummary.byCategory[category] || {
+          amount: 0,
+          count: 0,
+        };
+        const categoryChange = current.amount - previous.amount;
+
+        return {
+          category,
+          amount: current.amount,
+          count: current.count,
+          previousAmount: previous.amount,
+          previousCount: previous.count,
+          changeAmount: categoryChange,
+          changePercentage:
+            previous.amount > 0
+              ? (categoryChange / previous.amount) * 100
+              : current.amount > 0
+                ? 100
+                : 0,
+          percentage:
+            totalExpenses > 0 ? (current.amount / totalExpenses) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.amount - a.amount);
+
+    const topCategory = categoryBreakdown[0] || null;
+    const largestIncrease =
+      categoryBreakdown
+        .filter((category) => category.changeAmount > 0)
+        .sort((a, b) => b.changeAmount - a.changeAmount)[0] || null;
+    const biggestSaving =
+      categoryBreakdown
+        .filter((category) => category.changeAmount < 0)
+        .sort((a, b) => a.changeAmount - b.changeAmount)[0] || null;
 
     return NextResponse.json({
       totalExpenses,
-      totalCount: expenses.length,
+      totalCount: currentSummary.count,
+      currentTotal: totalExpenses,
+      currentCount: currentSummary.count,
       categoryBreakdown,
       previousTotal,
+      previousCount: previousSummary.count,
+      changeAmount,
       changePercentage,
+      currentLabel: formatMonthLabel(dateRange.from),
+      previousLabel: formatMonthLabel(previousRange.from),
+      insights: {
+        topCategory,
+        largestIncrease,
+        biggestSaving,
+        trend:
+          changeAmount > 0 ? "up" : changeAmount < 0 ? "down" : "flat",
+      },
       range,
     });
   } catch (error) {
@@ -112,4 +151,51 @@ function getPreviousPeriodRange(from: Date, to: Date) {
     from: new Date(from.getTime() - duration),
     to: new Date(to.getTime() - duration),
   };
+}
+
+function getPreviousMonthRange(currentMonthStart: Date) {
+  return {
+    from: new Date(
+      currentMonthStart.getFullYear(),
+      currentMonthStart.getMonth() - 1,
+      1,
+    ),
+    to: new Date(
+      currentMonthStart.getFullYear(),
+      currentMonthStart.getMonth(),
+      0,
+      23,
+      59,
+      59,
+      999,
+    ),
+  };
+}
+
+function summarizeExpenses(
+  expenses: { amount: unknown; category: string }[],
+) {
+  const byCategory: Record<string, { amount: number; count: number }> = {};
+  const total = expenses.reduce((sum, expense) => {
+    const amount = Number(expense.amount);
+    if (!byCategory[expense.category]) {
+      byCategory[expense.category] = { amount: 0, count: 0 };
+    }
+    byCategory[expense.category].amount += amount;
+    byCategory[expense.category].count += 1;
+    return sum + amount;
+  }, 0);
+
+  return {
+    total,
+    count: expenses.length,
+    byCategory,
+  };
+}
+
+function formatMonthLabel(date: Date) {
+  return date.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
 }

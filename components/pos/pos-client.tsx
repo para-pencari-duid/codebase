@@ -24,6 +24,7 @@ import type {
   PosProduct,
 } from "@/lib/types/pos";
 import type {
+  PosCustomer,
   PosPaymentMethod,
   PosReceiptData,
 } from "@/lib/types/pos-checkout";
@@ -55,6 +56,8 @@ const paymentMethods: PosPaymentMethodUiOption[] = [
 const quickCashAmounts = [
   50000, 100000, 150000, 200000, 300000, 500000,
 ] as const;
+
+type PreOrderPaymentType = "DP" | "FULL";
 
 export const POSClient: React.FC<POSClientProps> = ({
   products,
@@ -89,6 +92,10 @@ export const POSClient: React.FC<POSClientProps> = ({
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
   const [deliveryType, setDeliveryType] = useState<"PICKUP" | "DELIVERY">("PICKUP");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [preOrderPaymentType, setPreOrderPaymentType] =
+    useState<PreOrderPaymentType>("DP");
+  const [preOrderDpAmount, setPreOrderDpAmount] = useState<number>(0);
 
   const {
     customerOpen,
@@ -97,7 +104,7 @@ export const POSClient: React.FC<POSClientProps> = ({
     setCustomerQuery,
     customers,
     selectedCustomer,
-    setSelectedCustomer,
+    setSelectedCustomer: setSelectedCustomerBase,
     searchLoading,
     showAddNew,
     setShowAddNew,
@@ -135,9 +142,19 @@ export const POSClient: React.FC<POSClientProps> = ({
     paymentAmount,
   });
 
+  const preOrderPaymentAmount = useMemo(() => {
+    const rawAmount =
+      preOrderPaymentType === "FULL" ? finalTotal : preOrderDpAmount;
+
+    return Math.min(Math.max(rawAmount, 0), finalTotal);
+  }, [finalTotal, preOrderDpAmount, preOrderPaymentType]);
+
+  const qrisChargeAmount =
+    mode === "preorder-checkout" ? preOrderPaymentAmount : finalTotal;
+
   const { qrisImage, qrisLoadState, clearQris } = usePosQris({
     paymentMethod,
-    amount: finalTotal,
+    amount: qrisChargeAmount,
   });
 
   const [modPickerOpen, setModPickerOpen] = useState(false);
@@ -179,7 +196,44 @@ export const POSClient: React.FC<POSClientProps> = ({
   const canPay =
     cart.items.length > 0 &&
     selectedCustomer !== null &&
+    (deliveryType !== "DELIVERY" || deliveryAddress.trim().length > 0) &&
     (paymentMethod !== "CASH" || paymentAmount >= finalTotal);
+
+  const canCreatePreOrder =
+    cart.items.length > 0 &&
+    selectedCustomer !== null &&
+    !!pickupDate &&
+    (deliveryType !== "DELIVERY" || deliveryAddress.trim().length > 0) &&
+    preOrderPaymentAmount > 0;
+
+  const setSelectedCustomer = useCallback(
+    (customer: PosCustomer | null) => {
+      setSelectedCustomerBase(customer);
+      if (
+        customer &&
+        deliveryType === "DELIVERY" &&
+        !deliveryAddress.trim() &&
+        customer.address
+      ) {
+        setDeliveryAddress(customer.address);
+      }
+    },
+    [deliveryAddress, deliveryType, setSelectedCustomerBase],
+  );
+
+  const handleDeliveryTypeChange = useCallback(
+    (value: "PICKUP" | "DELIVERY") => {
+      setDeliveryType(value);
+      if (
+        value === "DELIVERY" &&
+        !deliveryAddress.trim() &&
+        selectedCustomer?.address
+      ) {
+        setDeliveryAddress(selectedCustomer.address);
+      }
+    },
+    [deliveryAddress, selectedCustomer],
+  );
 
   const resetCheckout = useCallback(() => {
     setPaymentMethod("CASH");
@@ -191,6 +245,10 @@ export const POSClient: React.FC<POSClientProps> = ({
     resetLoyalty();
     setUsePoints(false);
     setPointsToRedeem(0);
+    setDeliveryType("PICKUP");
+    setDeliveryAddress("");
+    setPreOrderPaymentType("DP");
+    setPreOrderDpAmount(0);
     clearQris();
   }, [clearQris, resetCustomerState, resetLoyalty]);
 
@@ -326,6 +384,9 @@ export const POSClient: React.FC<POSClientProps> = ({
           notes,
           customerId: selectedCustomer.id,
           pointsRedeemed: usePoints ? pointsToRedeem : 0,
+          deliveryType,
+          deliveryAddress:
+            deliveryType === "DELIVERY" ? deliveryAddress.trim() : null,
         }),
       });
 
@@ -368,6 +429,9 @@ export const POSClient: React.FC<POSClientProps> = ({
         changeAmount: result.changeAmount
           ? Number(result.changeAmount)
           : changeAmount,
+        deliveryType,
+        deliveryAddress:
+          deliveryType === "DELIVERY" ? deliveryAddress.trim() : null,
         pointsEarned: result.pointsEarned ?? 0,
         pointsRedeemed: usePoints ? pointsToRedeem : 0,
         pointsRedemptionAmount,
@@ -406,12 +470,19 @@ export const POSClient: React.FC<POSClientProps> = ({
     tax,
     settings,
     changeAmount,
+    deliveryType,
+    deliveryAddress,
     pointsRedemptionAmount,
     resetCheckout,
   ]);
 
   const handleConfirmPreOrder = useCallback(async () => {
-    if (!selectedCustomer || !pickupDate) return;
+    if (
+      !selectedCustomer ||
+      !pickupDate ||
+      (deliveryType === "DELIVERY" && !deliveryAddress.trim()) ||
+      preOrderPaymentAmount <= 0
+    ) return;
     setLoading(true);
     try {
       const preOrderItems = cart.items.map((item) => ({
@@ -428,11 +499,14 @@ export const POSClient: React.FC<POSClientProps> = ({
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           customerPhone: selectedCustomer.phone,
+          customerAddress:
+            deliveryType === "DELIVERY" ? deliveryAddress.trim() : null,
           items: preOrderItems,
           pickupDate: `${pickupDate}T${pickupTime}:00`,
           notes,
           deliveryType,
-          dpAmount: 0,
+          dpAmount: preOrderPaymentAmount,
+          dpMethod: paymentMethod,
         }),
       });
 
@@ -452,7 +526,18 @@ export const POSClient: React.FC<POSClientProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedCustomer, pickupDate, pickupTime, deliveryType, cart, notes, resetCheckout]);
+  }, [
+    selectedCustomer,
+    pickupDate,
+    pickupTime,
+    deliveryType,
+    deliveryAddress,
+    preOrderPaymentAmount,
+    paymentMethod,
+    cart,
+    notes,
+    resetCheckout,
+  ]);
 
   const cartCheckoutContent =
     mode === "cart" ? (
@@ -502,8 +587,8 @@ export const POSClient: React.FC<POSClientProps> = ({
           paymentMethods={paymentMethods}
           paymentMethod={paymentMethod}
           setPaymentMethod={setPaymentMethod}
-          qrisLoadState={"idle"}
-          qrisImage={null}
+          qrisLoadState={qrisLoadState}
+          qrisImage={qrisImage}
           finalTotal={finalTotal}
           paymentAmount={paymentAmount}
           setPaymentAmount={setPaymentAmount}
@@ -520,7 +605,7 @@ export const POSClient: React.FC<POSClientProps> = ({
           taxIncluded={settings.taxIncluded}
           manualDiscount={manualDiscount}
           changeAmount={changeAmount}
-          canPay={!!selectedCustomer && !!pickupDate}
+          canPay={canCreatePreOrder}
           loading={loading}
           onBackToCart={handleBackToCart}
           onConfirmPayment={handleConfirmPreOrder}
@@ -530,7 +615,13 @@ export const POSClient: React.FC<POSClientProps> = ({
           pickupTime={pickupTime}
           setPickupTime={setPickupTime}
           deliveryType={deliveryType}
-          setDeliveryType={setDeliveryType}
+          setDeliveryType={handleDeliveryTypeChange}
+          deliveryAddress={deliveryAddress}
+          setDeliveryAddress={setDeliveryAddress}
+          preOrderPaymentType={preOrderPaymentType}
+          setPreOrderPaymentType={setPreOrderPaymentType}
+          preOrderDpAmount={preOrderDpAmount}
+          setPreOrderDpAmount={setPreOrderDpAmount}
         />
       </div>
     ) : (
@@ -584,6 +675,10 @@ export const POSClient: React.FC<POSClientProps> = ({
           loading={loading}
           onBackToCart={handleBackToCart}
           onConfirmPayment={handleConfirmPayment}
+          deliveryType={deliveryType}
+          setDeliveryType={handleDeliveryTypeChange}
+          deliveryAddress={deliveryAddress}
+          setDeliveryAddress={setDeliveryAddress}
         />
       </div>
     );

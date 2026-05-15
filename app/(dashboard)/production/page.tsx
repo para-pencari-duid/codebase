@@ -5,6 +5,7 @@ import { Package2, Layers, Factory } from "lucide-react";
 import { RawMaterialsTab } from "./components/raw-materials-tab";
 import { RecipesTab } from "./components/recipes-tab";
 import { ProductionOrdersTab } from "./components/production-orders-tab";
+import { ProductionTargetCard } from "./components/production-target-card";
 
 export default function ProductionPage() {
   return (
@@ -14,6 +15,8 @@ export default function ProductionPage() {
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Produksi</h1>
         <p className="text-sm text-gray-500 mt-0.5">Kelola bahan baku, resep, dan produksi</p>
       </div>
+
+      <ProductionTargetCard />
 
       {/* Tabs */}
       <Tabs defaultValue="materials" className="space-y-4">

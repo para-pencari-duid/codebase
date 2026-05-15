@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { alertSuccess, alertError } from "@/lib/swal";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
     Dialog,
     DialogContent,
@@ -32,7 +28,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Package, AlertTriangle, XCircle, DollarSign, Search, Plus, Minus, RefreshCw, Calendar } from "lucide-react";
+import { Package, AlertTriangle, XCircle, DollarSign, Search, Plus, Minus, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface InventoryProduct {
@@ -156,12 +152,6 @@ export const InventoryClient: React.FC<InventoryClientProps> = ({
                     <h1 className="text-2xl font-bold tracking-tight text-gray-900">Inventory</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Kelola stok produk</p>
                 </div>
-                <Link href="/inventory/batches">
-                    <Button variant="outline">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Batch Management
-                    </Button>
-                </Link>
             </div>
 
             {/* ── Stats ── */}

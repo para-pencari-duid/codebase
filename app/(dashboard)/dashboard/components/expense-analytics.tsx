@@ -9,21 +9,35 @@ import { TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+interface ExpenseCategoryComparison {
+  category: string;
+  amount: number;
+  count: number;
+  previousAmount: number;
+  previousCount: number;
+  changeAmount: number;
+  changePercentage: number;
+  percentage: number;
+}
+
 interface ExpenseSummary {
   totalExpenses: number;
   totalCount: number;
-  categoryBreakdown: {
-    category: string;
-    amount: number;
-    count: number;
-    percentage: number;
-  }[];
+  currentTotal: number;
+  currentCount: number;
+  previousTotal: number;
+  previousCount: number;
+  changeAmount: number;
+  currentLabel: string;
+  previousLabel: string;
+  categoryBreakdown: ExpenseCategoryComparison[];
   changePercentage: number;
-}
-
-interface RevenueSummary {
-  todayRevenue: number;
-  revenueChange: number;
+  insights: {
+    topCategory: ExpenseCategoryComparison | null;
+    largestIncrease: ExpenseCategoryComparison | null;
+    biggestSaving: ExpenseCategoryComparison | null;
+    trend: "up" | "down" | "flat";
+  };
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -54,7 +68,6 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export function ExpenseAnalytics() {
   const [expenses, setExpenses] = useState<ExpenseSummary | null>(null);
-  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,22 +77,11 @@ export function ExpenseAnalytics() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [expensesRes, revenueRes] = await Promise.all([
-        fetch("/api/expenses/summary?range=month"),
-        fetch("/api/dashboard/stats"),
-      ]);
+      const expensesRes = await fetch("/api/expenses/summary?range=month");
 
       if (expensesRes.ok) {
         const data = await expensesRes.json();
         setExpenses(data);
-      }
-
-      if (revenueRes.ok) {
-        const data = await revenueRes.json();
-        setRevenue({
-          todayRevenue: data.todayRevenue || 0,
-          revenueChange: data.revenueChange || 0,
-        });
       }
     } catch (error) {
       console.error("Failed to fetch expense analytics:", error);
@@ -108,11 +110,13 @@ export function ExpenseAnalytics() {
 
   if (!expenses) return null;
 
-  // Calculate profit/loss
-  const monthlyRevenue = revenue?.todayRevenue || 0;
-  const monthlyExpenses = expenses.totalExpenses;
-  const profitLoss = monthlyRevenue - monthlyExpenses;
-  const profitMargin = monthlyRevenue > 0 ? (profitLoss / monthlyRevenue) * 100 : 0;
+  const isUp = expenses.changeAmount > 0;
+  const isDown = expenses.changeAmount < 0;
+  const insightTone = isUp
+    ? "border-red-200 bg-red-50/70 text-red-800"
+    : isDown
+      ? "border-green-200 bg-green-50/70 text-green-800"
+      : "border-gray-200 bg-gray-50 text-gray-700";
 
   return (
     <Card>
@@ -121,9 +125,11 @@ export function ExpenseAnalytics() {
           <div>
             <div className="flex items-center gap-2">
               <TrendingDown className="h-5 w-5 text-red-600" />
-              <CardTitle>Analisis Pengeluaran</CardTitle>
+              <CardTitle>Insight Pengeluaran</CardTitle>
             </div>
-            <CardDescription>Ringkasan pengeluaran 30 hari terakhir</CardDescription>
+            <CardDescription>
+              Perbandingan {expenses.currentLabel} dengan {expenses.previousLabel}
+            </CardDescription>
           </div>
           <Link href="/expenses">
             <Button variant="outline" size="sm">
@@ -133,64 +139,75 @@ export function ExpenseAnalytics() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Total Expenses */}
-        <div className="p-4 border rounded-lg bg-red-50/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Pengeluaran</p>
-              <p className="text-2xl font-bold text-red-600">
-                {formatCurrency(expenses.totalExpenses)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {expenses.totalCount} transaksi
-              </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border bg-red-50/50 p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Bulan Ini
+            </p>
+            <p className="mt-1 text-xl font-bold text-red-600">
+              {formatCurrency(expenses.currentTotal)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {expenses.currentCount} transaksi
+            </p>
+          </div>
+          <div className="rounded-lg border bg-gray-50 p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Bulan Lalu
+            </p>
+            <p className="mt-1 text-xl font-bold text-gray-800">
+              {formatCurrency(expenses.previousTotal)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {expenses.previousCount} transaksi
+            </p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs font-medium text-muted-foreground">Selisih</p>
+            <div
+              className={`mt-1 flex items-center gap-1 text-xl font-bold ${
+                isUp ? "text-red-600" : isDown ? "text-green-600" : "text-gray-700"
+              }`}
+            >
+              {isUp ? (
+                <TrendingUp className="h-4 w-4" />
+              ) : isDown ? (
+                <TrendingDown className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              {formatCurrency(Math.abs(expenses.changeAmount))}
             </div>
-            <div className="text-right">
-              <div
-                className={`flex items-center gap-1 text-sm ${
-                  expenses.changePercentage >= 0 ? "text-red-600" : "text-green-600"
-                }`}
-              >
-                {expenses.changePercentage >= 0 ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : (
-                  <TrendingDown className="h-4 w-4" />
-                )}
-                <span className="font-semibold">
-                  {expenses.changePercentage >= 0 ? "+" : ""}
-                  {expenses.changePercentage.toFixed(1)}%
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">vs bulan lalu</p>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {isUp ? "+" : isDown ? "-" : ""}
+              {Math.abs(expenses.changePercentage).toFixed(1)}% vs bulan lalu
+            </p>
           </div>
         </div>
 
-        {/* Profit/Loss Indicator */}
-        {monthlyRevenue > 0 && (
-          <div className={`p-4 border rounded-lg ${profitLoss >= 0 ? 'bg-green-50/50' : 'bg-orange-50/50'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Laba/Rugi Bersih</p>
-                <p className={`text-2xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
-                  {formatCurrency(Math.abs(profitLoss))}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Margin: {profitMargin.toFixed(1)}%
-                </p>
-              </div>
-              {profitLoss < 0 && (
-                <AlertCircle className="h-8 w-8 text-orange-600" />
-              )}
-            </div>
-          </div>
-        )}
+        <div className={`rounded-lg border p-3 text-sm ${insightTone}`}>
+          {isUp
+            ? `Pengeluaran naik ${formatCurrency(expenses.changeAmount)} dari bulan lalu.`
+            : isDown
+              ? `Pengeluaran lebih hemat ${formatCurrency(Math.abs(expenses.changeAmount))} dari bulan lalu.`
+              : "Pengeluaran bulan ini sama dengan bulan lalu."}
+          {expenses.insights.largestIncrease && (
+            <span className="block mt-1 text-xs">
+              Kenaikan terbesar:{" "}
+              {CATEGORY_LABELS[expenses.insights.largestIncrease.category] ||
+                expenses.insights.largestIncrease.category}{" "}
+              ({formatCurrency(expenses.insights.largestIncrease.changeAmount)}).
+            </span>
+          )}
+        </div>
 
         {/* Top Categories */}
         {expenses.categoryBreakdown.length > 0 && (
           <>
             <div className="pt-2">
-              <h4 className="text-sm font-semibold mb-3">Kategori Terbanyak</h4>
+              <h4 className="text-sm font-semibold mb-3">
+                Kategori Pengeluaran
+              </h4>
               <div className="space-y-3">
                 {expenses.categoryBreakdown.slice(0, 5).map((cat) => (
                   <div key={cat.category} className="space-y-1">
@@ -208,9 +225,27 @@ export function ExpenseAnalytics() {
                           {cat.count}x
                         </Badge>
                       </div>
-                      <span className="font-semibold text-red-600">
-                        {formatCurrency(cat.amount)}
-                      </span>
+                      <div className="text-right">
+                        <span className="block font-semibold text-red-600">
+                          {formatCurrency(cat.amount)}
+                        </span>
+                        <span
+                          className={`text-xs ${
+                            cat.changeAmount > 0
+                              ? "text-red-600"
+                              : cat.changeAmount < 0
+                                ? "text-green-600"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {cat.changeAmount > 0
+                            ? "+"
+                            : cat.changeAmount < 0
+                              ? "-"
+                              : ""}
+                          {formatCurrency(Math.abs(cat.changeAmount))}
+                        </span>
+                      </div>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div

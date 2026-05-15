@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
@@ -49,8 +49,9 @@ export default function LoginPage() {
             if (result?.error) {
                 alertError("Periksa kembali email dan password Anda.", "Login Gagal");
             } else {
+                const session = await getSession();
                 await alertSuccess("Selamat datang kembali!", "Login Berhasil");
-                router.push("/dashboard");
+                router.push(session?.user?.role === "KASIR" ? "/pos" : "/dashboard");
                 router.refresh();
             }
         } catch {

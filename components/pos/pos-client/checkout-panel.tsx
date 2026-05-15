@@ -38,6 +38,8 @@ import type {
 } from "@/lib/types/pos-checkout";
 import type { PosPaymentMethodUiOption } from "./types";
 
+type PreOrderPaymentType = "DP" | "FULL";
+
 interface PosCheckoutPanelProps {
   items: CartItem[];
   customerQuery: string;
@@ -95,6 +97,12 @@ interface PosCheckoutPanelProps {
   setPickupTime?: (v: string) => void;
   deliveryType?: "PICKUP" | "DELIVERY";
   setDeliveryType?: (v: "PICKUP" | "DELIVERY") => void;
+  deliveryAddress?: string;
+  setDeliveryAddress?: (v: string) => void;
+  preOrderPaymentType?: PreOrderPaymentType;
+  setPreOrderPaymentType?: (v: PreOrderPaymentType) => void;
+  preOrderDpAmount?: number;
+  setPreOrderDpAmount?: (v: number) => void;
 }
 
 export function PosCheckoutPanel({
@@ -153,8 +161,55 @@ export function PosCheckoutPanel({
   setPickupTime,
   deliveryType = "PICKUP",
   setDeliveryType,
+  deliveryAddress = "",
+  setDeliveryAddress,
+  preOrderPaymentType = "DP",
+  setPreOrderPaymentType,
+  preOrderDpAmount = 0,
+  setPreOrderDpAmount,
 }: PosCheckoutPanelProps) {
   const isPreorderMode = checkoutMode === "preorder";
+  const isDelivery = deliveryType === "DELIVERY";
+  const dateLabel = isDelivery ? "Tanggal Pengiriman" : "Tanggal Pengambilan";
+  const timeLabel = isDelivery ? "Jam Pengiriman" : "Jam Pengambilan";
+  const preOrderPaymentAmount =
+    preOrderPaymentType === "FULL"
+      ? finalTotal
+      : Math.min(Math.max(preOrderDpAmount, 0), finalTotal);
+  const deliveryControls = (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <Label className="font-semibold text-sm">Tipe Pengiriman *</Label>
+        <Select
+          value={deliveryType}
+          onValueChange={(v) => setDeliveryType?.(v as "PICKUP" | "DELIVERY")}
+        >
+          <SelectTrigger className="h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PICKUP">Ambil di Toko</SelectItem>
+            <SelectItem value="DELIVERY">Diantar</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isDelivery && (
+        <div className="space-y-2">
+          <Label className="font-semibold text-sm">
+            Alamat Pengiriman <span className="text-red-500">*</span>
+          </Label>
+          <Textarea
+            placeholder="Alamat tujuan pengiriman..."
+            value={deliveryAddress}
+            onChange={(event) => setDeliveryAddress?.(event.target.value)}
+            className="text-sm resize-none h-20"
+          />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <div className="p-4 border-b bg-white shadow-sm flex items-center gap-3">
@@ -423,23 +478,9 @@ export function PosCheckoutPanel({
         {isPreorderMode ? (
           /* ===== PRE-ORDER: Pickup date & time & delivery type ===== */
           <div className="space-y-4">
+            {deliveryControls}
             <div className="space-y-2">
-              <Label className="font-semibold text-sm">Tipe Pengiriman *</Label>
-              <Select
-                value={deliveryType}
-                onValueChange={(v) => setDeliveryType?.(v as "PICKUP" | "DELIVERY")}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PICKUP">Ambil di Toko</SelectItem>
-                  <SelectItem value="DELIVERY">Diantar</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="font-semibold text-sm">Tanggal Pengambilan *</Label>
+              <Label className="font-semibold text-sm">{dateLabel} *</Label>
               <input
                 type="date"
                 value={pickupDate}
@@ -450,7 +491,7 @@ export function PosCheckoutPanel({
               />
             </div>
             <div className="space-y-2">
-              <Label className="font-semibold text-sm">Jam Pengambilan *</Label>
+              <Label className="font-semibold text-sm">{timeLabel} *</Label>
               <input
                 type="time"
                 value={pickupTime}
@@ -459,6 +500,141 @@ export function PosCheckoutPanel({
                 className="w-full h-9 rounded-md border border-input px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">
+                Metode Pembayaran *
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {paymentMethods.map((methodOption) => {
+                  const Icon = methodOption.icon;
+                  return (
+                    <button
+                      key={methodOption.value}
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod(methodOption.value);
+                        setPaymentAmount(0);
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-colors",
+                        paymentMethod === methodOption.value
+                          ? "border-primary bg-primary/5 text-primary font-semibold"
+                          : "border-border hover:border-primary/50",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {methodOption.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">
+                Jenis Pembayaran *
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={preOrderPaymentType === "DP" ? "default" : "outline"}
+                  className="h-9"
+                  onClick={() => setPreOrderPaymentType?.("DP")}
+                >
+                  DP
+                </Button>
+                <Button
+                  type="button"
+                  variant={
+                    preOrderPaymentType === "FULL" ? "default" : "outline"
+                  }
+                  className="h-9"
+                  onClick={() => setPreOrderPaymentType?.("FULL")}
+                >
+                  Pelunasan
+                </Button>
+              </div>
+            </div>
+
+            {preOrderPaymentType === "DP" ? (
+              <div className="space-y-2">
+                <Label className="font-semibold text-sm">
+                  Nominal DP <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Nominal DP"
+                  placeholder="0"
+                  value={
+                    preOrderDpAmount > 0
+                      ? formatNumberInputValue(preOrderDpAmount)
+                      : ""
+                  }
+                  onChange={(event) =>
+                    setPreOrderDpAmount?.(
+                      Math.min(
+                        parseDigitsToNumber(event.target.value),
+                        finalTotal,
+                      ),
+                    )
+                  }
+                  className="text-right font-mono text-base h-10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sisa pelunasan:{" "}
+                  <span className="font-semibold text-foreground">
+                    {formatCurrency(Math.max(0, finalTotal - preOrderPaymentAmount))}
+                  </span>
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
+                <span className="font-medium text-green-800">
+                  Total dilunasi
+                </span>
+                <span className="font-semibold text-green-700">
+                  {formatCurrency(finalTotal)}
+                </span>
+              </div>
+            )}
+
+            {paymentMethod === "QRIS" && preOrderPaymentAmount > 0 && (
+              <div className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border">
+                {qrisLoadState === "loading" && (
+                  <>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">
+                      Membuat QR QRIS...
+                    </p>
+                  </>
+                )}
+                {qrisLoadState === "error" && (
+                  <p className="text-xs text-destructive text-center">
+                    Gagal membuat QR. Pastikan QRIS sudah diatur di Pengaturan.
+                  </p>
+                )}
+                {qrisImage && qrisLoadState === "idle" && (
+                  <>
+                    <Image
+                      src={qrisImage}
+                      alt="QR QRIS"
+                      width={192}
+                      height={192}
+                      className="rounded-lg"
+                    />
+                    <p className="text-xs text-muted-foreground text-center">
+                      Scan QR untuk membayar{" "}
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(preOrderPaymentAmount)}
+                      </span>
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label className="font-semibold text-sm">Catatan</Label>
               <Textarea
@@ -472,6 +648,8 @@ export function PosCheckoutPanel({
         ) : (
           /* ===== REGULAR: Payment method, cash amount, discount, notes ===== */
           <>
+            {deliveryControls}
+
             <div className="space-y-2">
               <Label className="font-semibold text-sm">Metode Pembayaran</Label>
               <div className="grid grid-cols-3 gap-2">
@@ -668,6 +846,24 @@ export function PosCheckoutPanel({
           <span>Total</span>
           <span>{formatCurrency(finalTotal)}</span>
         </div>
+        {isPreorderMode && preOrderPaymentAmount > 0 && (
+          <div className="flex justify-between text-blue-600 font-medium">
+            <span>
+              {preOrderPaymentType === "FULL" ? "Pelunasan" : "DP"}
+            </span>
+            <span>{formatCurrency(preOrderPaymentAmount)}</span>
+          </div>
+        )}
+        {isPreorderMode &&
+          preOrderPaymentType === "DP" &&
+          preOrderPaymentAmount > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Sisa pelunasan</span>
+              <span>
+                {formatCurrency(Math.max(0, finalTotal - preOrderPaymentAmount))}
+              </span>
+            </div>
+          )}
         {paymentMethod === "CASH" && paymentAmount > 0 && (
           <div className="flex justify-between text-blue-600 font-medium">
             <span>Kembalian</span>
@@ -708,9 +904,22 @@ export function PosCheckoutPanel({
           )}
         {isPreorderMode && selectedCustomer && !pickupDate && (
           <p className="text-xs text-center text-red-500">
-            Pilih tanggal pengambilan
+            Pilih {dateLabel.toLowerCase()}
           </p>
         )}
+        {selectedCustomer && isDelivery && !deliveryAddress.trim() && (
+          <p className="text-xs text-center text-red-500">
+            Isi alamat pengiriman
+          </p>
+        )}
+        {isPreorderMode &&
+          selectedCustomer &&
+          pickupDate &&
+          preOrderPaymentAmount <= 0 && (
+            <p className="text-xs text-center text-red-500">
+              Isi nominal DP atau pilih pelunasan
+            </p>
+          )}
       </div>
     </>
   );

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { sendWhatsAppNotification } from "@/lib/whatsapp";
+import { PaymentMethod } from "@prisma/client";
 // GET /api/pre-orders/[id]
 export async function GET(
   req: NextRequest,
@@ -97,7 +98,8 @@ export async function PUT(
 
       // Create Transaction record so pre-order shows in /transactions + customer stats
       try {
-        const dpPayments: Array<{ method: string; amount: number; reference: string }> = [];
+        const dpPayments: Array<{ method: PaymentMethod; amount: number; reference: string }> = [];
+        const finalPayMethod = payMethod as PaymentMethod;
         if (Number(updated.dpAmount) > 0 && updated.dpMethod) {
           dpPayments.push({
             method: updated.dpMethod,
@@ -116,21 +118,23 @@ export async function PUT(
             tax: 0,
             discount: 0,
             total: updated.totalPrice,
-            paymentMethod: payMethod as any,
+            paymentMethod: finalPayMethod,
             paymentAmount: updated.totalPrice,
             changeAmount: 0,
+            deliveryType: updated.deliveryType,
+            deliveryAddress: updated.deliveryType === "DELIVERY" ? updated.customerAddress : null,
             paymentStatus: "PAID",
             status: "COMPLETED",
             notes: `Pre-Order: ${updated.title} (${updated.ticketNo})`,
             payments: {
               create: [
                 ...dpPayments.map((p) => ({
-                  method: p.method as any,
+                  method: p.method,
                   amount: p.amount,
                   reference: p.reference,
                 })),
                 {
-                  method: payMethod as any,
+                  method: finalPayMethod,
                   amount: Number(jobTicket.remainingAmount),
                   reference: `Pelunasan - ${updated.ticketNo}`,
                 },
@@ -247,13 +251,22 @@ export async function PUT(
       const remaining = Math.max(0, total - dp);
 
       const firstItem = parsedItems?.[0];
+      const selectedDeliveryType = deliveryType || jobTicket.deliveryType;
+      const orderAddress =
+        selectedDeliveryType === "DELIVERY"
+          ? (customerAddress?.trim() || jobTicket.customerAddress || null)
+          : null;
+
+      if (selectedDeliveryType === "DELIVERY" && !orderAddress) {
+        return NextResponse.json({ error: "Alamat pengiriman wajib diisi" }, { status: 400 });
+      }
 
       const updated = await prisma.jobTicket.update({
         where: { id },
         data: {
           customerName: customerName?.trim() || jobTicket.customerName,
           customerPhone: customerPhone?.trim() || jobTicket.customerPhone,
-          customerAddress: customerAddress?.trim() || jobTicket.customerAddress,
+          customerAddress: orderAddress,
           ...(firstItem && {
             title: firstItem.name,
             quantity: firstItem.quantity,
@@ -262,7 +275,7 @@ export async function PUT(
           totalPrice: total,
           notes: notes?.trim() ?? jobTicket.notes,
           dueDate: pickupDate ? new Date(pickupDate) : jobTicket.dueDate,
-          deliveryType: deliveryType || jobTicket.deliveryType,
+          deliveryType: selectedDeliveryType,
           remainingAmount: remaining,
           ...(parsedItems && {
             items: {

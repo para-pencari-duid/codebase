@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { JobStatus, PaymentMethod, Prisma } from "@prisma/client";
 
 function generateTicketNo(): string {
   const now = new Date();
@@ -28,8 +29,10 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
 
-    const where: any = {};
-    if (status && status !== "ALL") where.status = status;
+    const where: Prisma.JobTicketWhereInput = {};
+    if (status && status !== "ALL" && status in JobStatus) {
+      where.status = status as JobStatus;
+    }
     if (date) {
       const start = new Date(date);
       start.setHours(0, 0, 0, 0);
@@ -97,6 +100,7 @@ export async function POST(req: NextRequest) {
       customerName,
       customerPhone,
       customerAddress,
+      deliveryAddress,
       customerId,
       items,          // Array<{name,quantity,unitPrice,notes?}>
       notes,
@@ -118,6 +122,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Minimal 1 item pesanan wajib diisi" }, { status: 400 });
     }
 
+    const selectedDeliveryType = deliveryType || "PICKUP";
+    const orderAddress =
+      selectedDeliveryType === "DELIVERY"
+        ? (deliveryAddress?.trim() || customerAddress?.trim() || null)
+        : (customerAddress?.trim() || null);
+
+    if (selectedDeliveryType === "DELIVERY" && !orderAddress) {
+      return NextResponse.json({ error: "Alamat pengiriman wajib diisi" }, { status: 400 });
+    }
+
     type RawItem = { name: string; quantity?: number | string; unitPrice: number | string; notes?: string };
     const parsedItems = (items as RawItem[]).map((it) => ({
       name: String(it.name || "").trim(),
@@ -131,8 +145,15 @@ export async function POST(req: NextRequest) {
     }
 
     const total = parsedItems.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0);
-    const dp = parseFloat(dpAmount) || 0;
-    const remaining = total - dp;
+    const requestedDp = parseFloat(String(dpAmount ?? 0)) || 0;
+    const dp = Math.min(Math.max(requestedDp, 0), total);
+    const remaining = Math.max(0, total - dp);
+    const selectedDpMethod: PaymentMethod | null =
+      dp > 0
+        ? typeof dpMethod === "string" && dpMethod in PaymentMethod
+          ? (dpMethod as PaymentMethod)
+          : "CASH"
+        : null;
 
     // Use first item as primary label for backward-compat legacy fields
     const firstItem = parsedItems[0];
@@ -188,7 +209,7 @@ export async function POST(req: NextRequest) {
         ticketNo,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
-        customerAddress: customerAddress?.trim() || null,
+        customerAddress: orderAddress,
         title: firstItem.name,
         description: null,
         quantity: firstItem.quantity,
@@ -197,11 +218,11 @@ export async function POST(req: NextRequest) {
         notes: notes?.trim() || null,
         referenceImages: referenceImages || [],
         dpAmount: dp,
-        dpMethod: dp > 0 ? dpMethod : null,
-        dpPaidAt: dp > 0 ? new Date() : null,
+        dpMethod: selectedDpMethod,
+        dpPaidAt: selectedDpMethod ? new Date() : null,
         remainingAmount: remaining,
         dueDate: new Date(pickupDate),
-        deliveryType: deliveryType || "PICKUP",
+        deliveryType: selectedDeliveryType,
         status: "PENDING",
         createdBy: session.user.id,
         customerId: resolvedCustomerId,
@@ -224,25 +245,29 @@ export async function POST(req: NextRequest) {
     // Jika sudah lunas saat pembuatan (remaining = 0), buat Transaction record
     if (remaining <= 0 && dp > 0) {
       try {
+        const paidMethod = selectedDpMethod || "CASH";
+
         await prisma.transaction.create({
           data: {
             transactionNo: jobTicket.ticketNo,
             type: "B2B_INVOICE",
-            customerId: customerId || null,
+            customerId: resolvedCustomerId || null,
             userId: session.user.id,
             subtotal: total,
             tax: 0,
             discount: 0,
             total,
-            paymentMethod: (dpMethod as any) || "CASH",
+            paymentMethod: paidMethod,
             paymentAmount: total,
             changeAmount: 0,
+            deliveryType: jobTicket.deliveryType,
+            deliveryAddress: jobTicket.deliveryType === "DELIVERY" ? jobTicket.customerAddress : null,
             paymentStatus: "PAID",
             status: "COMPLETED",
             notes: `Pre-Order: ${jobTicket.title} (${jobTicket.ticketNo})`,
             payments: {
               create: [{
-                method: (dpMethod as any) || "CASH",
+                method: paidMethod,
                 amount: total,
                 reference: `Lunas - ${jobTicket.ticketNo}`,
               }],
