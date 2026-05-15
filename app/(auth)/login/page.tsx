@@ -149,23 +149,7 @@ export default function LoginPage() {
                 </form>
             </Form>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-gray-100" />
-                <span className="text-xs text-gray-400">atau</span>
-                <div className="h-px flex-1 bg-gray-100" />
-            </div>
-
-            {/* Register link */}
-            <p className="text-center text-sm text-gray-500">
-                Belum punya akun usaha?{" "}
-                <Link
-                    href="/register"
-                    className="font-semibold text-gray-900 hover:underline underline-offset-4"
-                >
-                    Daftar di sini
-                </Link>
-            </p>
+            {/* Register disabled - link removed */}
         </div>
     );
 }
