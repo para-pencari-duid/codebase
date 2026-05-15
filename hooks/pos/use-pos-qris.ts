@@ -65,16 +65,23 @@ export function usePosQris({
   }, [amount, clearQris, paymentMethod]);
 
   useEffect(() => {
-    if (paymentMethod !== "QRIS" || amount <= 0) {
-      clearQris();
-      return;
-    }
-    void regenerateQris();
-  }, [amount, clearQris, paymentMethod, regenerateQris]);
+    if (paymentMethod !== "QRIS" || amount <= 0) return;
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (!cancelled) void regenerateQris();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [amount, paymentMethod, regenerateQris]);
+
+  const isActive = paymentMethod === "QRIS" && amount > 0;
 
   return {
-    qrisImage,
-    qrisLoadState,
+    qrisImage: isActive ? qrisImage : null,
+    qrisLoadState: isActive ? qrisLoadState : "idle",
     regenerateQris,
     clearQris,
   };
