@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -80,6 +81,7 @@ const CASHIER_MENU_HREFS = new Set([
 
 interface SidebarProps {
   businessName?: string;
+  businessLogo?: string | null;
   role?: string;
 }
 
@@ -181,17 +183,37 @@ function NavLinks({
 
 // ─── Logo block ───────────────────────────────────────────────────────────────
 
-function LogoBlock({ businessName }: { businessName: string }) {
+function LogoBlock({
+  businessName,
+  businessLogo,
+}: {
+  businessName: string;
+  businessLogo?: string | null;
+}) {
   return (
     <div
       className="flex h-15 items-center gap-3 px-4 shrink-0"
       style={{ borderBottom: "1px solid var(--sidebar-border)" }}
     >
       <div
-        className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0"
-        style={{ background: "var(--sidebar-primary)" }}
+        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg shrink-0"
+        style={{
+          background: businessLogo ? "white" : "var(--sidebar-primary)",
+          border: businessLogo ? "1px solid var(--sidebar-border)" : undefined,
+        }}
       >
-        <Cake className="h-4 w-4 text-white" />
+        {businessLogo ? (
+          <Image
+            src={businessLogo}
+            alt={`${businessName} logo`}
+            width={40}
+            height={40}
+            className="h-full w-full object-contain p-0.5"
+            unoptimized
+          />
+        ) : (
+          <Cake className="h-5 w-5 text-white" />
+        )}
       </div>
       <span
         className="text-sm font-bold leading-tight truncate"
@@ -230,7 +252,11 @@ function LogoutButton() {
 
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
-export function Sidebar({ businessName = "POS System", role }: SidebarProps) {
+export function Sidebar({
+  businessName = "POS System",
+  businessLogo,
+  role,
+}: SidebarProps) {
   return (
     <aside
       className="hidden lg:flex flex-col sticky top-0 h-screen w-[256px] shrink-0"
@@ -239,7 +265,7 @@ export function Sidebar({ businessName = "POS System", role }: SidebarProps) {
         borderRight: "1px solid var(--sidebar-border)",
       }}
     >
-      <LogoBlock businessName={businessName} />
+      <LogoBlock businessName={businessName} businessLogo={businessLogo} />
 
       <div className="flex-1 overflow-y-auto py-3 px-2">
         <NavLinks role={role} />
@@ -252,7 +278,11 @@ export function Sidebar({ businessName = "POS System", role }: SidebarProps) {
 
 // ─── Mobile Sidebar ───────────────────────────────────────────────────────────
 
-export function MobileSidebar({ businessName = "Menu", role }: SidebarProps) {
+export function MobileSidebar({
+  businessName = "Menu",
+  businessLogo,
+  role,
+}: SidebarProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -272,7 +302,7 @@ export function MobileSidebar({ businessName = "Menu", role }: SidebarProps) {
         }}
       >
         <div className="flex flex-col h-full">
-          <LogoBlock businessName={businessName} />
+          <LogoBlock businessName={businessName} businessLogo={businessLogo} />
 
           <div className="flex-1 overflow-y-auto py-3 px-2">
             <NavLinks onNavClick={() => setOpen(false)} role={role} />

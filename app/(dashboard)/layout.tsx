@@ -74,10 +74,14 @@ export default async function DashboardLayout({
   }
 
   let businessName = "POS System";
+  let businessLogo: string | null = null;
   try {
     const settings = await db.settings.findFirst();
     if (settings?.businessName) {
       businessName = settings.businessName;
+    }
+    if (settings?.logo) {
+      businessLogo = settings.logo;
     }
   } catch {
     // fallback to default
@@ -88,13 +92,13 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar businessName={businessName} role={userRole} />
+      <Sidebar businessName={businessName} businessLogo={businessLogo} role={userRole} />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* ── Header ── */}
         <header className="flex h-15 shrink-0 items-center gap-3 px-4 lg:px-5"
           style={{ borderBottom: "1px solid var(--border)", background: "oklch(1 0 0)" }}>
-          <MobileSidebar businessName={businessName} role={userRole} />
+          <MobileSidebar businessName={businessName} businessLogo={businessLogo} role={userRole} />
 
           {/* Greeting */}
           <div className="flex-1 min-w-0">
